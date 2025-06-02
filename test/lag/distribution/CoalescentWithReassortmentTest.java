@@ -1,9 +1,9 @@
-package lag.distribution;
+package rephyner.distribution;
 
 import beast.base.inference.parameter.RealParameter;
 import beast.base.evolution.tree.coalescent.ConstantPopulation;
-import lag.CoalReTestClass;
-import lag.network.Network;
+import rephyner.CoalReTestClass;
+import rephyner.network.Network;
 
 import org.junit.Assert;
 import org.junit.Test;

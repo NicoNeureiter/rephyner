@@ -1,21 +1,23 @@
 <beast version="2.0"
-       namespace="beast.pkgmgmt:beast.base.core:beast.base.inference
-                 :beast.core.util
-                 :beast.core.parameter
-                 :beast.evolution.alignment
-                 :beast.evolution.likelihood
-                 :beast.evolution.tree
-                 :beast.evolution.tree.coalescent
-                 :beast.evolution.sitemodel
-                 :beast.evolution.substitutionmodel
-                 :beast.evolution.operators
-                 :beast.math.distributions
+       namespace="beast.pkgmgmt
+                 :beast.base.core
+                 :beast.base.core.util
+                 :beast.base.inference
+                 :beast.base.inference.parameter
+                 :beast.base.evolution.alignment
+                 :beast.base.evolution.likelihood
+                 :beast.base.evolution.tree
+                 :beast.base.evolution.tree.coalescent
+                 :beast.base.evolution.sitemodel
+                 :beast.base.evolution.substitutionmodel
+                 :beast.base.evolution.operators
+                 :beast.base.math.distributions
                  :feast.simulation
-                 :coalre.network
-                 :coalre.statistics
-                 :coalre.simulator">
+                 :rephyner.network
+                 :rephyner.statistics
+                 :rephyner.simulator">
 
-    <network id="network" spec="SimulatedCoalescentNetwork" enableSegmentTreeUpdate="false">
+    <network id="network" spec="SimulatedCoalescentNetwork" enableSegmentTreeUpdate="false" nSegments="2">
         <populationModel spec="ConstantPopulation">
             <popSize spec="RealParameter" value="1.0"/>
         </populationModel>

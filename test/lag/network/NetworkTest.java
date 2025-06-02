@@ -1,10 +1,10 @@
-package lag.network;
+package rephyner.network;
 
 import beast.base.evolution.alignment.TaxonSet;
 import beast.base.evolution.tree.Node;
 import beast.base.evolution.tree.TraitSet;
 import beast.base.evolution.tree.Tree;
-import lag.CoalReTestClass;
+import rephyner.CoalReTestClass;
 import org.junit.Assert;
 import org.junit.Test;
 

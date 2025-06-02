@@ -1,21 +1,23 @@
 <beast version="2.0"
-       namespace="beast.pkgmgmt:beast.base.core:beast.base.inference
-                 :beast.core.util
-                 :beast.core.parameter
-                 :beast.evolution.alignment
-                 :beast.evolution.likelihood
-                 :beast.evolution.tree
-                 :beast.evolution.tree.coalescent
-                 :beast.evolution.sitemodel
-                 :beast.evolution.substitutionmodel
-                 :beast.evolution.operators
-                 :beast.math.distributions
+       namespace="beast.pkgmgmt
+                 :beast.base.core
+                 :beast.base.inference
+                 :beast.base.core.util
+                 :beast.base.inference.parameter
+                 :beast.base.evolution.alignment
+                 :beast.base.evolution.likelihood
+                 :beast.base.evolution.tree
+                 :beast.base.evolution.tree.coalescent
+                 :beast.base.evolution.sitemodel
+                 :beast.base.evolution.substitutionmodel
+                 :beast.base.evolution.operators
+                 :beast.base.math.distributions
                  :feast.simulation
-                 :coalre.network
-                 :coalre.statistics
-                 :coalre.simulator">
+                 :lag.network
+                 :lag.statistics
+                 :lag.simulator">
 
-    <network id="network" spec="SimulatedCoalescentNetwork" enableSegmentTreeUpdate="false">
+    <network id="network" spec="SimulatedCoalescentNetwork" enableSegmentTreeUpdate="false" nSegments="2">
         <populationModel spec="ConstantPopulation">
             <popSize spec="RealParameter" value="1.0"/>
         </populationModel>
@@ -44,16 +46,21 @@
         <segmentTree id="segment8" spec="Tree" trait="@traitSet"/>
     </network>
 
-    <run spec="GPSimulator" nSims="100000">
+    <run spec="GPSimulator" nSims="5">
 
         <simulationObject idref="network"/>
 
-        <logger spec="Logger" logEvery="100" mode="tree" fileName="$(filebase).trees">
+        <logger spec="Logger" logEvery="1" mode="tree" fileName="$(filebase).trees">
             <log idref="network"/>
+        </logger>
+
+        <logger spec="Logger" logEvery="1" mode="tree" fileName="$(filebase).reduced.trees">
+            <log spec="ReducedNetworkLogger" network="@network"/>
         </logger>
 
         <logger spec="Logger" logEvery="1" fileName="$(filebase).log">
             <log spec="NetworkStatsLogger" network="@network"/>
+            <log spec="ReducedNetworkStatsLogger" network="@network"/>
         </logger>
     </run>
 </beast>

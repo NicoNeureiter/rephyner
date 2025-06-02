@@ -1,9 +1,9 @@
-package lag.operators;
+package rephyner.operators;
 
-import lag.CoalReTestClass;
-import lag.network.Network;
-import lag.network.NetworkEdge;
-import lag.network.NetworkNode;
+import rephyner.CoalReTestClass;
+import rephyner.network.Network;
+import rephyner.network.NetworkEdge;
+import rephyner.network.NetworkNode;
 import org.junit.Assert;
 import org.junit.Test;
 

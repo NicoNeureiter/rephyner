@@ -1,4 +1,4 @@
-package lag.dynamics;
+package rephyner.dynamics;
 
 import org.junit.Assert;
 import org.junit.Test;

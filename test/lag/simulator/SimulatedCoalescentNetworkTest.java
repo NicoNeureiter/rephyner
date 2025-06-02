@@ -1,12 +1,12 @@
-package lag.simulator;
+package rephyner.simulator;
 
 import beast.base.inference.parameter.RealParameter;
 import beast.base.evolution.tree.TraitSet;
 import beast.base.evolution.tree.Tree;
 import beast.base.evolution.tree.coalescent.ConstantPopulation;
 import beast.base.util.Randomizer;
-import lag.CoalReTestClass;
-import lag.statistics.NetworkStatsLogger;
+import rephyner.CoalReTestClass;
+import rephyner.statistics.NetworkStatsLogger;
 import org.junit.Assert;
 import org.junit.Test;
 
