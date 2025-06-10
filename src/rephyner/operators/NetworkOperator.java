@@ -174,6 +174,44 @@ public abstract class NetworkOperator extends Operator {
     }
 
     /**
+     * Retrieve spouse of given edge
+     * @param parentEdge parent edge
+     * @return spouse of given parent edge
+     */
+    protected NetworkEdge getRandomSpouseEdge(NetworkEdge parentEdge) {
+        NetworkNode childNode = parentEdge.childNode;
+        List<NetworkEdge> spouses = childNode.getParentEdges();
+        int numSpouses = spouses.size() - 1;
+
+        if (numSpouses < 1) {
+            throw new IllegalStateException("Cannot get spouse edge for node with less than two parents.");
+            // TODO: possibly just reject the proposal instead?
+        }
+
+        // Randomly choose one of the two parent edges
+        int rndSpouseIdx = Randomizer.nextInt(numSpouses);
+
+        // Ensure we don't choose the parentEdge itself
+        if (spouses.get(rndSpouseIdx) == parentEdge) {
+            rndSpouseIdx = numSpouses;
+        }
+
+        return spouses.get(rndSpouseIdx);
+    }
+
+    /**
+     * Retrieve spouse of given edge
+     * @param parentEdge parent edge
+     * @return spouse of given parent edge
+     */
+    protected double getRandomSpouseProb(NetworkEdge parentEdge) {
+        NetworkNode childNode = parentEdge.childNode;
+        List<NetworkEdge> spouses = childNode.getParentEdges();
+        int numSpouses = spouses.size() - 1;
+        return Math.log(1. / numSpouses);
+    }
+
+    /**
      * Chooses a number of segments from a subset of the provided source segments.
      * A first segment is chosen uniformly at random will definitely be included in the subset.
      * Another segment chosen uniformly at random will not be included in the subset.

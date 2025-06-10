@@ -186,8 +186,12 @@ public class NetworkExchange extends DivertSegmentOperator {
 
 
 	/* exchange sub-nets whose root are i and j */
-	protected double exchangeEdges(NetworkEdge iEdge, NetworkEdge jEdge,
-			NetworkNode iP, NetworkNode jP) {
+	protected double exchangeEdges(
+		NetworkEdge iEdge, 
+		NetworkEdge jEdge,
+		NetworkNode iP, 
+		NetworkNode jP
+	) {
 		double logHR = 0.0;
 		
 		final NetworkEdge iPEdge = iP.getParentEdges().get(0);
@@ -219,11 +223,11 @@ public class NetworkExchange extends DivertSegmentOperator {
 		iP.addChildEdge(jEdge);
 		jP.addChildEdge(iEdge);
 		
-		logHR += removeSegmentsFromAncestors(jPEdge, jSegsToRemove);
-		logHR += removeSegmentsFromAncestors(iPEdge, iSegsToRemove);
+		logHR += detachEdgeSegments(jPEdge, jSegsToRemove, true);
+		logHR += detachEdgeSegments(iPEdge, iSegsToRemove, true);
 		
-		logHR -= addSegmentsToAncestors(jPEdge, iSegsToAdd);
-		logHR -= addSegmentsToAncestors(iPEdge, jSegsToAdd);
+		logHR += attachEdgeSegments(jPEdge, iSegsToAdd, true);
+		logHR += attachEdgeSegments(iPEdge, jSegsToAdd, true);
 		
 		return logHR;
 	}
