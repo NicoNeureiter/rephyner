@@ -1,6 +1,6 @@
 package rephyner.operators;
 
-import rephyner.CoalReTestClass;
+import rephyner.RephynerTestClass;
 import rephyner.network.Network;
 import rephyner.network.NetworkEdge;
 import rephyner.network.NetworkNode;
@@ -9,7 +9,7 @@ import org.junit.Test;
 
 import java.util.*;
 
-public class AddRemoveReassortmentTest extends CoalReTestClass {
+public class AddRemoveReassortmentTest extends RephynerTestClass {
 
     String networkString = "((#H0[&segments={1, 2, 4, 7},segsCarried=4]:0.09623670174825327,t5" +
             "[&segments={0, 1, 2, 3, 4, 5, 6, 7},segsCarried=8]:0.9532676725160347)" +

@@ -5,6 +5,8 @@ import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.List;
 
+import rephyner.util.BitSetFun;
+
 public class NetworkNode {
 
     /**
@@ -16,12 +18,12 @@ public class NetworkNode {
      * Index of taxon corresponding to this node (usually only used for leaves)
      */
     protected int taxonIndex = -1;
-    
+
     /**
      * Label of type corresponding to this node (used only for structured models)
      */
     protected String typeLabel;
-    
+
     /**
      * Index of type corresponding to this node (used only for structured models)
      */
@@ -33,13 +35,11 @@ public class NetworkNode {
     protected double height = Double.MAX_VALUE;
 
     /**
-     * Segments that are active in this node.
-     * I.e. their local tree has a corresponding node at the same height.
-     * NB: At the moment this is only used for the Network.reduce() method 
-     * and not kept up to date in a normal MCMC run. 
+     * Segments that are active in this node. I.e. their local tree has a corresponding node at the same height. NB: At
+     * the moment this is only used for the Network.reduce() method and not kept up to date in a normal MCMC run.
      */
     public BitSet _activeSegments;
-    
+
     /**
      * Arbitrarily labeled metadata on this node. Needed for network summary only
      */
@@ -48,9 +48,8 @@ public class NetworkNode {
     List<NetworkEdge> children = new ArrayList<>();
     List<NetworkEdge> parents = new ArrayList<>();
 
-    public NetworkNode() {
-    }
-    
+    public NetworkNode() {}
+
     public NetworkNode(BitSet activeSegments) {
         this._activeSegments = activeSegments;
     }
@@ -93,6 +92,44 @@ public class NetworkNode {
         return this;
     }
 
+    public NetworkEdge createOrUpdateChildEdge(NetworkNode newChildNode, int segIdx) {
+        // Check for existing edges
+        NetworkEdge existingEdge =
+                children.stream().filter(childEdge -> childEdge.childNode == newChildNode).findFirst().orElse(null);
+
+        // If we found an existing edge, add the segment and return
+        if (existingEdge != null) {
+            existingEdge.hasSegments.set(segIdx);
+            return existingEdge;
+        }
+
+        // No existing edge found, create a new one
+        BitSet newSegments = new BitSet();
+        newSegments.set(segIdx);
+        NetworkEdge newChildEdge = new NetworkEdge(this, newChildNode, newSegments);
+        children.add(newChildEdge);
+        newChildNode.addParentEdge(newChildEdge);
+        return newChildEdge;
+    }
+
+    public NetworkEdge createOrUpdateChildEdge(NetworkNode newChildNode, BitSet newSegments) {
+        // Check for existing edges
+        NetworkEdge existingEdge =
+                children.stream().filter(childEdge -> childEdge.childNode == newChildNode).findFirst().orElse(null);
+
+        // If we found an existing edge, add the segment and return
+        if (existingEdge != null) {
+            existingEdge.hasSegments.or(newSegments);
+            return existingEdge;
+        }
+
+        // No existing edge found, create a new one
+        NetworkEdge newChildEdge = new NetworkEdge(this, newChildNode, newSegments);
+        children.add(newChildEdge);
+        newChildNode.addParentEdge(newChildEdge);
+        return newChildEdge;
+    }
+
     public NetworkNode removeChildEdge(NetworkEdge childEdge) {
         children.remove(childEdge);
         childEdge.parentNode = null;
@@ -118,8 +155,17 @@ public class NetworkNode {
      */
     public boolean hasSingleChild() {
         boolean hasSingleChild = children.size() == 1;
-        assert !hasSingleChild; // Single children are not allowed in reduced networks (since they can not correspond to nodes in a segment tree).
+        // assert !hasSingleChild; // Single children are not allowed in reduced networks (since they can not correspond
+        // to nodes in a segment tree).
         return hasSingleChild;
+    }
+
+    public boolean isCoalescence() {
+        return !hasSingleChild();
+    }
+
+    public boolean isReassortment() {
+        return hasSingleChild();
     }
 
     public int getChildCount() {
@@ -166,14 +212,14 @@ public class NetworkNode {
     public void setTaxonIndex(int taxonIndex) {
         this.taxonIndex = taxonIndex;
     }
-    
+
     /**
      * @return the label of the type (if any) corresponding to this node
      */
     public String getTypeLabel() {
         return typeLabel;
     }
-    
+
     /**
      * Sets the type corresponding to this node.
      *
@@ -182,14 +228,14 @@ public class NetworkNode {
     public void setTypeLabel(String typeLabel) {
         this.typeLabel = typeLabel;
     }
-    
+
     /**
      * @return the label of the state (if any) corresponding to this node
      */
     public int getTypeIndex() {
         return typeIndex;
     }
-    
+
     /**
      * Sets the state corresponding to this node.
      *
@@ -197,18 +243,19 @@ public class NetworkNode {
      */
     public void setTypeIndex(int typeIndex) {
         this.typeIndex = typeIndex;
-    }  
-    
+    }
+
 
     /**
      * Set a meta data value
+     *
      * @param pattern
      * @param value
      */
     public void setMetaData(String metaDataString) {
         this.metaDataString = metaDataString;
     }
-    
+
     public String getMetaData() {
         return metaDataString;
     }
@@ -226,6 +273,30 @@ public class NetworkNode {
         newNode.setMetaData(metaDataString);
         newNode._activeSegments = _activeSegments == null ? null : (BitSet) _activeSegments.clone();
         return newNode;
+    }
+
+    /**
+     * @return all segments that are active in this node. I.e. their local tree has a corresponding node at the same
+     *         height.
+     */
+    public BitSet getActiveSegments() {
+        List<NetworkEdge> edges = (parents.size() > children.size()) ? children : parents;
+        return edges.stream().map(edge -> edge.hasSegments).reduce(new BitSet(), BitSetFun::or);
+    }
+
+    /**
+     * @return all segments that are coalescing in this node. N.B.: In a reduced network, this is the same as the
+     *         segments that are active in this node.
+     */
+    public BitSet getCoalescingSegments() {
+        BitSet seen = new BitSet();
+        BitSet seenTwice = new BitSet();
+        for (NetworkEdge edge : children) {
+            BitSet seenTwiceNow = BitSetFun.and(edge.hasSegments, seen);
+            seenTwice.or(seenTwiceNow);
+            seen.or(edge.hasSegments);
+        }
+        return seenTwice;
     }
 
 

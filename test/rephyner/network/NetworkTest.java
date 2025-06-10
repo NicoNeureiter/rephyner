@@ -4,13 +4,13 @@ import beast.base.evolution.alignment.TaxonSet;
 import beast.base.evolution.tree.Node;
 import beast.base.evolution.tree.TraitSet;
 import beast.base.evolution.tree.Tree;
-import rephyner.CoalReTestClass;
+import rephyner.RephynerTestClass;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.*;
 
-public class NetworkTest extends CoalReTestClass {
+public class NetworkTest extends RephynerTestClass {
 
     @Test
     public void parserTest() {

@@ -13,9 +13,9 @@
                  :beast.base.evolution.operators
                  :beast.base.math.distributions
                  :feast.simulation
-                 :lag.network
-                 :lag.statistics
-                 :lag.simulator">
+                 :rephyner.network
+                 :rephyner.statistics
+                 :rephyner.simulator">
 
     <network id="network" spec="SimulatedCoalescentNetwork" enableSegmentTreeUpdate="false" nSegments="2">
         <populationModel spec="ConstantPopulation">

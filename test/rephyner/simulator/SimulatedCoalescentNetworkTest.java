@@ -5,14 +5,14 @@ import beast.base.evolution.tree.TraitSet;
 import beast.base.evolution.tree.Tree;
 import beast.base.evolution.tree.coalescent.ConstantPopulation;
 import beast.base.util.Randomizer;
-import rephyner.CoalReTestClass;
+import rephyner.RephynerTestClass;
 import rephyner.statistics.NetworkStatsLogger;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.List;
 
-public class SimulatedCoalescentNetworkTest extends CoalReTestClass {
+public class SimulatedCoalescentNetworkTest extends RephynerTestClass {
 
     @Test
     public void testSimulator() {

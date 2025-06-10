@@ -2,13 +2,13 @@ package rephyner.distribution;
 
 import beast.base.inference.parameter.RealParameter;
 import beast.base.evolution.tree.coalescent.ConstantPopulation;
-import rephyner.CoalReTestClass;
+import rephyner.RephynerTestClass;
 import rephyner.network.Network;
 
 import org.junit.Assert;
 import org.junit.Test;
 
-public class CoalescentWithReassortmentTest extends CoalReTestClass {
+public class CoalescentWithReassortmentTest extends RephynerTestClass {
 
     @Test
     public void testDensity() {
