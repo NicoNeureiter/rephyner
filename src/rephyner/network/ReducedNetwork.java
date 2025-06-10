@@ -1,18 +1,8 @@
 package rephyner.network;
 
 import beast.base.inference.StateNode;
-import beast.base.evolution.alignment.TaxonSet;
 import beast.base.evolution.tree.Node;
 import beast.base.evolution.tree.Tree;
-import rephyner.network.parser.NetworkBaseVisitor;
-import rephyner.network.parser.NetworkLexer;
-import rephyner.network.parser.NetworkParser;
-
-import org.antlr.v4.runtime.CharStream;
-import org.antlr.v4.runtime.CharStreams;
-import org.antlr.v4.runtime.CommonTokenStream;
-import org.antlr.v4.runtime.tree.ParseTree;
-
 import java.io.PrintStream;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -24,30 +14,28 @@ public class ReducedNetwork extends StateNode {
     protected List<NetworkEdge> storedRootEdges;
 
     protected Integer segmentCount = null;
-    
+
     public String[] segmentNames;
     public String baseName;
- 
-    
-    
-    public ReducedNetwork() {
-    }
+
+
+    public ReducedNetwork() {}
 
     public ReducedNetwork(List<NetworkEdge> rootEdges) {
         this.rootEdges = rootEdges;
     }
 
     // public ReducedNetwork(String newickString) {
-    //     fromExtendedNewick(newickString);
+    // fromExtendedNewick(newickString);
     // }
 
     // public ReducedNetwork(String newickString, TaxonSet taxonSet) {
-    //     fromExtendedNewick(newickString);
+    // fromExtendedNewick(newickString);
 
-    //     for (NetworkNode leafNode : getLeafNodes())
-    //         leafNode.setTaxonIndex(taxonSet.getTaxonIndex(leafNode.getTaxonLabel()));
+    // for (NetworkNode leafNode : getLeafNodes())
+    // leafNode.setTaxonIndex(taxonSet.getTaxonIndex(leafNode.getTaxonLabel()));
     // }
-    
+
 
     @Override
     public void initAndValidate() {}
@@ -55,7 +43,7 @@ public class ReducedNetwork extends StateNode {
     /**
      * @return the root edges of the network
      */
-	public List<NetworkEdge> getRootEdges() {
+    public List<NetworkEdge> getRootEdges() {
         return rootEdges;
     }
 
@@ -124,11 +112,11 @@ public class ReducedNetwork extends StateNode {
      */
     public int getSegmentCount() {
         if (segmentCount == null) {
-        	// allow for different number of segments on different leaves
-        	BitSet totsegment = new BitSet();
-        	for (NetworkNode n : getLeafNodes()) {
-        		totsegment.or(n.getParentEdges().get(0).hasSegments);
-        	}   
+            // allow for different number of segments on different leaves
+            BitSet totsegment = new BitSet();
+            for (NetworkNode n : getLeafNodes()) {
+                totsegment.or(n.getParentEdges().get(0).hasSegments);
+            }
             segmentCount = totsegment.cardinality();
         }
 
@@ -145,182 +133,198 @@ public class ReducedNetwork extends StateNode {
             getEdgesRecurse(childEdge, networkEdgeSet);
     }
 
+    /**
+     * @return the height of the highest root of the network
+     */
+    public double getNetworkHeight() {
+        double maxHeight = 0.0;
+
+        for (NetworkEdge rootEdge : rootEdges) {
+            double rootHeight = rootEdge.childNode.getHeight();
+            if (rootHeight > maxHeight) {
+                maxHeight = rootHeight;
+            }
+        }
+
+        return maxHeight;
+    }
+
     // TODO: Either fix Newick or implement different serialization
 
     // /**
-    //  * @return Extended Newick representation of network
-    //  */
+    // * @return Extended Newick representation of network
+    // */
     // public String getExtendedNewick() {
-    //     return getExtendedNewick(rootEdge, new ArrayList<>(), new ArrayList<>(), false, Integer.MAX_VALUE) + ";";
+    // return getExtendedNewick(rootEdge, new ArrayList<>(), new ArrayList<>(), false, Integer.MAX_VALUE) + ";";
     // }
-    
+
     // public String getExtendedNewick(int followSegment) {
-    //     return getExtendedNewick(rootEdge, new ArrayList<>(), new ArrayList<>(), false, followSegment) + ";";
+    // return getExtendedNewick(rootEdge, new ArrayList<>(), new ArrayList<>(), false, followSegment) + ";";
     // }
 
     // /**
-    //  * @return Extended Newick representation of network, with
-    //  *         segment presence annotation.
-    //  */
+    // * @return Extended Newick representation of network, with
+    // * segment presence annotation.
+    // */
     // public String getExtendedNewickVerbose() {
-    //     return getExtendedNewick(rootEdge, new ArrayList<>(), new ArrayList<>(), true, Integer.MAX_VALUE) + ";";
+    // return getExtendedNewick(rootEdge, new ArrayList<>(), new ArrayList<>(), true, Integer.MAX_VALUE) + ";";
     // }
-    
+
     // public String getExtendedNewickVerbose(int followSegment) {
-    //     return getExtendedNewick(rootEdge, new ArrayList<>(), new ArrayList<>(), true, followSegment) + ";";
+    // return getExtendedNewick(rootEdge, new ArrayList<>(), new ArrayList<>(), true, followSegment) + ";";
     // }
 
 
-//     private String getExtendedNewick(NetworkEdge currentEdge, List<NetworkNode> seenReassortmentNodes, 
-//     		List<Boolean> isTraverseEdge, boolean verbose, int followSegment) {
-//         StringBuilder result = new StringBuilder();
+    // private String getExtendedNewick(NetworkEdge currentEdge, List<NetworkNode> seenReassortmentNodes,
+    // List<Boolean> isTraverseEdge, boolean verbose, int followSegment) {
+    // StringBuilder result = new StringBuilder();
 
-//         boolean traverse = true;
-//         int hybridID = -1;
-//         if (currentEdge.childNode.isReassortment()) {
-        	
-//             hybridID = seenReassortmentNodes.indexOf(currentEdge.childNode);
-//             if (hybridID<0) {
-// 	        	List<NetworkEdge> parentEdges = currentEdge.childNode.getParentEdges();
-	        	
-// 	        	// get the other edge
-// 	        	NetworkEdge otherEdge;
-// 	        	if (parentEdges.get(0).equals(currentEdge))
-// 	        		otherEdge = parentEdges.get(1);
-// 	        	else
-// 	        		otherEdge = parentEdges.get(0);
-	        	
-// 	        	// check which edge is the main edge
-// 	        	if (otherEdge.hasSegments.get(followSegment)){
-// 	                traverse = false;
-// 	                seenReassortmentNodes.add(currentEdge.childNode);
-// 	                isTraverseEdge.add(true);
-// 	                hybridID = seenReassortmentNodes.size()-1;
-// 	        	}else if(currentEdge.hasSegments.get(followSegment)){
-// 	                seenReassortmentNodes.add(otherEdge.childNode);
-// 	                isTraverseEdge.add(false);
-// 	                hybridID = seenReassortmentNodes.size()-1;	        		
-// 	        	}else if (currentEdge.hasSegments.cardinality()<otherEdge.hasSegments.cardinality()){
-// 	                traverse = false;
-// 	                seenReassortmentNodes.add(currentEdge.childNode);
-// 	                isTraverseEdge.add(true);
-// 	                hybridID = seenReassortmentNodes.size()-1;
-// 	        	}else{
-// 	                seenReassortmentNodes.add(otherEdge.childNode);
-// 	                isTraverseEdge.add(false);
-// 	                hybridID = seenReassortmentNodes.size()-1;	        		
-// 	        	}
-//             }else{
-//             	traverse = isTraverseEdge.get(hybridID);
-//             }        
-//         }
+    // boolean traverse = true;
+    // int hybridID = -1;
+    // if (currentEdge.childNode.isReassortment()) {
 
-//         if (traverse && !currentEdge.childNode.isLeaf()) {
-//             result.append("(");
+    // hybridID = seenReassortmentNodes.indexOf(currentEdge.childNode);
+    // if (hybridID<0) {
+    // List<NetworkEdge> parentEdges = currentEdge.childNode.getParentEdges();
 
-//             boolean isFirst = true;
-//             for (NetworkEdge childEdge : currentEdge.childNode.getChildEdges()) {
-//                 if (isFirst)
-//                     isFirst = false;
-//                 else
-//                     result.append(",");
+    // // get the other edge
+    // NetworkEdge otherEdge;
+    // if (parentEdges.get(0).equals(currentEdge))
+    // otherEdge = parentEdges.get(1);
+    // else
+    // otherEdge = parentEdges.get(0);
 
-//                 result.append(getExtendedNewick(childEdge, seenReassortmentNodes, isTraverseEdge, verbose, followSegment));
-//             }
+    // // check which edge is the main edge
+    // if (otherEdge.hasSegments.get(followSegment)){
+    // traverse = false;
+    // seenReassortmentNodes.add(currentEdge.childNode);
+    // isTraverseEdge.add(true);
+    // hybridID = seenReassortmentNodes.size()-1;
+    // }else if(currentEdge.hasSegments.get(followSegment)){
+    // seenReassortmentNodes.add(otherEdge.childNode);
+    // isTraverseEdge.add(false);
+    // hybridID = seenReassortmentNodes.size()-1;
+    // }else if (currentEdge.hasSegments.cardinality()<otherEdge.hasSegments.cardinality()){
+    // traverse = false;
+    // seenReassortmentNodes.add(currentEdge.childNode);
+    // isTraverseEdge.add(true);
+    // hybridID = seenReassortmentNodes.size()-1;
+    // }else{
+    // seenReassortmentNodes.add(otherEdge.childNode);
+    // isTraverseEdge.add(false);
+    // hybridID = seenReassortmentNodes.size()-1;
+    // }
+    // }else{
+    // traverse = isTraverseEdge.get(hybridID);
+    // }
+    // }
 
-//             result.append(")");
-//         }
+    // if (traverse && !currentEdge.childNode.isLeaf()) {
+    // result.append("(");
 
-//         if (currentEdge.childNode.getTaxonLabel() != null)
-//             result.append(currentEdge.childNode.getTaxonLabel());
+    // boolean isFirst = true;
+    // for (NetworkEdge childEdge : currentEdge.childNode.getChildEdges()) {
+    // if (isFirst)
+    // isFirst = false;
+    // else
+    // result.append(",");
 
-//         if (hybridID>=0) {
-//             result.append("#H").append(hybridID);
-//         }
+    // result.append(getExtendedNewick(childEdge, seenReassortmentNodes, isTraverseEdge, verbose, followSegment));
+    // }
 
-//         result.append("[&");
-// //        if (segmentNames!=null) {
-// //    		result.append("segments={");
-// //    		String str = "rem";
-// //            for (int segIdx=0; segIdx<getSegmentCount(); segIdx++) {
-// //            	if (currentEdge.hasSegments.get(segIdx)) {
-// //            		str = str+ ",\"" + segmentNames[segIdx].replace(",", "") + "\"";
-// //            	}
-// //            }
-// //        	result.append(str.replace("rem,", ""));
-// //        	result.append("}");
-// //        }else {
-//         	result.append("segments=").append(currentEdge.hasSegments);
-// //        }
-//         if (verbose) {
-//             for (int segIdx=0; segIdx<getSegmentCount(); segIdx++) {
-// //                if (segmentNames!=null) {
-// //	                result.append(",").append(segmentNames[segIdx]).append("=")
-// //	                        .append(currentEdge.hasSegments.get(segIdx));
-// //                }else {
-// 	                result.append(",seg").append(segIdx).append("=")
-//                     	.append(currentEdge.hasSegments.get(segIdx));
+    // result.append(")");
+    // }
 
-// //                }
-//             }
-//         }
-//         result.append(",segsCarried=").append(currentEdge.hasSegments.cardinality());
-//         if (currentEdge.childNode.getTypeLabel() != null) 
-//         		result.append(",state=").append(currentEdge.childNode.getTypeLabel());
-        
-//         if (currentEdge.childNode.metaDataString != null) 
-// 			result.append(currentEdge.childNode.getMetaData());
+    // if (currentEdge.childNode.getTaxonLabel() != null)
+    // result.append(currentEdge.childNode.getTaxonLabel());
 
-//         result.append("]");
+    // if (hybridID>=0) {
+    // result.append("#H").append(hybridID);
+    // }
 
-//         if (currentEdge.parentNode != null)
-//             result.append(":").append(currentEdge.parentNode.getHeight() - currentEdge.childNode.getHeight());
-//         else
-//             result.append(":0.0");
+    // result.append("[&");
+    // // if (segmentNames!=null) {
+    // // result.append("segments={");
+    // // String str = "rem";
+    // // for (int segIdx=0; segIdx<getSegmentCount(); segIdx++) {
+    // // if (currentEdge.hasSegments.get(segIdx)) {
+    // // str = str+ ",\"" + segmentNames[segIdx].replace(",", "") + "\"";
+    // // }
+    // // }
+    // // result.append(str.replace("rem,", ""));
+    // // result.append("}");
+    // // }else {
+    // result.append("segments=").append(currentEdge.hasSegments);
+    // // }
+    // if (verbose) {
+    // for (int segIdx=0; segIdx<getSegmentCount(); segIdx++) {
+    // // if (segmentNames!=null) {
+    // // result.append(",").append(segmentNames[segIdx]).append("=")
+    // // .append(currentEdge.hasSegments.get(segIdx));
+    // // }else {
+    // result.append(",seg").append(segIdx).append("=")
+    // .append(currentEdge.hasSegments.get(segIdx));
 
-//         return result.toString();
-//     }
+    // // }
+    // }
+    // }
+    // result.append(",segsCarried=").append(currentEdge.hasSegments.cardinality());
+    // if (currentEdge.childNode.getTypeLabel() != null)
+    // result.append(",state=").append(currentEdge.childNode.getTypeLabel());
 
-//     public void fromExtendedNewick(String newickStr) {
-    	
-//     	if (newickStr.split(";").length==2) {
-//     		String segmentString = newickStr.split(";")[0];
-//     		newickStr = newickStr.split(";")[1] + ";";
-    		
-//     		String[] tmp = segmentString.replace("[", "")
-//                                         .replace("]", "")
-//                                         .replace(" ", "")
-//                                         .split(",");
-//     		segmentNames = new String[tmp.length-1];
-//     		baseName = tmp[0];
-// 			for (int i = 1; i < tmp.length;i++) {
-// 				segmentNames[i-1] = tmp[i];
-// 			}
-//     	}
+    // if (currentEdge.childNode.metaDataString != null)
+    // result.append(currentEdge.childNode.getMetaData());
 
-//         CharStream inputStream = CharStreams.fromString(newickStr);
-//         NetworkLexer lexer = new NetworkLexer(inputStream);
-//         CommonTokenStream tokenStream = new CommonTokenStream(lexer);
-//         NetworkParser parser = new NetworkParser(tokenStream);
-//         ParseTree tree = parser.network();
+    // result.append("]");
 
-//         NetworkBuilderVisitor builder = new NetworkBuilderVisitor();
-//         rootEdge = builder.visit(tree);
-//     }
+    // if (currentEdge.parentNode != null)
+    // result.append(":").append(currentEdge.parentNode.getHeight() - currentEdge.childNode.getHeight());
+    // else
+    // result.append(":0.0");
+
+    // return result.toString();
+    // }
+
+    // public void fromExtendedNewick(String newickStr) {
+
+    // if (newickStr.split(";").length==2) {
+    // String segmentString = newickStr.split(";")[0];
+    // newickStr = newickStr.split(";")[1] + ";";
+
+    // String[] tmp = segmentString.replace("[", "")
+    // .replace("]", "")
+    // .replace(" ", "")
+    // .split(",");
+    // segmentNames = new String[tmp.length-1];
+    // baseName = tmp[0];
+    // for (int i = 1; i < tmp.length;i++) {
+    // segmentNames[i-1] = tmp[i];
+    // }
+    // }
+
+    // CharStream inputStream = CharStreams.fromString(newickStr);
+    // NetworkLexer lexer = new NetworkLexer(inputStream);
+    // CommonTokenStream tokenStream = new CommonTokenStream(lexer);
+    // NetworkParser parser = new NetworkParser(tokenStream);
+    // ParseTree tree = parser.network();
+
+    // NetworkBuilderVisitor builder = new NetworkBuilderVisitor();
+    // rootEdge = builder.visit(tree);
+    // }
 
     /** StateNode implementation: **/
 
     // @Override
-	// public String toString() {
-    // 	if (segmentNames!=null) {
-    // 		String[] tmp = new String[segmentNames.length+1];
-    // 		tmp[0] = baseName;
-    // 		for (int i = 0; i < segmentNames.length;i++)
-    // 			tmp[i+1] = segmentNames[i];
-    // 		return getExtendedNewick();
-    // 	}else {
-    // 		return getExtendedNewick();
-    // 	}
+    // public String toString() {
+    // if (segmentNames!=null) {
+    // String[] tmp = new String[segmentNames.length+1];
+    // tmp[0] = baseName;
+    // for (int i = 0; i < segmentNames.length;i++)
+    // tmp[i+1] = segmentNames[i];
+    // return getExtendedNewick();
+    // }else {
+    // return getExtendedNewick();
+    // }
     // }
 
     @Override
@@ -330,9 +334,7 @@ public class ReducedNetwork extends StateNode {
 
     @Override
     public StateNode copy() {
-        List<NetworkEdge> newRootEdges = rootEdges.stream()
-                                                  .map(NetworkEdge::getCopy)
-                                                  .collect(Collectors.toList());
+        List<NetworkEdge> newRootEdges = rootEdges.stream().map(NetworkEdge::getCopy).collect(Collectors.toList());
         return new ReducedNetwork(newRootEdges);
     }
 
@@ -380,9 +382,7 @@ public class ReducedNetwork extends StateNode {
 
     @Override
     protected void store() {
-        storedRootEdges = rootEdges.stream()
-                                   .map(NetworkEdge::getCopy)
-                                   .collect(Collectors.toList());
+        storedRootEdges = rootEdges.stream().map(NetworkEdge::getCopy).collect(Collectors.toList());
     }
 
     @Override
@@ -422,22 +422,22 @@ public class ReducedNetwork extends StateNode {
     }
 
     // public boolean[][] getAdjacencyMatrix(List<NetworkNode> nodes) {
-    //     // Create a mapping from network nodes to indices
-    //     Map<NetworkNode, Integer> nodeIndexMap = new HashMap<>();
-    //     for (int i = 0; i < nodes.size(); i++) {
-    //         nodeIndexMap.put(nodes.get(i), i);
-    //     }
+    // // Create a mapping from network nodes to indices
+    // Map<NetworkNode, Integer> nodeIndexMap = new HashMap<>();
+    // for (int i = 0; i < nodes.size(); i++) {
+    // nodeIndexMap.put(nodes.get(i), i);
+    // }
 
-    //     // Create adjacency matrix from the edges in the network
-    //     List<NetworkEdge> edges = new ArrayList<>(getEdges());
-    //     boolean[][] adj = new boolean[nodes.size()][nodes.size()];
-    //     for (NetworkEdge edge : edges) {
-    //         int parentIndex = nodeIndexMap.get(edge.parentNode);
-    //         int childIndex = nodeIndexMap.get(edge.childNode);
-    //         adj[parentIndex][childIndex] = true;
-    //     }
+    // // Create adjacency matrix from the edges in the network
+    // List<NetworkEdge> edges = new ArrayList<>(getEdges());
+    // boolean[][] adj = new boolean[nodes.size()][nodes.size()];
+    // for (NetworkEdge edge : edges) {
+    // int parentIndex = nodeIndexMap.get(edge.parentNode);
+    // int childIndex = nodeIndexMap.get(edge.childNode);
+    // adj[parentIndex][childIndex] = true;
+    // }
 
-    //     return adj;
+    // return adj;
     // }
 
     public String getDotString() {
@@ -454,17 +454,14 @@ public class ReducedNetwork extends StateNode {
         }
 
         // If nodes have a TaxonLabel, use it; otherwise, use a index-based label
-        List<String> nodeLabels = nodes.stream()
-                .map(n -> n.getTaxonLabel() != null ? n.getTaxonLabel() : "n" + nodeIndexMap.get(n))
-                .collect(Collectors.toList());
+        List<String> nodeLabels =
+                nodes.stream().map(n -> n.getTaxonLabel() != null ? n.getTaxonLabel() : "n" + nodeIndexMap.get(n))
+                        .collect(Collectors.toList());
 
         for (int i = 0; i < nodes.size(); i++) {
             NetworkNode node = nodes.get(i);
 
-            sb.append(nodeLabels.get(i))
-              .append(" [t=")
-              .append(node.getHeight())
-              .append("];");
+            sb.append(nodeLabels.get(i)).append(" [t=").append(String.format("%.4f", node.getHeight())).append("];");
         }
         // Iterate through the edges and create the connections
         for (NetworkEdge edge : getEdges()) {
@@ -475,12 +472,8 @@ public class ReducedNetwork extends StateNode {
             int parentIndex = nodeIndexMap.get(edge.parentNode);
             int childIndex = nodeIndexMap.get(edge.childNode);
 
-            sb.append(nodeLabels.get(parentIndex))
-              .append(" -> ")
-              .append(nodeLabels.get(childIndex))
-              .append(" [segments=\"")
-              .append(edge.hasSegments)
-              .append("\"];");
+            sb.append(nodeLabels.get(parentIndex)).append(" -> ").append(nodeLabels.get(childIndex))
+                    .append(" [segments=\"").append(edge.hasSegments).append("\"];");
         }
 
         // Close the main scope of the graph
@@ -495,157 +488,155 @@ public class ReducedNetwork extends StateNode {
     }
 
 
+    // /**
+    // * Visitor class used to build network from parser-generated AST.
+    // */
+    // class NetworkBuilderVisitor extends NetworkBaseVisitor<NetworkEdge> {
 
+    // Map<Integer, NetworkNode> seenHybrids;
+    // Map<NetworkEdge, Double> edgeLengths;
 
-//     /**
-//      * Visitor class used to build network from parser-generated AST.
-//      */
-//     class NetworkBuilderVisitor extends NetworkBaseVisitor<NetworkEdge> {
+    // double getMaxRootToLeafTime(NetworkNode node, Set<NetworkNode> seenNodes) {
 
-//         Map<Integer, NetworkNode> seenHybrids;
-//         Map<NetworkEdge, Double> edgeLengths;
+    // if (seenNodes.contains(node))
+    // return 0.0;
 
-//         double getMaxRootToLeafTime(NetworkNode node, Set<NetworkNode> seenNodes) {
+    // seenNodes.add(node);
 
-//             if (seenNodes.contains(node))
-//                 return 0.0;
+    // double maxTime = 0.0;
+    // for (NetworkEdge childEdge : node.getChildEdges()) {
+    // NetworkNode childNode = childEdge.childNode;
+    // childNode.setHeight(node.getHeight()-edgeLengths.get(childEdge));
 
-//             seenNodes.add(node);
+    // double thisTime = edgeLengths.get(childEdge) +
+    // getMaxRootToLeafTime(childNode, seenNodes);
+    // if (thisTime > maxTime)
+    // maxTime = thisTime;
+    // }
 
-//             double maxTime = 0.0;
-//             for (NetworkEdge childEdge : node.getChildEdges()) {
-//                 NetworkNode childNode = childEdge.childNode;
-//                 childNode.setHeight(node.getHeight()-edgeLengths.get(childEdge));
+    // return maxTime;
+    // }
 
-//                 double thisTime = edgeLengths.get(childEdge) +
-//                         getMaxRootToLeafTime(childNode, seenNodes);
-//                 if (thisTime > maxTime)
-//                     maxTime = thisTime;
-//             }
+    // void shiftNodeHeights(double maxRTLT, NetworkNode node, Set<NetworkNode> seenNodes) {
+    // if (seenNodes.contains(node))
+    // return;
 
-//             return maxTime;
-//         }
+    // seenNodes.add(node);
 
-//         void shiftNodeHeights(double maxRTLT, NetworkNode node, Set<NetworkNode> seenNodes) {
-//             if (seenNodes.contains(node))
-//                 return;
+    // node.setHeight(node.getHeight() + maxRTLT);
 
-//             seenNodes.add(node);
+    // for (NetworkEdge childEdge : node.getChildEdges())
+    // shiftNodeHeights(maxRTLT, childEdge.childNode, seenNodes);
+    // }
 
-//             node.setHeight(node.getHeight() + maxRTLT);
+    // @Override
+    // public NetworkEdge visitNetwork(NetworkParser.NetworkContext ctx) {
+    // seenHybrids = new HashMap<>();
+    // edgeLengths = new HashMap<>();
 
-//             for (NetworkEdge childEdge : node.getChildEdges())
-//                 shiftNodeHeights(maxRTLT, childEdge.childNode, seenNodes);
-//         }
+    // NetworkEdge rootEdge = visit(ctx.node());
 
-//         @Override
-//         public NetworkEdge visitNetwork(NetworkParser.NetworkContext ctx) {
-//             seenHybrids = new HashMap<>();
-//             edgeLengths = new HashMap<>();
+    // Set<NetworkNode> seenNodes = new HashSet<>();
+    // NetworkNode rootNode = rootEdge.childNode;
+    // rootNode.setHeight(0.0);
+    // double maxRTLT = getMaxRootToLeafTime(rootNode, seenNodes);
 
-//             NetworkEdge rootEdge = visit(ctx.node());
+    // seenNodes.clear();
+    // shiftNodeHeights(maxRTLT, rootEdge.childNode, seenNodes);
 
-//             Set<NetworkNode> seenNodes = new HashSet<>();
-//             NetworkNode rootNode = rootEdge.childNode;
-//             rootNode.setHeight(0.0);
-//             double maxRTLT = getMaxRootToLeafTime(rootNode, seenNodes);
+    // return rootEdge;
+    // }
 
-//             seenNodes.clear();
-//             shiftNodeHeights(maxRTLT, rootEdge.childNode, seenNodes);
+    // private String removeQuotes(String str) {
 
-//             return rootEdge;
-//         }
+    // String[] quoteChars = {"\"", "'"};
 
-//         private String removeQuotes(String str) {
+    // for (String quoteChar : quoteChars) {
+    // if (str.startsWith(quoteChar) && str.endsWith(quoteChar) && str.length() >= 2)
+    // str = str.substring(1, str.length() - 1);
+    // }
 
-//             String[] quoteChars = {"\"", "'"};
+    // return str;
+    // }
 
-//             for (String quoteChar : quoteChars) {
-//                 if (str.startsWith(quoteChar) && str.endsWith(quoteChar) && str.length() >= 2)
-//                     str = str.substring(1, str.length() - 1);
-//             }
+    // @Override
+    // public NetworkEdge visitNode(NetworkParser.NodeContext ctx) {
 
-//             return str;
-//         }
+    // visit(ctx.post());
 
-//         @Override
-//         public NetworkEdge visitNode(NetworkParser.NodeContext ctx) {
+    // NetworkNode node;
 
-//             visit(ctx.post());
+    // if (ctx.post().hybrid() != null) {
+    // int hybridID = Integer.valueOf(ctx.post().hybrid().id.getText());
 
-//             NetworkNode node;
+    // if (seenHybrids.containsKey(hybridID)) {
+    // node = seenHybrids.get(hybridID);
+    // } else {
+    // node = new NetworkNode();
+    // seenHybrids.put(hybridID, node);
+    // }
+    // } else {
+    // node = new NetworkNode();
+    // }
 
-//             if (ctx.post().hybrid() != null) {
-//                 int hybridID = Integer.valueOf(ctx.post().hybrid().id.getText());
+    // if (ctx.post().label() != null)
+    // node.setTaxonLabel(removeQuotes(ctx.post().label().getText()));
 
-//                 if (seenHybrids.containsKey(hybridID)) {
-//                     node = seenHybrids.get(hybridID);
-//                 } else {
-//                     node = new NetworkNode();
-//                     seenHybrids.put(hybridID, node);
-//                 }
-//             } else {
-//                 node = new NetworkNode();
-//             }
+    // for (NetworkParser.NodeContext childNodeCtx : ctx.node()) {
+    // NetworkEdge childEdge = visit(childNodeCtx);
+    // childEdge.parentNode = node;
+    // node.addChildEdge(childEdge);
+    // }
 
-//             if (ctx.post().label() != null)
-//                 node.setTaxonLabel(removeQuotes(ctx.post().label().getText()));
+    // boolean segmentsProcessed = false;
+    // BitSet hasSegments = new BitSet();
+    // if (ctx.post().meta() != null
+    // && ctx.post().meta().attrib() != null) {
 
-//             for (NetworkParser.NodeContext childNodeCtx : ctx.node()) {
-//                 NetworkEdge childEdge = visit(childNodeCtx);
-//                 childEdge.parentNode = node;
-//                 node.addChildEdge(childEdge);
-//             }
+    // for (NetworkParser.AttribContext attribCtx : ctx.post().meta().attrib()) {
+    // if (!removeQuotes(attribCtx.attribKey.getText()).equals("segments"))
+    // continue;
 
-//             boolean segmentsProcessed = false;
-//             BitSet hasSegments = new BitSet();
-//             if (ctx.post().meta() != null
-//                     && ctx.post().meta().attrib() != null) {
+    // if (attribCtx.attribValue().vector() == null)
+    // continue;
 
-//                 for (NetworkParser.AttribContext attribCtx : ctx.post().meta().attrib()) {
-//                     if (!removeQuotes(attribCtx.attribKey.getText()).equals("segments"))
-//                         continue;
+    // // if (segmentNames!=null) {
+    // // for (NetworkParser.AttribValueContext attribValueCtx : attribCtx.attribValue().vector().attribValue()) {
+    // // for (int i = 0; i < segmentNames.length;i++) {
+    // // if (segmentNames[i].contentEquals(attribValueCtx.getText()))
+    // // hasSegments.set(i);
+    // // }
+    // // }
+    // // }else {
+    // for (NetworkParser.AttribValueContext attribValueCtx : attribCtx.attribValue().vector().attribValue()) {
+    // hasSegments.set(Integer.valueOf(attribValueCtx.getText()));
+    // }
+    // // }
 
-//                     if (attribCtx.attribValue().vector() == null)
-//                         continue;
-                    
-// //                    if (segmentNames!=null) {
-// //	                    for (NetworkParser.AttribValueContext attribValueCtx : attribCtx.attribValue().vector().attribValue()) {
-// //	                    	for (int i = 0; i < segmentNames.length;i++) {
-// //	                    		if (segmentNames[i].contentEquals(attribValueCtx.getText()))
-// //	                    			hasSegments.set(i);
-// //	                    	}
-// //	                    }
-// //                    }else {
-// 	                    for (NetworkParser.AttribValueContext attribValueCtx : attribCtx.attribValue().vector().attribValue()) {
-// 	                    	hasSegments.set(Integer.valueOf(attribValueCtx.getText()));
-// 	                    }
-// //                    }
+    // segmentsProcessed = true;
+    // break;
+    // }
 
-//                     segmentsProcessed = true;
-//                     break;
-//                 }
+    // }
 
-//             }
+    // if (!segmentsProcessed) {
+    // throw new RuntimeException("Segment attribute missing/malformed " +
+    // "for edge in input network string.");
+    // }
 
-//             if (!segmentsProcessed) {
-//                 throw new RuntimeException("Segment attribute missing/malformed " +
-//                         "for edge in input network string.");
-//             }
+    // NetworkEdge edge = new NetworkEdge(null, node, hasSegments);
+    // node.addParentEdge(edge);
 
-//             NetworkEdge edge = new NetworkEdge(null, node, hasSegments);
-//             node.addParentEdge(edge);
+    // if (ctx.post().length == null) {
+    // throw new RuntimeException("Edge missing length in input " +
+    // "network string.");
+    // }
 
-//             if (ctx.post().length == null) {
-//                 throw new RuntimeException("Edge missing length in input " +
-//                         "network string.");
-//             }
+    // edgeLengths.put(edge, Double.valueOf(ctx.post().length.getText()));
 
-//             edgeLengths.put(edge, Double.valueOf(ctx.post().length.getText()));
-
-//             return edge;
-//         }
-//     }
+    // return edge;
+    // }
+    // }
 
     /** Segment tree updating: **/
 
@@ -661,8 +652,7 @@ public class ReducedNetwork extends StateNode {
         Set<BitSet> cladesInNetwork = new HashSet<>();
         Map<BitSet, NetworkNode> networkCladeNodes = new HashMap<>();
         for (NetworkEdge rootEdge : getRootEdges()) {
-            getSegTreeCladesFromNetwork(rootEdge.childNode, segmentIdx,
-                    cladesInNetwork, networkCladeNodes);
+            getSegTreeCladesFromNetwork(rootEdge.childNode, segmentIdx, cladesInNetwork, networkCladeNodes);
         }
 
         // Identify segment tree clades in existing Tree
@@ -716,24 +706,24 @@ public class ReducedNetwork extends StateNode {
                 return rootEdge;
             }
         }
-        
+
         throw new IllegalStateException("No root edge found for segment index " + segmentIdx);
     }
 
     /**
      * Identify which clades are present in the network below edge for the given segment.
      *
-     * @param networkNode       network node below which clades are identified
-     * @param segmentIdx        index of segment to consider
-     * @param clades            empty set to populate with discovered clades
+     * @param networkNode network node below which clades are identified
+     * @param segmentIdx index of segment to consider
+     * @param clades empty set to populate with discovered clades
      * @param cladeNetworkNodes empty map to populate with links from caldes to network nodes.
      * @return clade corresponding to network node
      */
-    BitSet getSegTreeCladesFromNetwork(NetworkNode networkNode, int segmentIdx,
-                                       Set<BitSet> clades,
-                                       Map<BitSet, NetworkNode> cladeNetworkNodes) {
+    BitSet getSegTreeCladesFromNetwork(NetworkNode networkNode, int segmentIdx, Set<BitSet> clades,
+            Map<BitSet, NetworkNode> cladeNetworkNodes) {
 
-        // TODO [NAN]: Could we use caching to avoid redundant computation? I.e. if this node has already been processed, return the clade.
+        // TODO [NAN]: Could we use caching to avoid redundant computation? I.e. if this node has already been
+        // processed, return the clade.
 
         BitSet thisClade = new BitSet();
 
@@ -762,15 +752,13 @@ public class ReducedNetwork extends StateNode {
     }
 
     /**
-     * Cached arrays containing mapping between tree node numbers and
-     * network node numbers.
+     * Cached arrays containing mapping between tree node numbers and network node numbers.
      */
     Map<Tree, int[]> nodeNrArrays = new HashMap<>();
 
     /**
-     * Retrieve an array representing a mapping from segment tree node
-     * numbers and network node numbers.  The array has the property
-     * that network_node_number = array[tree_node_number].
+     * Retrieve an array representing a mapping from segment tree node numbers and network node numbers. The array has
+     * the property that network_node_number = array[tree_node_number].
      *
      * @param segmentTree segment tree
      * @return node number array
@@ -781,20 +769,18 @@ public class ReducedNetwork extends StateNode {
 
         int[] nodeNumberMap = new int[segmentTree.getLeafNodeCount()];
 
-        for (int treeNodeNr=0; treeNodeNr<nodeNumberMap.length; treeNodeNr++) {
+        for (int treeNodeNr = 0; treeNodeNr < nodeNumberMap.length; treeNodeNr++) {
             Node treeNode = segmentTree.getNode(treeNodeNr);
             String taxonID = segmentTree.getTaxonId(treeNode);
 
             Optional<NetworkNode> maybeNetworkNode =
-                    getLeafNodes().stream()
-                            .filter(l -> l.getTaxonLabel().equals(taxonID))
-                            .findFirst();
+                    getLeafNodes().stream().filter(l -> l.getTaxonLabel().equals(taxonID)).findFirst();
 
             if (maybeNetworkNode.isPresent())
                 nodeNumberMap[treeNodeNr] = maybeNetworkNode.get().getTaxonIndex();
             else
-                throw new IllegalArgumentException("Segment tree "
-                        + segmentTree.getID() + " contains taxon not present in network.");
+                throw new IllegalArgumentException(
+                        "Segment tree " + segmentTree.getID() + " contains taxon not present in network.");
         }
 
         nodeNrArrays.put(segmentTree, nodeNumberMap);
@@ -803,26 +789,24 @@ public class ReducedNetwork extends StateNode {
 
     /**
      * Retrieve network node number for a given segment tree node
+     * 
      * @param treeNode segment tree node
      * @return corresponding network node number
      */
     int getNetworkNodeNr(Node treeNode) {
-        return treeNode.getTree().getTaxonset() == null
-                ? treeNode.getNr()
+        return treeNode.getTree().getTaxonset() == null ? treeNode.getNr()
                 : getTreeNodeNumberArray(treeNode.getTree())[treeNode.getNr()];
     }
 
     /**
      * Identify which clades are present in the segment tree below node
      *
-     * @param node          node below which clades are identified
-     * @param clades        empty set to populate with discovered clades
-     * @param cladeNodes    empty map to populate with links from clades to tree nodes
+     * @param node node below which clades are identified
+     * @param clades empty set to populate with discovered clades
+     * @param cladeNodes empty map to populate with links from clades to tree nodes
      * @return clade corresponding to segment tree node
      */
-    BitSet getSegTreeClades(Node node,
-                            Set<BitSet> clades,
-                            Map<BitSet, Node> cladeNodes) {
+    BitSet getSegTreeClades(Node node, Set<BitSet> clades, Map<BitSet, Node> cladeNodes) {
 
         BitSet thisClade = new BitSet();
 
@@ -845,13 +829,12 @@ public class ReducedNetwork extends StateNode {
      * Update segment tree below networkNode to match tree implied by network.
      *
      * @param networkNode node below which segment tree is updated
-     * @param segmentIdx  index of segment tree
-     * @param cladeNodes  map containing links from existing tree clades to tree nodes
-     * @param nodeBin     list containing node objects available for new tree clades
+     * @param segmentIdx index of segment tree
+     * @param cladeNodes map containing links from existing tree clades to tree nodes
+     * @param nodeBin list containing node objects available for new tree clades
      * @return clade corresponding to networkNode
      */
-    BitSet buildSegmentTree(NetworkNode networkNode, int segmentIdx,
-                            Map<BitSet,Node> cladeNodes, List<Node> nodeBin) {
+    BitSet buildSegmentTree(NetworkNode networkNode, int segmentIdx, Map<BitSet, Node> cladeNodes, List<Node> nodeBin) {
 
         BitSet thisClade = new BitSet();
         List<BitSet> childClades = new ArrayList<>();
@@ -863,18 +846,18 @@ public class ReducedNetwork extends StateNode {
                 childClades.add(childClade);
             }
         }
-        
-        if (childClades.size() == 1)
-        	return thisClade;
 
-        
+        if (childClades.size() == 1)
+            return thisClade;
+
+
         if (childClades.isEmpty()) {
             // Leaf node
 
             thisClade.set(networkNode.getTaxonIndex());
 
         } else {
-        	
+
             // Internal node
 
             // Retrieve/create tree node object
@@ -905,13 +888,13 @@ public class ReducedNetwork extends StateNode {
                     treeNode.removeChild(childNode);
             }
 
-        }        
-        
+        }
+
         if (cladeNodes.get(thisClade).getHeight() != networkNode.getHeight())
             cladeNodes.get(thisClade).setHeight(networkNode.getHeight());
-        
+
         return thisClade;
-    }    
+    }
 
     public String getNodeAdjacencyString() {
         StringBuilder sb = new StringBuilder();
@@ -925,21 +908,66 @@ public class ReducedNetwork extends StateNode {
         return sb.toString();
     }
 
-    public void detach() {
-        for (NetworkEdge edge : getEdges()) {
-            edge.parentNode = null;
-            edge.childNode = null;
-        }
-        rootEdges.clear();
-        rootEdges = null;
+    public boolean isValid() {
+        if (rootEdges.isEmpty())
+            return false;
+
+        for (NetworkEdge r : rootEdges)
+            if (r.parentNode != null)
+                return false;
+
+        // TODO Check the most important rARG invariants
+        // - Each node and each edge has at least one active segment
+        // - Segments that are active at a node always coalesce at that node
+        // - ...
+
+        return true;
     }
 
     /**
-     * Will be used in the next version of BEAST to prevent date trait cloning
-     * from breaking the BEAuti model.
+     * Will be used in the next version of BEAST to prevent date trait cloning from breaking the BEAuti model.
      */
     public boolean notCloneable() {
         return true;
+    }
+
+    /**
+     * DEBUG CHECKS
+     */
+
+    Integer[] _hashValues = new Integer[7];
+
+    @Override
+    public int getChecksum() {
+        // If the rARG is the same, the following properties need to match:
+
+        // 1. Number of nodes should be the same
+        _hashValues[0] = getNodes().size();
+
+        // 2. Number of edges should be the same
+        _hashValues[1] = getEdges().size();
+
+        // 3. The mean root height should be the same (could be moved to Tree.getChecksum())
+        double meanRootHeight =
+                rootEdges.stream().mapToDouble(edge -> edge.childNode.getHeight()).average().orElse(0.0);
+        _hashValues[2] = Double.hashCode(meanRootHeight);
+
+        // 4. The mean node height should be the same
+        double meanNodeHeight = getNodes().stream().mapToDouble(NetworkNode::getHeight).average().orElse(0.0);
+        _hashValues[3] = Double.hashCode(meanNodeHeight);
+
+        // 5. The maximum node degree should stay the same
+        int maxDegree = getNodes().stream().mapToInt(node -> node.getChildEdges().size() + node.getParentEdges().size())
+                .max().orElse(0);
+        _hashValues[4] = maxDegree;
+
+        // 6. The number of segments should be the same
+        _hashValues[5] = getSegmentCount();
+
+        // 7. The number of root edges should be the same
+        _hashValues[6] = rootEdges.size();
+
+        return Arrays.deepHashCode(_hashValues);
     }
 
 }
