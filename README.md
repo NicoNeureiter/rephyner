@@ -3,10 +3,10 @@ Local Ancestry Graphs
 
 ...
 
-Building LAG
+Building rephyner
 ---------------
 
-In order to build LAG from the source, you will need the following:
+In order to build rephyner from the source, you will need the following:
 
 1. [OpenJDK](https://adoptopenjdk.net) v8 or later,
 2. The Apache Ant build tool.
@@ -21,6 +21,6 @@ to build the package.
 License
 -------
 
-LAG is free (as in freedom) software and is distributed under the terms of
+rephyner is free (as in freedom) software and is distributed under the terms of
 version 3 of the GNU General Public License.  A copy of this license is found
 in the file named `COPYING`.

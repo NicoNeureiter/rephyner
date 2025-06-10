@@ -28,7 +28,6 @@ public class Network extends StateNode {
     
     public String[] segmentNames;
     public String baseName;
- 
     
     
     public Network() {
@@ -409,9 +408,59 @@ public class Network extends StateNode {
         out.println("End;");
     }
 
+    public String getDotString() {
+        StringBuilder sb = new StringBuilder();
+
+        // Start the DOT representation by declaring a directed graph
+        sb.append("digraph G {");
+
+        // Create a mapping from network nodes to indices
+        List<NetworkNode> nodes = new ArrayList<>(getNodes());
+        Map<NetworkNode, Integer> nodeIndexMap = new HashMap<>();
+        for (int i = 0; i < nodes.size(); i++) {
+            nodeIndexMap.put(nodes.get(i), i);
+        }
+
+        // If nodes have a TaxonLabel, use it; otherwise, use a index-based label
+        List<String> nodeLabels = nodes.stream()
+                .map(n -> n.getTaxonLabel() != null ? n.getTaxonLabel() : "n" + nodeIndexMap.get(n))
+                .collect(Collectors.toList());
+
+        for (int i = 0; i < nodes.size(); i++) {
+            NetworkNode node = nodes.get(i);
+
+            sb.append(nodeLabels.get(i))
+              .append(" [t=")
+              .append(String.format("%.4f",node.getHeight()))
+              .append("];");
+        }
+        // Iterate through the edges and create the connections
+        for (NetworkEdge edge : getEdges()) {
+            if (edge.parentNode == null) {
+                continue; // Skip if parent node is not found
+            }
+
+            int parentIndex = nodeIndexMap.get(edge.parentNode);
+            int childIndex = nodeIndexMap.get(edge.childNode);
+
+            sb.append(nodeLabels.get(parentIndex))
+              .append(" -> ")
+              .append(nodeLabels.get(childIndex))
+              .append(" [segments=\"")
+              .append(edge.hasSegments)
+              .append("\"];");
+        }
+
+        // Close the main scope of the graph
+        sb.append("}\n");
+
+        return sb.toString();
+    }
+
     @Override
     public void log(long sample, PrintStream out) {
-        out.println("tree STATE_" + sample + " = " + getExtendedNewick());
+        // out.println("tree STATE_" + sample + " = " + getExtendedNewick());
+        out.println("tree STATE_" + sample + " = " + getDotString().replace("\n", "\\n") + ";");
     }
 
 
