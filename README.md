@@ -1,4 +1,4 @@
-Local Ancestry Graphs
+Reduced phylogenetic network rephyner  
 ======
 
 ...
