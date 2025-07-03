@@ -1,6 +1,6 @@
 # Dockerfile to build container for unit testing
 
-FROM debian:stable
+FROM ubuntu:22.04
 
 RUN apt-get update
 RUN apt-get install -y openjdk-17-jdk openjfx ant
