@@ -12,11 +12,11 @@
                  :beast.math.distributions
                  :feast.simulation
                  :feast.fileio
-                 :coalre.network
-                 :coalre.statistics
-                 :coalre.simulator
-                 :coalre.distribution
-                 :coalre.operators">
+                 :rephyne.network
+                 :rephyne.statistics
+                 :rephyne.simulator
+                 :rephyne.distribution
+                 :rephyne.operators">
 
     <alignment id="seg1align" spec="AlignmentFromNexus" fileName="simulate_2segserial.seg1.alignment.nexus"/>
     <alignment id="seg2align" spec="AlignmentFromNexus" fileName="simulate_2segserial.seg2.alignment.nexus"/>
