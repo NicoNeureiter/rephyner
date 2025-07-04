@@ -1,21 +1,21 @@
 package rephyner.network;
 
-import org.junit.jupiter.api.Test;
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.Test;
+import static org.junit.Assert.assertTrue;
 import java.util.BitSet;
 
 
-class NetworkNodeTest {
+public class NetworkNodeTest {
 
     @Test
-    void getCoalescingSegments_returnsEmptyForNoChildren() {
+    public void getCoalescingSegments_returnsEmptyForNoChildren() {
         NetworkNode node = new NetworkNode();
         BitSet result = node.getCoalescingSegments();
-        assertThat(result.isEmpty()).isTrue();
+        assertTrue(result.isEmpty());
     }
 
     @Test
-    void getCoalescingSegments_returnsEmptyForDisjointSegments() {
+    public void getCoalescingSegments_returnsEmptyForDisjointSegments() {
         NetworkNode node = new NetworkNode();
 
         NetworkEdge edge1 = new NetworkEdge();
@@ -30,11 +30,11 @@ class NetworkNodeTest {
         node.addChildEdge(edge2);
 
         BitSet result = node.getCoalescingSegments();
-        assertThat(result.isEmpty()).isTrue();
+        assertTrue(result.isEmpty());
     }
 
     @Test
-    void getCoalescingSegments_returnsIntersectionForOverlappingSegments() {
+    public void getCoalescingSegments_returnsIntersectionForOverlappingSegments() {
         NetworkNode node = new NetworkNode();
 
         NetworkEdge edge1 = new NetworkEdge();
@@ -54,11 +54,11 @@ class NetworkNodeTest {
         BitSet expected = new BitSet();
         expected.set(1);
 
-        assertThat(result).isEqualTo(expected);
+        assertTrue(result.equals(expected));
     }
 
     @Test
-    void getCoalescingSegments_handlesMultipleOverlaps() {
+    public void getCoalescingSegments_handlesMultipleOverlaps() {
         NetworkNode node = new NetworkNode();
 
         NetworkEdge edge1 = new NetworkEdge();
@@ -85,11 +85,11 @@ class NetworkNodeTest {
         expected.set(1);
         expected.set(2);
 
-        assertThat(result).isEqualTo(expected);
+        assertTrue(result.equals(expected));
     }
 
     @Test
-    void getCoalescingSegments_returnsEmptyIfOnlyOneChild() {
+    public void getCoalescingSegments_returnsEmptyIfOnlyOneChild() {
         NetworkNode node = new NetworkNode();
 
         NetworkEdge edge1 = new NetworkEdge();
@@ -99,6 +99,6 @@ class NetworkNodeTest {
         node.addChildEdge(edge1);
 
         BitSet result = node.getCoalescingSegments();
-        assertThat(result.isEmpty()).isTrue();
+        assertTrue(result.isEmpty());
     }
 }

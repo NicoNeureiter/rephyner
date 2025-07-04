@@ -64,19 +64,17 @@ public class CoalescentWithReassortment extends NetworkDistribution {
         	timeVaryingReassortmentRates = timeVaryingReassortmentRatesInput.get();
         }
     }
-	int ii = 0;
+
     public double calculateLogP() {
     	logP = 0;
+		
     	// Calculate tree intervals
     	List<NetworkEvent> networkEventList = intervals.getNetworkEventList();
 
 		// get the mrca of all loci trees
 		double lociMRCA = maxHeightRatioInput.get()<Double.POSITIVE_INFINITY ?
 				NetworkStatsLogger.getLociMRCA(networkIntervalsInput.get().networkInput.get()) : Double.POSITIVE_INFINITY;
-		
-//		System.out.println(networkIntervalsInput.get().networkInput.get());
-//		System.out.println("lociMRCA: " + NetworkStatsLogger.getLociMRCA(networkIntervalsInput.get().networkInput.get()));
-		
+				
 		NetworkEvent prevEvent = null;
 
     	for (NetworkEvent event : networkEventList) {
@@ -96,50 +94,11 @@ public class CoalescentWithReassortment extends NetworkDistribution {
 					break;
 			}
 
-        	
-
        		if (logP==Double.NEGATIVE_INFINITY)
        			break;
 
         	prevEvent = event;
         }
-//    	System.out.println("logP: " + logP);
-//    	ii++;
-//    	if (ii>100) {
-//    		System.exit(0);
-//    	}
-//    	if (logP>0) {
-//    		prevEvent = null;
-//
-//        	for (NetworkEvent event : networkEventList) {
-//            	if (prevEvent != null)
-//            		System.out.println(intervalContribution(prevEvent, event, lociMRCA));
-//            	switch (event.type) {
-//    				case COALESCENCE:
-//    					System.out.println("c" +coalesce(event));
-//    					break;
-//
-//    				case SAMPLE:
-//    					break;
-//
-//    				case REASSORTMENT:
-//    					System.out.println("r" +reassortment(event, lociMRCA));
-//    					break;
-//            	}
-//            	prevEvent = event;
-//        	}
-//
-//    		
-//    		
-//    		System.out.println(networkIntervalsInput.get().networkInput.get());
-//    		System.exit(0);
-//    	}
-//		System.out.println(networkIntervalsInput.get().networkInput.get());
-//		System.exit(0);
-//		System.out.println(logP);
-//		if (logP == Double.POSITIVE_INFINITY)
-//			System.exit(0);
-
 		return logP;
     }
     

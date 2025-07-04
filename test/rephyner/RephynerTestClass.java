@@ -7,13 +7,14 @@ import beast.base.evolution.tree.TraitSet;
 import beast.base.evolution.tree.Tree;
 import beast.base.evolution.tree.coalescent.ConstantPopulation;
 import beast.base.util.Randomizer;
-import rephyner.network.Network;
+import rephyner.network.ReducedNetwork;
 import rephyner.simulator.SimulatedCoalescentNetwork;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+
 
 public abstract class RephynerTestClass {
 
@@ -30,17 +31,12 @@ public abstract class RephynerTestClass {
 
 
     protected TraitSet getDateTraitSet(TaxonSet taxonSet, Supplier<Double> timeFunc) {
-
         TraitSet traitSet = new TraitSet();
-
-        StringBuilder traitSetValue = new StringBuilder();
-
         traitSet.initByName("traitname", "date",
                 "taxa", taxonSet,
                 "value", taxonSet.getTaxaNames().stream()
                         .map(n -> n + "=" + timeFunc.get())
                         .collect(Collectors.joining(",")));
-
         return traitSet;
     }
 
@@ -66,7 +62,7 @@ public abstract class RephynerTestClass {
         return segmentTrees;
     }
 
-    protected Network getContempNetwork(int nTaxa, int nSegments, double reassortmentRate) {
+    protected ReducedNetwork getContempNetwork(int nTaxa, int nSegments, double reassortmentRate) {
 
         TaxonSet taxonSet = getTaxonSet(nTaxa);
         TraitSet traitSet = getContempDateTraitSet(taxonSet);
@@ -75,7 +71,7 @@ public abstract class RephynerTestClass {
         return getContempNetwork(segmentTrees, reassortmentRate, traitSet);
     }
 
-    protected Network getContempNetwork(List<Tree> segmentTrees, double reassortmentRate, TraitSet traitSet) {
+    protected ReducedNetwork getContempNetwork(List<Tree> segmentTrees, double reassortmentRate, TraitSet traitSet) {
         ConstantPopulation popFunc = new ConstantPopulation();
         popFunc.initByName("popSize", new RealParameter("1.0"));
 
@@ -87,7 +83,11 @@ public abstract class RephynerTestClass {
                 "reassortmentRate", new RealParameter(String.valueOf(reassortmentRate)),
                 "enableSegmentTreeUpdate", false);
 
-        return network;
+        ReducedNetwork reducedNetwork = network.reduce();
+
+        // Assert.assertTrue("Network should be valid after reduction.", reducedNetwork.isValid());
+        reducedNetwork.assertValid();
+        return reducedNetwork;
     }
 
 }
