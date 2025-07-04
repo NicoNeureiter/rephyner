@@ -92,42 +92,19 @@ public class NetworkNode {
         return this;
     }
 
-    public NetworkEdge createOrUpdateChildEdge(NetworkNode newChildNode, int segIdx) {
-        // Check for existing edges
-        NetworkEdge existingEdge =
-                children.stream().filter(childEdge -> childEdge.childNode == newChildNode).findFirst().orElse(null);
-
-        // If we found an existing edge, add the segment and return
-        if (existingEdge != null) {
-            existingEdge.hasSegments.set(segIdx);
-            return existingEdge;
+    public NetworkEdge getSegmentParent(int segment) {
+        for (NetworkEdge edge : getParentEdges()) {
+            if (edge.hasSegments.get(segment))
+                return edge;
         }
-
-        // No existing edge found, create a new one
-        BitSet newSegments = new BitSet();
-        newSegments.set(segIdx);
-        NetworkEdge newChildEdge = new NetworkEdge(this, newChildNode, newSegments);
-        children.add(newChildEdge);
-        newChildNode.addParentEdge(newChildEdge);
-        return newChildEdge;
+        throw new IllegalArgumentException("No parent edge found for segment: " + segment);
     }
 
-    public NetworkEdge createOrUpdateChildEdge(NetworkNode newChildNode, BitSet newSegments) {
-        // Check for existing edges
-        NetworkEdge existingEdge =
-                children.stream().filter(childEdge -> childEdge.childNode == newChildNode).findFirst().orElse(null);
-
-        // If we found an existing edge, add the segment and return
-        if (existingEdge != null) {
-            existingEdge.hasSegments.or(newSegments);
-            return existingEdge;
-        }
-
-        // No existing edge found, create a new one
-        NetworkEdge newChildEdge = new NetworkEdge(this, newChildNode, newSegments);
-        children.add(newChildEdge);
-        newChildNode.addParentEdge(newChildEdge);
-        return newChildEdge;
+    public NetworkEdge getEdgeToChild(NetworkNode child) {
+        return children.stream()
+                       .filter(childEdge -> childEdge.childNode == child)
+                       .findFirst()
+                       .orElse(null);
     }
 
     public NetworkNode removeChildEdge(NetworkEdge childEdge) {
@@ -161,11 +138,24 @@ public class NetworkNode {
     }
 
     public boolean isCoalescence() {
-        return !hasSingleChild();
+        return getChildCount() > 1;
+    }
+
+    public boolean isCoalescence(int segmentIdx) {
+        boolean seen = false;
+        for (NetworkEdge childEdge : children) {
+            if (childEdge.hasSegments.get(segmentIdx)) {
+                if (seen) 
+                    return true; // More than one child with this segment
+                else
+                    seen = true;
+            }
+        }
+        return false; // Only <= 1 child was found, the segment is not coalescing here
     }
 
     public boolean isReassortment() {
-        return hasSingleChild();
+        return getParentCount() > 1;
     }
 
     public int getChildCount() {
@@ -280,8 +270,9 @@ public class NetworkNode {
      *         height.
      */
     public BitSet getActiveSegments() {
-        List<NetworkEdge> edges = (parents.size() > children.size()) ? children : parents;
-        return edges.stream().map(edge -> edge.hasSegments).reduce(new BitSet(), BitSetFun::or);
+        // List<NetworkEdge> edges = (parents.size() > children.size()) ? children : parents;
+        // return edges.stream().map(edge -> edge.hasSegments).reduce(new BitSet(), BitSetFun::or);
+        return parents.stream().map(edge -> edge.hasSegments).reduce(new BitSet(), BitSetFun::or);
     }
 
     /**

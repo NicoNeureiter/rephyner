@@ -8,7 +8,7 @@ import beast.base.util.Randomizer;
 import rephyner.network.NetworkEdge;
 import rephyner.network.NetworkNode;
 import rephyner.network.ReducedNetwork;
-
+import rephyner.util.BitSetFun;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.List;
@@ -138,24 +138,37 @@ public abstract class NetworkOperator extends Operator {
     protected abstract double networkProposal();
 
     /**
-     * Retrieve sister of given edge
-     * @param childEdge child edge
-     * @return sister of given child edge
+     * Retrieve all sisters of given edge
+     * @param edge child edge
+     * @return sisters of given edge
      */
-    protected List<NetworkEdge> getSisterEdges(NetworkEdge childEdge) {
-        return childEdge.parentNode.getChildEdges().stream()
-                .filter(e -> e != childEdge)
+    protected List<NetworkEdge> getSisterEdges(NetworkEdge edge) {
+        return edge.parentNode.getChildEdges().stream()
+                .filter(e -> e != edge)
                 .collect(Collectors.toList());
     }
 
     /**
-     * Retrieve segments that appear in a sister edges of `childEdge`
-     * @param childEdge child edge
+     * Retrieve sister of given edge in the local tree of the given segment
+     * @param edge child edge
+     * @return sister of given edge for segment
+     */
+    protected NetworkEdge getSisterEdge(NetworkEdge edge, int segment) {
+        assert edge.hasSegments.get(segment);
+        return edge.parentNode.getChildEdges().stream()
+                .filter(e -> e != edge)
+                .findFirst()
+                .orElse(null);
+    }
+
+    /**
+     * Retrieve segments that appear in any sister edge of `edge`
+     * @param edge child edge
      * @return bitset of segments from sister edges
      */
-    protected BitSet getSisterSegments(NetworkEdge childEdge) {
+    protected BitSet getSisterSegments(NetworkEdge edge) {
         BitSet segments = new BitSet();
-        for (NetworkEdge sisterEdge : getSisterEdges(childEdge)) {
+        for (NetworkEdge sisterEdge : getSisterEdges(edge)) {
             segments.or(sisterEdge.hasSegments);
         }
         return segments;
@@ -169,7 +182,6 @@ public abstract class NetworkOperator extends Operator {
     protected NetworkEdge getSpouseEdge(NetworkEdge parentEdge) {
         int idx = parentEdge.childNode.getParentEdges().indexOf(parentEdge);
         int otherIdx = (idx + 1) % 2;
-
         return parentEdge.childNode.getParentEdges().get(otherIdx);
     }
 
@@ -209,6 +221,66 @@ public abstract class NetworkOperator extends Operator {
         List<NetworkEdge> spouses = childNode.getParentEdges();
         int numSpouses = spouses.size() - 1;
         return Math.log(1. / numSpouses);
+    }
+
+
+    /**
+     * Get an existing or new edge from parent to child.
+     * @param parent
+     * @param child
+     * @return existing or new edge from parent to child
+     */
+    public NetworkEdge getEdge(NetworkNode parent, NetworkNode child) {
+        // Look for an existing edge betweek parent and child
+        NetworkEdge edge = child.getParentEdges().stream()
+            .filter(e -> e.parentNode == parent)
+            .findFirst()
+            .orElse(null);
+
+        // Create the edge if it doesn't exist yet
+        if (edge == null) {
+            edge = new NetworkEdge(parent, child, new BitSet());
+            child.addParentEdge(edge);
+            if (parent != null) {
+                parent.addChildEdge(edge);
+            } else {
+                network.getRootEdges().add(edge);
+            }
+        }
+
+        return edge;
+    }
+
+    public NetworkEdge createOrUpdateEdge(NetworkNode parent, NetworkNode child, int segment) {
+        return createOrUpdateEdge(parent, child, BitSetFun.singleton(segment));
+    }
+
+    public NetworkEdge createOrUpdateEdge(NetworkNode parent, NetworkNode child, BitSet newSegments) {
+        // Check for existing edges
+        NetworkEdge edge = getEdge(parent, child);
+        edge.hasSegments.or(newSegments);
+
+        return edge;
+    }
+
+    /**
+     * Remove `edge` from the network, by removing its refernce from the parent and child node.
+     * NB: Only safe when no segments are present.
+     */
+    public void removeEdge(NetworkEdge edge) {
+        assert edge.hasSegments.isEmpty();
+        
+        // Remove `edge` from its childNode (never null)
+        edge.childNode.removeParentEdge(edge);
+
+        // Remove `edge` from its parent node if not null
+        if (edge.parentNode != null) {
+            edge.parentNode.removeChildEdge(edge);
+        } else {
+            // Otherwise, remove from network.rootEdges
+            network.getRootEdges().remove(edge);
+        }
+
     }
 
     /**

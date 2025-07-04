@@ -22,46 +22,41 @@ import java.util.List;
 
 public class SimulatedCoalescentNetwork extends Network {
 
-    public Input<RealParameter> reassortmentRateInput = new Input<>("reassortmentRate",
-            "Rate of reassortment (per lineage per unit time)");
-    
-	public Input<PopulationFunction> timeVaryingReassortmentRatesInput = new Input<>(
-	        "timeVaryingReassortmentRates",
-            "reassortment rates that vary over time",
-            Input.Validate.XOR, reassortmentRateInput);
+    public Input<RealParameter> reassortmentRateInput =
+            new Input<>("reassortmentRate", "Rate of reassortment (per lineage per unit time)");
+
+    public Input<PopulationFunction> timeVaryingReassortmentRatesInput = new Input<>("timeVaryingReassortmentRates",
+            "reassortment rates that vary over time", Input.Validate.XOR, reassortmentRateInput);
 
 
-    public Input<Function> binomialProbInput = new Input<>("binomialProb",
-            "Probability parameter in binomial reassortment distribution.");
+    public Input<Function> binomialProbInput =
+            new Input<>("binomialProb", "Probability parameter in binomial reassortment distribution.");
 
-    public Input<PopulationFunction> populationFunctionInput = new Input<>("populationModel",
-            "Population model to use.", Validate.REQUIRED);
+    public Input<PopulationFunction> populationFunctionInput =
+            new Input<>("populationModel", "Population model to use.", Validate.REQUIRED);
 
-    public Input<List<Tree>> segmentTreesInput = new Input<>("segmentTree",
-            "One or more segment trees to initialize.", new ArrayList<>());
+    public Input<List<Tree>> segmentTreesInput =
+            new Input<>("segmentTree", "One or more segment trees to initialize.", new ArrayList<>());
 
-    public Input<Integer> nSegmentsInput = new Input<>("nSegments",
-            "Number of segments. Used if no segment trees are supplied.");
+    public Input<Integer> nSegmentsInput =
+            new Input<>("nSegments", "Number of segments. Used if no segment trees are supplied.");
 
-    public Input<TraitSet> traitSetInput = new Input<>("traitSet",
-            "Trait set used to assign leaf ages.");
+    public Input<TraitSet> traitSetInput = new Input<>("traitSet", "Trait set used to assign leaf ages.");
 
-    public Input<TaxonSet> taxonSetInput = new Input<>("taxonSet",
-            "Taxon set used to define leaves");
+    public Input<TaxonSet> taxonSetInput = new Input<>("taxonSet", "Taxon set used to define leaves");
 
     public Input<Boolean> enableSegTreeUpdateInput = new Input<>("enableSegmentTreeUpdate",
-            "If false, segment tree objects won't be updated to agree with simulated " +
-                    "network. (Default true.)", true);
+            "If false, segment tree objects won't be updated to agree with simulated " + "network. (Default true.)",
+            true);
 
-    public Input<String> fileNameInput = new Input<>("fileName",
-            "Name of file to write simulated network to.");
+    public Input<String> fileNameInput = new Input<>("fileName", "Name of file to write simulated network to.");
 
     private PopulationFunction populationFunction;
     private RealParameter reassortmentRate;
     private Function binomialProb;
-    
+
     public PopulationFunction timeVaryingReassortmentRates;
-    
+
     private boolean isTimeVarying = false;
 
     private int nSegments;
@@ -70,47 +65,48 @@ public class SimulatedCoalescentNetwork extends Network {
 
         if (segmentTreesInput.get().isEmpty()) {
             nSegments = nSegmentsInput.get();
-        }else {
+        } else {
             nSegments = segmentTreesInput.get().size();
             segmentNames = new String[nSegments];
             // initialize names of segments
             baseName = "";
-//            baseName = "Tree.t:";
-//            baseName = segmentTreesInput.get().get(0).getID();
-//            for (int segIdx=1; segIdx<nSegments; segIdx++) {
-//        		String newBase = "";
-//            	for (int i = 0; i < baseName.length(); i++) {
-//    				if (baseName.substring(0,i+1).contentEquals(segmentTreesInput.get().get(segIdx).getID().substring(0, i+1))) {
-//    					newBase = baseName.substring(0,i+1);
-//    				}
-//    				
-//            	}
-//            	baseName = newBase;
-//            }
-            
-            for (int segIdx=0; segIdx<nSegments; segIdx++) {
-            	segmentNames[segIdx] = segmentTreesInput.get().get(segIdx).getID().replace(baseName, "");
+            // baseName = "Tree.t:";
+            // baseName = segmentTreesInput.get().get(0).getID();
+            // for (int segIdx=1; segIdx<nSegments; segIdx++) {
+            // String newBase = "";
+            // for (int i = 0; i < baseName.length(); i++) {
+            // if (baseName.substring(0,i+1).contentEquals(segmentTreesInput.get().get(segIdx).getID().substring(0,
+            // i+1))) {
+            // newBase = baseName.substring(0,i+1);
+            // }
+            //
+            // }
+            // baseName = newBase;
+            // }
+
+            for (int segIdx = 0; segIdx < nSegments; segIdx++) {
+                segmentNames[segIdx] = segmentTreesInput.get().get(segIdx).getID().replace(baseName, "");
             }
             segmentTreesInput.get().clear();
         }
 
         populationFunction = populationFunctionInput.get();
-        if (reassortmentRateInput.get()!=null) {
-        	reassortmentRate = reassortmentRateInput.get();
-        }else {
-        	isTimeVarying = true;
-        	timeVaryingReassortmentRates = timeVaryingReassortmentRatesInput.get();
+        if (reassortmentRateInput.get() != null) {
+            reassortmentRate = reassortmentRateInput.get();
+        } else {
+            isTimeVarying = true;
+            timeVaryingReassortmentRates = timeVaryingReassortmentRatesInput.get();
         }
         binomialProb = binomialProbInput.get();
 
-        if (nSegments==0) {
+        if (nSegments == 0) {
             throw new IllegalArgumentException("Need at least one segment!");
         }
 
         // Set up sample nodes:
 
         List<NetworkNode> sampleNodes = new ArrayList<>();
-    
+
 
         TaxonSet taxonSet = null;
         if (traitSetInput.get() != null)
@@ -118,10 +114,10 @@ public class SimulatedCoalescentNetwork extends Network {
         else if (taxonSetInput.get() != null)
             taxonSet = taxonSetInput.get();
         else if (!segmentTreesInput.get().isEmpty())
-        	taxonSet = segmentTreesInput.get().get(0).getTaxonset();
+            taxonSet = segmentTreesInput.get().get(0).getTaxonset();
         else
-            throw new IllegalArgumentException("Taxon set must be specified " +
-                    "using either taxonSet, traitSet or provided by a segmentTree input.");
+            throw new IllegalArgumentException("Taxon set must be specified "
+                    + "using either taxonSet, traitSet or provided by a segmentTree input.");
 
         TraitSet traitSet = null;
         if (traitSetInput.get() != null)
@@ -129,7 +125,7 @@ public class SimulatedCoalescentNetwork extends Network {
         else if (!segmentTreesInput.get().isEmpty())
             traitSet = segmentTreesInput.get().get(0).getDateTrait();
 
-        for (int taxonIndex=0; taxonIndex<taxonSet.getTaxonCount(); taxonIndex++) {
+        for (int taxonIndex = 0; taxonIndex < taxonSet.getTaxonCount(); taxonIndex++) {
             String taxonName = taxonSet.getTaxonId(taxonIndex);
 
             NetworkNode sampleNode = new NetworkNode();
@@ -165,8 +161,7 @@ public class SimulatedCoalescentNetwork extends Network {
                 ps.println(toString());
 
             } catch (FileNotFoundException ex) {
-                throw new RuntimeException("Error writing to output file '"
-                        + fileNameInput.get() + "'.");
+                throw new RuntimeException("Error writing to output file '" + fileNameInput.get() + "'.");
             }
         }
 
@@ -174,13 +169,12 @@ public class SimulatedCoalescentNetwork extends Network {
     }
 
     private double getBinomialProb() {
-        return binomialProb != null
-                ? binomialProb.getArrayValue()
-                : 0.5;
+        return binomialProb != null ? binomialProb.getArrayValue() : 0.5;
     }
 
     /**
      * Simulate network under coalescent with reassortment model.
+     * 
      * @param sampleNodes network nodes corresponding to samples.
      */
     public void simulateNetwork(List<NetworkNode> sampleNodes) {
@@ -204,18 +198,20 @@ public class SimulatedCoalescentNetwork extends Network {
             int k = extantLineages.size();
 
             double currentTransformedTime = populationFunction.getIntensity(currentTime);
-            double transformedTimeToNextCoal = k>=2 ? Randomizer.nextExponential(0.5*k*(k-1)) : Double.POSITIVE_INFINITY;
-            double timeToNextCoal = populationFunction.getInverseIntensity(
-                    transformedTimeToNextCoal + currentTransformedTime) - currentTime;
-            
-            double timeToNextReassortment = k>=1 ? 0 : Double.POSITIVE_INFINITY;
+            double transformedTimeToNextCoal =
+                    k >= 2 ? Randomizer.nextExponential(0.5 * k * (k - 1)) : Double.POSITIVE_INFINITY;
+            double timeToNextCoal =
+                    populationFunction.getInverseIntensity(transformedTimeToNextCoal + currentTransformedTime)
+                            - currentTime;
+
+            double timeToNextReassortment = k >= 1 ? 0 : Double.POSITIVE_INFINITY;
             if (isTimeVarying) {
                 double currentTransformedReaTime = timeVaryingReassortmentRates.getIntensity(currentTime);
                 double transformedTimeToNextRea = Randomizer.nextExponential(k);
-            	timeToNextReassortment = timeVaryingReassortmentRates.getInverseIntensity(
-            			transformedTimeToNextRea + currentTransformedReaTime) - currentTime;            	
-            }else {
-            	timeToNextReassortment = Randomizer.nextExponential(k*reassortmentRate.getArrayValue());
+                timeToNextReassortment = timeVaryingReassortmentRates
+                        .getInverseIntensity(transformedTimeToNextRea + currentTransformedReaTime) - currentTime;
+            } else {
+                timeToNextReassortment = Randomizer.nextExponential(k * reassortmentRate.getArrayValue());
             }
 
             // next event time
@@ -231,8 +227,7 @@ public class SimulatedCoalescentNetwork extends Network {
                 sample(remainingSampleNodes, extantLineages);
             }
 
-        }
-        while (extantLineages.size() > 1 || !remainingSampleNodes.isEmpty());
+        } while (extantLineages.size() > 1 || !remainingSampleNodes.isEmpty());
 
         setRootEdge(extantLineages.get(0));
     }
@@ -261,9 +256,7 @@ public class SimulatedCoalescentNetwork extends Network {
 
         // Create coalescent node
         NetworkNode coalescentNode = new NetworkNode();
-        coalescentNode.setHeight(coalescentTime)
-                .addChildEdge(lineage1)
-                .addChildEdge(lineage2);
+        coalescentNode.setHeight(coalescentTime).addChildEdge(lineage1).addChildEdge(lineage2);
         lineage1.parentNode = coalescentNode;
         lineage2.parentNode = coalescentNode;
 
@@ -287,8 +280,8 @@ public class SimulatedCoalescentNetwork extends Network {
         BitSet hasSegs_left = new BitSet();
         BitSet hasSegs_right = new BitSet();
 
-        for (int segIdx = lineage.hasSegments.nextSetBit(0);
-             segIdx != -1; segIdx = lineage.hasSegments.nextSetBit(segIdx+1)) {
+        for (int segIdx = lineage.hasSegments.nextSetBit(0); segIdx != -1; segIdx =
+                lineage.hasSegments.nextSetBit(segIdx + 1)) {
             if (Randomizer.nextDouble() < getBinomialProb()) {
                 hasSegs_left.set(segIdx);
             } else {

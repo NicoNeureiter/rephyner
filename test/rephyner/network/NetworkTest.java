@@ -5,10 +5,12 @@ import beast.base.evolution.tree.Node;
 import beast.base.evolution.tree.TraitSet;
 import beast.base.evolution.tree.Tree;
 import rephyner.RephynerTestClass;
+import rephyner.util.BitSetFun;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class NetworkTest extends RephynerTestClass {
 
@@ -32,7 +34,7 @@ public class NetworkTest extends RephynerTestClass {
         rootNode.setHeight(3.0);
 
         NetworkEdge edgeA = new NetworkEdge();
-        edgeA.hasSegments = (BitSet)hasSegments.clone();
+        edgeA.hasSegments = (BitSet) hasSegments.clone();
         nodeA.addParentEdge(edgeA);
 
         nodeAprime.addChildEdge(edgeA);
@@ -44,27 +46,29 @@ public class NetworkTest extends RephynerTestClass {
         nodeAprime.addParentEdge(edgeAprime1);
 
         NetworkEdge edgeAprime2 = new NetworkEdge();
-        edgeAprime2.hasSegments = (BitSet)hasSegments.clone();
+        edgeAprime2.hasSegments = (BitSet) hasSegments.clone();
         edgeAprime2.hasSegments.xor(edgeAprime1.hasSegments);
         nodeAprime.addParentEdge(edgeAprime2);
 
         NetworkEdge edgeB = new NetworkEdge();
-        edgeB.hasSegments = (BitSet)hasSegments.clone();
+        edgeB.hasSegments = (BitSet) hasSegments.clone();
         nodeB.addParentEdge(edgeB);
 
         nodeAB.addChildEdge(edgeAprime1).addChildEdge(edgeB);
 
-        NetworkEdge edgeAB =  new NetworkEdge();
-        edgeAB.hasSegments = (BitSet)hasSegments.clone();
+        NetworkEdge edgeAB = new NetworkEdge();
+        edgeAB.hasSegments = (BitSet) hasSegments.clone();
         nodeAB.addParentEdge(edgeAB);
 
         rootNode.addChildEdge(edgeAB);
         rootNode.addChildEdge(edgeAprime2);
 
         NetworkEdge rootEdge = new NetworkEdge(null, rootNode, hasSegments);
-        Network network = new Network(rootEdge);
+        ReducedNetwork network = new ReducedNetwork(new ArrayList<>(Collections.singletonList(rootEdge)));
 
-        Network parsedNetwork = new Network("(((A[&segments={0,1,2,3,4,5,6,7}]:1)#1[&segments={1,4}]:1,B[&segments={0,1,2,3,4,5,6,7}]:2)[&segments={0,1,2,3,4,5,6,7}]:1,#1[&segments={0,2,3,5,6,7}]:2)[&segments={0,1,2,3,4,5,6,7}]:0.0;");
+        Network parsedFullNetwork = new Network(
+                "(((A[&segments={0,1,2,3,4,5,6,7}]:1)#1[&segments={1,4}]:1,B[&segments={0,1,2,3,4,5,6,7}]:2)[&segments={0,1,2,3,4,5,6,7}]:1,#1[&segments={0,2,3,5,6,7}]:2)[&segments={0,1,2,3,4,5,6,7}]:0.0;");
+        ReducedNetwork parsedNetwork = parsedFullNetwork.reduce();
 
         Assert.assertEquals(network.toString(), parsedNetwork.toString());
 
@@ -77,7 +81,8 @@ public class NetworkTest extends RephynerTestClass {
 
     @Test
     public void copyEdgeTest() {
-        Network network = new Network("(((A[&segments={0,1,2,3,4,5,6,7}]:1)#1[&segments={1,4}]:1,B[&segments={0,1,2,3,4,5,6,7}]:2)[&segments={0,1,2,3,4,5,6,7}]:1,#1[&segments={0,2,3,5,6,7}]:2)[&segments={0,1,2,3,4,5,6,7}]:0.0;");
+        Network network = new Network(
+                "(((A[&segments={0,1,2,3,4,5,6,7}]:1)#1[&segments={1,4}]:1,B[&segments={0,1,2,3,4,5,6,7}]:2)[&segments={0,1,2,3,4,5,6,7}]:1,#1[&segments={0,2,3,5,6,7}]:2)[&segments={0,1,2,3,4,5,6,7}]:0.0;");
 
         Network copiedNetwork = (Network) network.copy();
 
@@ -120,6 +125,19 @@ public class NetworkTest extends RephynerTestClass {
         return treeNode;
     }
 
+    private void assertSegmentLeavesAreNetworkLeaves(ReducedNetwork network) {
+        for (NetworkNode node : network.getNodes()) {
+            if (node.isLeaf())
+                continue;
+
+            BitSet parentSegs = node.getActiveSegments();
+            BitSet childSegs = node.getCoalescingSegments();
+            Assert.assertTrue("Internal node " + node.toString() + "is a leaf in a segment tree",
+                parentSegs.equals(childSegs)
+            );
+        }
+    }
+
     @Test
     public void segmentTreeUpdateTest() {
         int nSegs = 50;
@@ -127,14 +145,62 @@ public class NetworkTest extends RephynerTestClass {
         TraitSet traitSet = getSerialDateTraitSet(taxonSet, 1.0);
         List<Tree> segTrees = getSegmentTreeObjects(nSegs, traitSet);
 
-        Network network = getContempNetwork(segTrees, 2.0, traitSet);
+        ReducedNetwork network = getContempNetwork(segTrees, 2.0, traitSet);
 
-        for (int segIdx=0; segIdx<nSegs; segIdx++) {
+        // Print taxon indices for debugging
+        System.out.println("asdf");
+        System.out.println(network.getLeafNodes().stream().mapToInt(NetworkNode::getTaxonIndex).boxed()
+                .collect(Collectors.toList()));
+
+        network.assertValid();
+        assertSegmentLeavesAreNetworkLeaves(network);
+
+        for (int segIdx = 0; segIdx < nSegs; segIdx++) {
+            System.err.println(segIdx);
             network.updateSegmentTree(segTrees.get(segIdx), segIdx);
-            String segTreeString= segTrees.get(segIdx).getRoot().toSortedNewick(new int[1], false);
-            String trueSegTreeString = extractSegmentTree(network.getRootEdge().childNode, segIdx).toSortedNewick(new int[1], false);
-
-            Assert.assertEquals(trueSegTreeString, segTreeString);
+            String segTreeString = segTrees.get(segIdx).getRoot().toSortedNewick(new int[1], false);
+            for (NetworkEdge rootEdge : network.rootEdges) {
+                if (rootEdge.hasSegments.get(segIdx)) {
+                    String trueSegTreeString =
+                            extractSegmentTree(rootEdge.childNode, segIdx).toSortedNewick(new int[1], false);
+                    Assert.assertEquals(trueSegTreeString, segTreeString);
+                }
+            }
         }
+    }
+
+    @Test
+    public void getEdgesAtHeightTest() {
+        // Build a simple network: root (height 3.0) -> child (height 2.0) -> leaf (height 0.0)
+        BitSet segs = new BitSet();
+        segs.set(0);
+        NetworkNode leaf = new NetworkNode();
+        leaf.setTaxonLabel("L");
+        leaf.setTaxonIndex(0);
+        leaf.setHeight(0.0);
+        NetworkNode child = new NetworkNode();
+        child.setHeight(2.0);
+        NetworkNode root = new NetworkNode();
+        root.setHeight(3.0);
+
+        NetworkEdge edgeLeaf = new NetworkEdge(child, leaf, BitSetFun.copy(segs));
+        NetworkEdge edgeChild = new NetworkEdge(root, child, BitSetFun.copy(segs));
+        leaf.addParentEdge(edgeLeaf);
+        child.addChildEdge(edgeLeaf);
+        child.addParentEdge(edgeChild);
+        root.addChildEdge(edgeChild);
+
+        NetworkEdge rootEdge = new NetworkEdge(null, root, (BitSet) segs.clone());
+        ReducedNetwork network = new ReducedNetwork(new ArrayList<>(Collections.singletonList(rootEdge)));
+
+        // Test: get edges at height 1.0 (should return edgeLeaf)
+        List<NetworkEdge> edges = network.getEdgesAtHeight(1.0);
+        Assert.assertEquals(1, edges.size());
+        Assert.assertEquals(edgeLeaf, edges.get(0));
+
+        // Test: get edges at height 2.5 (should return edgeChild)
+        List<NetworkEdge> edges2 = network.getEdgesAtHeight(2.5);
+        Assert.assertEquals(1, edges2.size());
+        Assert.assertEquals(edgeChild, edges2.get(0));
     }
 }

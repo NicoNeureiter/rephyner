@@ -9,12 +9,10 @@ public class NetworkEdge {
 
     public NetworkEdge() { }
 
-    public NetworkEdge(NetworkNode parentNode, NetworkNode childNode,
-                       BitSet hasSegments) {
-        this.parentNode = parentNode;
-        this.childNode = childNode;
-
-        this.hasSegments = hasSegments;
+    public NetworkEdge(NetworkNode parent, NetworkNode child, BitSet segments) {
+        this.parentNode = parent;
+        this.childNode = child;
+        this.hasSegments = segments;
     }
 
     public double getReassortmentObsProb(double p) {
@@ -36,6 +34,24 @@ public class NetworkEdge {
     
     public boolean isLeafEdge() {
     	return childNode.isLeaf();
+    }
+
+    /**
+     * Add `segment` to this edge
+     * @param segment the segment to add
+     */
+    public void addSegment(int segment) {
+        hasSegments.set(segment, true);
+    }
+
+    /**
+     * Remove `segment` from this edge
+     * @param segment the segment to remove
+     */
+    public void removeSegment(int segment) {
+        hasSegments.set(segment, false);
+        // if (hasSegments.isEmpty())
+        //     remove();
     }
 
     public NetworkEdge getCopy() {

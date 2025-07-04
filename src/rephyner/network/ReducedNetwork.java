@@ -1,6 +1,7 @@
 package rephyner.network;
 
 import beast.base.inference.StateNode;
+import rephyner.util.BitSetFun;
 import beast.base.evolution.tree.Node;
 import beast.base.evolution.tree.Tree;
 import java.io.PrintStream;
@@ -52,7 +53,7 @@ public class ReducedNetwork extends StateNode {
      *
      * @param rootEdges the new root edges.
      */
-    public void setRootEdge(List<NetworkEdge> rootEdges) {
+    public void setRootEdges(List<NetworkEdge> rootEdges) {
         this.rootEdges = rootEdges;
     }
 
@@ -115,7 +116,8 @@ public class ReducedNetwork extends StateNode {
             // allow for different number of segments on different leaves
             BitSet totsegment = new BitSet();
             for (NetworkNode n : getLeafNodes()) {
-                totsegment.or(n.getParentEdges().get(0).hasSegments);
+                for (NetworkEdge e : n.getParentEdges())
+                    totsegment.or(e.hasSegments);
             }
             segmentCount = totsegment.cardinality();
         }
@@ -652,7 +654,9 @@ public class ReducedNetwork extends StateNode {
         Set<BitSet> cladesInNetwork = new HashSet<>();
         Map<BitSet, NetworkNode> networkCladeNodes = new HashMap<>();
         for (NetworkEdge rootEdge : getRootEdges()) {
-            getSegTreeCladesFromNetwork(rootEdge.childNode, segmentIdx, cladesInNetwork, networkCladeNodes);
+            if (rootEdge.hasSegments.get(segmentIdx)) {
+                getSegTreeCladesFromNetwork(rootEdge.childNode, segmentIdx, cladesInNetwork, networkCladeNodes);
+            }
         }
 
         // Identify segment tree clades in existing Tree
@@ -722,9 +726,6 @@ public class ReducedNetwork extends StateNode {
     BitSet getSegTreeCladesFromNetwork(NetworkNode networkNode, int segmentIdx, Set<BitSet> clades,
             Map<BitSet, NetworkNode> cladeNetworkNodes) {
 
-        // TODO [NAN]: Could we use caching to avoid redundant computation? I.e. if this node has already been
-        // processed, return the clade.
-
         BitSet thisClade = new BitSet();
 
         int childrenWithSeg = 0;
@@ -737,7 +738,6 @@ public class ReducedNetwork extends StateNode {
 
         if (childrenWithSeg == 0) {
             // Leaf node
-
             thisClade.set(networkNode.getTaxonIndex());
         }
 
@@ -908,6 +908,25 @@ public class ReducedNetwork extends StateNode {
         return sb.toString();
     }
 
+    public List<NetworkEdge> getEdgesAtHeight(double height) {
+        List<NetworkEdge> edgesAtHeight = new ArrayList<>();
+        for (NetworkEdge rootEdge : rootEdges) {
+            getEdgesAtHeightRecurse(height, rootEdge, edgesAtHeight);
+        }
+        return edgesAtHeight;
+    }
+
+    private void getEdgesAtHeightRecurse(double height, NetworkEdge edge, List<NetworkEdge> edgesAtHeight) {
+        assert edge.isRootEdge() || (edge.parentNode.getHeight() > height);
+        if (edge.childNode.getHeight() <= height) {
+            edgesAtHeight.add(edge);
+        } else {
+            for (NetworkEdge childEdge : edge.childNode.getChildEdges()) {
+                getEdgesAtHeightRecurse(height, childEdge, edgesAtHeight);
+            }
+        }
+    }
+
     public boolean isValid() {
         if (rootEdges.isEmpty())
             return false;
@@ -916,12 +935,106 @@ public class ReducedNetwork extends StateNode {
             if (r.parentNode != null)
                 return false;
 
-        // TODO Check the most important rARG invariants
-        // - Each node and each edge has at least one active segment
-        // - Segments that are active at a node always coalesce at that node
-        // - ...
+        for (NetworkNode node : getNodes()) {
+            // All segments are active at leaf nodes
+            if (node.isLeaf()) {
+                if (node.getActiveSegments().cardinality() != getSegmentCount())
+                    return false;
+            } else {
+                // All internal nodes are coalescing in the network (otherwise rARG is not minimal)
+                if (!node.isCoalescence())
+                    return false;
 
+                // Segment assertions
+                BitSet segs = node.getActiveSegments();
+                // Reduced network nodes need some active segments (otherwise rARG is not minimal)
+                if (segs.isEmpty())
+                    return false;
+
+
+                BitSet activeButNotCoalescing = BitSetFun.andNot(segs, node.getCoalescingSegments());
+                if (!activeButNotCoalescing.isEmpty())
+                    return false;
+
+                for (int i = segs.nextSetBit(0); i != -1; i = segs.nextSetBit(i + 1)) {
+                    // Segment tree leaves should always be leaf nodes in the network
+                    // (otherwise rARG is not consistent with segment trees)
+                    boolean found = false;
+                    for (NetworkEdge child : node.children) {
+                        if (child.hasSegments.get(i)) {
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found)
+                        return false;
+
+                    // All segments that are active at a node should coalesce at that node
+                    // (otherwise rARG is not minimal)
+                    if (!node.isCoalescence(i))
+                        return false;
+                }
+            }
+        }
+
+        for (NetworkEdge edge : getEdges()) {
+            // In a reduced ARG all edges need to affect some local tree
+            if (edge.hasSegments.cardinality() == 0) {
+                return false;
+            }
+        }
+
+        // If no check failed, we assume the rARG is valid
         return true;
+    }
+
+    public void assertValid() {
+        assert !rootEdges.isEmpty() : "Root edges list is empty";
+
+        for (NetworkEdge r : rootEdges)
+            assert r.parentNode == null : "Root edge has a parent node";
+
+        for (NetworkNode node : getNodes()) {
+            // All segments are active at leaf nodes
+            if (node.isLeaf()) {
+                assert node.getActiveSegments()
+                        .cardinality() == getSegmentCount() : "Leaf node does not have all segments active";
+            } else {
+                // All internal nodes are coalescing in the network (otherwise rARG is not minimal)
+                assert node.isCoalescence() : "Internal node is not a coalescence";
+
+                // Segment assertions
+                BitSet segs = node.getActiveSegments();
+                // Reduced network nodes need some active segments (otherwise rARG is not minimal)
+                assert !segs.isEmpty() : "Node has no active segments";
+
+                BitSet activeButNotCoalescing = BitSetFun.andNot(segs, node.getCoalescingSegments());
+                assert activeButNotCoalescing.isEmpty() : "Node has active segments that are not coalescing: "
+                        + activeButNotCoalescing + " at node " + node;
+
+                for (int i = segs.nextSetBit(0); i != -1; i = segs.nextSetBit(i + 1)) {
+                    // Segment tree leaves should always be leaf nodes in the network
+                    // (otherwise rARG is not consistent with segment trees)
+                    boolean found = false;
+                    for (NetworkEdge child : node.children) {
+                        if (child.hasSegments.get(i)) {
+                            found = true;
+                            break;
+                        }
+                    }
+                    assert found : "Segment tree leaf is not a leaf node in the network for segment " + i;
+
+                    // All segments that are active at a node should coalesce at that node
+                    // (otherwise rARG is not minimal)
+                    assert node.isCoalescence(i) : "Segment " + i + " does not coalesce at node";
+                }
+            }
+        }
+
+        for (NetworkEdge edge : getEdges()) {
+            // In a reduced ARG all edges need to affect some local tree
+            assert edge.hasSegments.cardinality() > 0 : "Edge does not affect any segment";
+        }
     }
 
     /**

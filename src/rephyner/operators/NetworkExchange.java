@@ -42,8 +42,10 @@ public class NetworkExchange extends DivertSegmentOperator {
 	}
 	
 	private boolean hasCoalescenceKid(final NetworkNode n) {
-		return !(n.getChildEdges().get(0).childNode.hasSingleChild() &&
-				 n.getChildEdges().get(1).childNode.hasSingleChild());
+		for (NetworkEdge edge : n.getChildEdges())
+			if (!edge.childNode.isLeaf())
+				return true;
+		return false;
 	}	
 
 
@@ -61,10 +63,8 @@ public class NetworkExchange extends DivertSegmentOperator {
 		List<NetworkEdge> networkEdges = new ArrayList<>(network.getEdges());
 
 		final List<NetworkEdge> possibleGrandParentEdges = networkEdges.stream()
-				.filter(e -> !e.childNode.hasSingleChild())
 				.filter(e -> hasCoalescenceKid(e.childNode))
 				.collect(Collectors.toList());
-		
 		
 		final int possibleGrandParents = possibleGrandParentEdges.size();
         if (possibleGrandParents < 1) {
@@ -111,14 +111,12 @@ public class NetworkExchange extends DivertSegmentOperator {
 		networkEdges = new ArrayList<>(network.getEdges());
 		
 		final List<NetworkEdge> possibleGrandParentEdgesAfter = networkEdges.stream()
-				.filter(e -> !e.childNode.hasSingleChild())
 				.filter(e -> hasCoalescenceKid(e.childNode))
 				.collect(Collectors.toList());
 		
 		final int possibleGrandParentsAfter = possibleGrandParentEdgesAfter.size();
 
 		logHR += Math.log(1.0/possibleGrandParentsAfter);
-		
 		
 		return logHR;
 	}
@@ -137,7 +135,6 @@ public class NetworkExchange extends DivertSegmentOperator {
 
 		final List<NetworkEdge> possibleEdges = networkEdges.stream()
 				.filter(e -> !e.isRootEdge())
-				.filter(e -> !e.parentNode.hasSingleChild())
 				.collect(Collectors.toList());
 		
 		final int nPossibleEdges = possibleEdges.size();
@@ -171,7 +168,6 @@ public class NetworkExchange extends DivertSegmentOperator {
 			
 			final List<NetworkEdge> possibleEdgesAfter = networkEdges.stream()
 					.filter(e -> !e.isRootEdge())
-					.filter(e -> !e.parentNode.hasSingleChild())
 					.collect(Collectors.toList());
 			
 			final int nPossibleEdgesAfter = possibleEdgesAfter.size();
@@ -226,8 +222,8 @@ public class NetworkExchange extends DivertSegmentOperator {
 		logHR += detachEdgeSegments(jPEdge, jSegsToRemove, true);
 		logHR += detachEdgeSegments(iPEdge, iSegsToRemove, true);
 		
-		logHR += attachEdgeSegments(jPEdge, iSegsToAdd, true);
-		logHR += attachEdgeSegments(iPEdge, jSegsToAdd, true);
+		logHR -= attachEdgeSegments(jPEdge, iSegsToAdd, true);
+		logHR -= attachEdgeSegments(iPEdge, jSegsToAdd, true);
 		
 		return logHR;
 	}

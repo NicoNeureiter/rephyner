@@ -47,4 +47,10 @@ public class BitSetFun {
         result.andNot(b);
         return result;
     }
+
+    public static BitSet singleton(int i) {
+        BitSet result = new BitSet();
+        result.set(i);
+        return result;
+    }
 }
