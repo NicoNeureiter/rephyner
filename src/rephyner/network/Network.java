@@ -588,7 +588,6 @@ public class Network extends StateNode {
             }
 
             NetworkEdge edge = new NetworkEdge(null, node, hasSegments);
-            node.addParentEdge(edge);
 
             if (ctx.post().length == null) {
                 throw new RuntimeException("Edge missing length in input " + "network string.");
@@ -855,7 +854,6 @@ public class Network extends StateNode {
         reducedNetwork.rootEdges = new ArrayList<>();
         for (AnnotatedNode a : activeRootLineages) {
             NetworkEdge newRootEdge = new NetworkEdge(null, a.node, a.segments);
-            a.node.addParentEdge(newRootEdge);
             reducedNetwork.rootEdges.add(newRootEdge);
         }
 
@@ -1002,8 +1000,6 @@ public class Network extends StateNode {
             if (!coalSegments.isEmpty()) {
                 // If any segments from `a` coalesce at `node`, we create a new edge
                 NetworkEdge coalEdge = new NetworkEdge(newNode, a.node, coalSegments);
-                newNode.addChildEdge(coalEdge);
-                a.node.addParentEdge(coalEdge);
             }
             if (!skipSegments.isEmpty()) {
                 // The segments from `a` that do not coalesce at `node` are passed up as activeLineages
