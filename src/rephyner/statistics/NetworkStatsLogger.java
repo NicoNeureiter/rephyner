@@ -1,30 +1,27 @@
 package rephyner.statistics;
 
+import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.List;
 import beast.base.core.BEASTObject;
 import beast.base.core.Input;
 import beast.base.core.Loggable;
 import beast.base.evolution.tree.Tree;
 import rephyner.network.Network;
 import rephyner.network.NetworkEdge;
-import rephyner.network.NetworkNode;
-
-import java.io.PrintStream;
-import java.util.ArrayList;
-import java.util.BitSet;
-import java.util.List;
-import java.util.stream.Collectors;
+import rephyner.network.ReducedNetwork;
 
 public class NetworkStatsLogger extends BEASTObject implements Loggable {
 
 
-    public Input<Network> networkInput =
+    public Input<ReducedNetwork> networkInput =
             new Input<>("network", "Network for which to log statistics.", Input.Validate.REQUIRED);
 
     public Input<List<Tree>> segmentTreesInput =
             new Input<>("segmentTree", "Segment tree associated with network.", new ArrayList<>());
 
 
-    Network network;
+    ReducedNetwork network;
     boolean logObservable = false;
 
     public NetworkStatsLogger() {}
@@ -41,28 +38,16 @@ public class NetworkStatsLogger extends BEASTObject implements Loggable {
 
         String prefix = network.getID() == null ? "networkStat." : network.getID() + ".";
 
-        if (logObservable)
-            out.print(prefix + "obsHeight\t" + prefix + "obsTotalLength\t" + prefix + "obsReassortmentNodeCount\t");
-        else
-            out.print(prefix + "height\t" + prefix + "totalLength\t" + prefix + "reassortmentNodeCount\t");
+        out.print(prefix + "height\t" + prefix + "totalLength\t" + prefix + "nodeCount\t" + prefix + "edgeCount\t");
 
     }
 
     @Override
     public void log(long sample, PrintStream out) {
-        if (logObservable) {
-            double[] rootHeights = new double[segmentTreesInput.get().size()];
-            for (int i = 0; i < segmentTreesInput.get().size(); i++)
-                rootHeights[i] = segmentTreesInput.get().get(i).getRoot().getHeight();
-
-            out.print(getTotalHeight(network, rootHeights) + "\t" + getTotalEdgeLength(network, rootHeights) + "\t"
-                    + getReassortmentCount(network, rootHeights) + "\t");
-
-
-        } else {
-            out.print(getTotalHeight(network) + "\t" + getTotalEdgeLength(network) + "\t"
-                    + getReassortmentCount(network) + "\t");
-        }
+        out.print(network.getNetworkHeight() + "\t"
+                + getTotalEdgeLength(network) + "\t"
+                + network.getNodes().size() + "\t"
+                + network.getEdges().size() + "\t");
     }
 
     @Override
@@ -70,87 +55,33 @@ public class NetworkStatsLogger extends BEASTObject implements Loggable {
 
     }
 
-    public static int getReassortmentCount(Network network) {
-        return (int) network.getNodes().stream().filter(n -> n.hasSingleChild()).count();
-    }
-
-    public static double getTotalEdgeLength(Network network) {
+    public static double getTotalEdgeLength(ReducedNetwork network) {
         return network.getEdges().stream().filter(e -> !e.isRootEdge()).map(NetworkEdge::getLength)
                 .reduce((l1, l2) -> l1 + l2).get();
     }
 
-    public static double getTotalHeight(Network network) {
-        return network.getRootEdge().childNode.getHeight();
+    public static int getExcessCount(ReducedNetwork network) {
+        return network.getInternalNodes().size() - network.getLeafNodes().size() + 1;
     }
 
-    public static int getReassortmentCount(Network network, double[] rootHeights) {
-        double maxHeight = 0.0;
-        for (int i = 0; i < rootHeights.length; i++)
-            if (rootHeights[i] > maxHeight)
-                maxHeight = rootHeights[i];
-
-        final double finalMaxHeight = maxHeight;
-
-        return (int) network.getNodes().stream().filter(n -> n.hasSingleChild())
-                .filter(n -> n.getHeight() < finalMaxHeight).count();
+    public static double getTotalHeight(ReducedNetwork network) {
+        return network.getRootEdges().stream().map(e -> e.childNode.getHeight()).max(Double::compare).get();
     }
 
-    public static double getTotalEdgeLength(Network network, double[] rootHeights) {
-        double totalLength = 0.0;
-        List<NetworkEdge> networkEdges = new ArrayList<>(network.getEdges());
-        List<NetworkEdge> nonRootEdges =
-                networkEdges.stream().filter(e -> !e.isRootEdge()).collect(Collectors.toList());
-        // check for each edge if it has at least one segment for which the root hasn't been reched yet
-        for (int i = 0; i < nonRootEdges.size(); i++) {
-            double childHeight = nonRootEdges.get(i).childNode.getHeight();
-            final BitSet hasSegment = nonRootEdges.get(i).hasSegments;
-            for (int j = 0; j < rootHeights.length; j++) {
-                if (hasSegment.get(j) && childHeight < rootHeights[j]) {
-                    totalLength += nonRootEdges.get(i).parentNode.getHeight() - childHeight;
-                    break;
-                }
-            }
-
-        }
-
-        return totalLength;
+    public static int getReassortmentCount(ReducedNetwork network, double[] rootHeights) {
+        throw new UnsupportedOperationException("getReassortmentCount is not compatible with reduced networks");
     }
 
-    public static double getTotalHeight(Network network, double[] rootHeights) {
-        double maxHeight = 0.0;
-        for (int i = 0; i < rootHeights.length; i++)
-            if (rootHeights[i] > maxHeight)
-                maxHeight = rootHeights[i];
-        return maxHeight;
+    public static double getTotalEdgeLength(ReducedNetwork network, double[] rootHeights) {
+        throw new UnsupportedOperationException("getTotalEdgeLength is not compatible with reduced networks");
+    }
+
+    public static double getTotalHeight(ReducedNetwork network, double[] rootHeights) {
+        throw new UnsupportedOperationException("getTotalHeight is not compatible with reduced networks");
     }
 
     public static double getLociMRCA(Network network) {
-        double maxHeight = 0.0;
-        for (int i = 0; i < network.getSegmentCount(); i++) {
-            double height = getHeightSegmentsRoot(network.getRootEdge(), i);
-            if (height > maxHeight)
-                maxHeight = height;
-        }
-        return maxHeight;
-    }
-
-    private static double getHeightSegmentsRoot(NetworkEdge edge, int segment) {
-        NetworkNode n = edge.childNode;
-        BitSet coalescingSegments = n.getCoalescingSegments();
-        if (!n.hasSingleChild()) {
-            if (coalescingSegments.get(segment)) {
-                return n.getHeight();
-            } else {
-                for (NetworkEdge childEdge : n.getChildEdges()) {
-                    if (childEdge.hasSegments.get(segment)) {
-                        return getHeightSegmentsRoot(childEdge, segment);
-                    }
-                }
-                throw new RuntimeException("No child edge found with segment " + segment + " in node " + n.toString());
-            }
-        } else {
-            return getHeightSegmentsRoot(n.getChildEdges().get(0), segment);
-        }
+        throw new UnsupportedOperationException("getLociMRCA is not compatible with reduced networks");
     }
 
 }
