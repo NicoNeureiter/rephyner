@@ -3,8 +3,9 @@ package rephyner.network;
 
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.HashSet;
 import java.util.List;
-
+import java.util.Set;
 import rephyner.util.BitSetFun;
 
 public class NetworkNode {
@@ -52,6 +53,10 @@ public class NetworkNode {
 
     public NetworkNode(BitSet activeSegments) {
         this._activeSegments = activeSegments;
+    }
+
+    public NetworkNode(double height) {
+        this.height = height;
     }
 
     public double getHeight() {
@@ -158,6 +163,14 @@ public class NetworkNode {
         return getParentCount() > 1;
     }
 
+    public boolean isSegmentRoot(){
+        return getParentEdges().stream().anyMatch(NetworkEdge::isRootEdge);
+    }
+
+    public boolean isGlobalRoot(){
+        return getParentEdges().stream().allMatch(NetworkEdge::isRootEdge);
+    }
+
     public int getChildCount() {
         return children.size();
     }
@@ -165,6 +178,50 @@ public class NetworkNode {
     public int getParentCount() {
         return parents.size();
     }
+
+    public double getYoungestParentHeight() {
+        return parents.stream()
+            .filter(e -> !e.isRootEdge())
+            .map(e -> e.parentNode.getHeight())
+            .min(Double::compare)
+            .orElse(Double.POSITIVE_INFINITY);
+    }
+
+    public double getOldestChildHeight() {
+        return parents.stream()
+            .map(e -> e.childNode.getHeight())
+            .max(Double::compare)
+            .get();
+    }
+
+     /**
+     * Retrieve parent edge in the local tree of the given segment
+     * @return sister of given edge for segment
+     */
+    public NetworkEdge getParentEdge(int segment) {
+        assert this.getActiveSegments().get(segment);
+        return getParentEdges().stream()
+                .filter(e -> e.hasSegments.get(segment))
+                .findFirst()
+                .get();
+                // .orElse(null);    ...replaced by assert above
+    }
+
+     /**
+     * Retrieve parent edge in the local tree of the given segment
+     * @return sister of given edge for segment
+     */
+    public List<NetworkEdge> getChildEdges(int segment) {
+        if (!isLeaf()) {
+            assert getActiveSegments().get(segment) : "Can't get children for non active segment " + segment + " in node " + this;
+            assert getCoalescingSegments().get(segment) : "Can't get children for non coalescing segment " + segment + " in node " + this;
+        }
+        return getChildEdges().stream()
+                .filter(e -> e.hasSegments.get(segment))
+                .toList();
+    }
+
+    
 
     public int getDegree() {
         return getChildCount() + getParentCount();
@@ -290,5 +347,55 @@ public class NetworkNode {
         return seenTwice;
     }
 
+    public Set<NetworkNode> getDescendants() {
+        Set<NetworkNode> descendants = new HashSet<>();
+        getDescendantsRecurse(descendants);
+        
+        // Remove `this` node itself from descendants
+        descendants.remove(this);
+
+        return descendants;
+    }
+
+    private void getDescendantsRecurse(Set<NetworkNode> networkNodeSet) {
+        // If node was already covered, return directly
+        if (networkNodeSet.contains(this)) 
+            return;
+        
+        // Include node in set of descendants
+        networkNodeSet.add(this);
+
+        // Iterate over child edges
+        for (NetworkEdge e : getChildEdges()) {
+            NetworkNode c = e.childNode;
+            c.getDescendantsRecurse(networkNodeSet);
+        }
+    }
+
+
+    public Set<NetworkNode> getAncestors() {
+        Set<NetworkNode> ancestors = new HashSet<>();
+        getAncestorsRecurse(ancestors);
+        
+        // Remove `this` node itself from ancestors
+        ancestors.remove(this);
+
+        return ancestors;
+    }
+
+    private void getAncestorsRecurse(Set<NetworkNode> networkNodeSet) {
+        // If node was already covered, return directly
+        if (networkNodeSet.contains(this)) 
+            return;
+        
+        // Include node in set of descendants
+        networkNodeSet.add(this);
+
+        // Iterate over parent edges
+        for (NetworkEdge e : getParentEdges()) {
+            NetworkNode p = e.childNode;
+            p.getAncestorsRecurse(networkNodeSet);
+        }
+    }
 
 }

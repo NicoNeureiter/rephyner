@@ -11,7 +11,7 @@ import java.util.List;
 
 public class SegmentTreeInitializer extends BEASTObject implements StateNodeInitialiser {
 
-    public Input<Network> networkInput = new Input<>("network",
+    public Input<ReducedNetwork> networkInput = new Input<>("network",
             "Network used to initialize segment trees.", Input.Validate.REQUIRED);
 
     public Input<List<Tree>> segmentTreesInput = new Input<>("segmentTree",
@@ -21,15 +21,15 @@ public class SegmentTreeInitializer extends BEASTObject implements StateNodeInit
             "If only one segment tree is provided, this is its index.");
 
     int nSegments;
-    Network network;
+    ReducedNetwork reducedNetwork;
     List<Tree> segmentTrees;
     Integer segmentIndex;
 
     @Override
     public void initAndValidate() {
-        network = networkInput.get();
+        reducedNetwork = networkInput.get();
         segmentTrees = segmentTreesInput.get();
-        nSegments = network.getSegmentCount();
+        nSegments = reducedNetwork.getSegmentCount();
         segmentIndex = segmentIndexInput.get();
 
         if (segmentIndex == null) {
@@ -47,10 +47,10 @@ public class SegmentTreeInitializer extends BEASTObject implements StateNodeInit
     @Override
     public void initStateNodes() {
         if (segmentIndex != null) {
-            network.updateSegmentTree(segmentTrees.get(0), segmentIndexInput.get());
+            reducedNetwork.updateSegmentTree(segmentTrees.get(0), segmentIndexInput.get());
         } else {
             for (int segIdx = 0; segIdx < nSegments; segIdx++) {
-                network.updateSegmentTree(segmentTrees.get(segIdx), segIdx);
+                reducedNetwork.updateSegmentTree(segmentTrees.get(segIdx), segIdx);
             }
         }
     }
