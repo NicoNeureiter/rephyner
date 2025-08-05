@@ -80,7 +80,6 @@ public class InitFromTree extends BEASTObject implements StateNodeInitialiser {
 
         // Create new lineage
         NetworkEdge lineage = new NetworkEdge(null, coalescentNode, hasSegments);
-        coalescentNode.addParentEdge(lineage);
 
         extantLineages.remove(lineage1);
         extantLineages.remove(lineage2);
@@ -123,7 +122,6 @@ public class InitFromTree extends BEASTObject implements StateNodeInitialiser {
         
         NetworkEdge lineage = new NetworkEdge(null, n, hasSegs);
         extantLineages.add(lineage);
-        n.addParentEdge(lineage);
     }
 
     /**

@@ -1,6 +1,7 @@
 package rephyner.util;
 
 import java.util.BitSet;
+import java.util.Iterator;
 
 public class BitSetFun {
 
@@ -47,10 +48,20 @@ public class BitSetFun {
         result.andNot(b);
         return result;
     }
+    
+    public static boolean disjoint(BitSet a, BitSet b) {
+        return and(a, b).isEmpty();
+    }
 
     public static BitSet singleton(int i) {
         BitSet result = new BitSet();
         result.set(i);
         return result;
     }
+
+    public static Iterable<Integer> iterable(BitSet bitset) {
+    return bitset.stream()::iterator;
+    }
+
+
 }
