@@ -1,22 +1,26 @@
 <beast version="2.0"
        namespace="beast.pkgmgmt:beast.base.core:beast.base.inference
-                 :beast.core.util
-                 :beast.core.parameter
-                 :beast.evolution.alignment
-                 :beast.evolution.likelihood
-                 :beast.evolution.tree
-                 :beast.evolution.tree.coalescent
-                 :beast.evolution.sitemodel
-                 :beast.evolution.substitutionmodel
-                 :beast.evolution.operators
-                 :beast.math.distributions
+                 :beast.base.inference.util
+                 :beast.base.inference.parameter
+                 :beast.base.evolution.alignment
+                 :beast.base.evolution.likelihood
+                 :beast.base.evolution.tree
+                 :beast.base.evolution.tree.coalescent
+                 :beast.base.evolution.sitemodel
+                 :beast.base.evolution.substitutionmodel
+                 :beast.base.evolution.operator
+                 :beast.base.evolution.operator
+                 :beast.base.inference.distribution
+                 :beast.base.inference.distribution.Prior
                  :feast.simulation
                  :feast.fileio
-                 :rephyne.network
-                 :rephyne.statistics
-                 :rephyne.simulator
-                 :rephyne.distribution
-                 :rephyne.operators">
+                 :rephyner.network
+                 :rephyner.statistics
+                 :rephyner.simulator
+                 :rephyner.distribution
+                 :rephyner.operators
+                 :rephyner.operators.localtreeoperators
+                 ">
 
     <alignment id="seg1align" spec="AlignmentFromNexus" fileName="simulate_2segserial.seg1.alignment.nexus"/>
     <alignment id="seg2align" spec="AlignmentFromNexus" fileName="simulate_2segserial.seg2.alignment.nexus"/>
@@ -32,7 +36,7 @@
         <taxon spec="Taxon" id="t8"/>
         <taxon spec="Taxon" id="t9"/>
         <taxon spec="Taxon" id="t10"/>
-        <taxon spec="Taxon" id="t11"/>
+        <!-- <taxon spec="Taxon" id="t11"/>
         <taxon spec="Taxon" id="t12"/>
         <taxon spec="Taxon" id="t13"/>
         <taxon spec="Taxon" id="t14"/>
@@ -41,34 +45,36 @@
         <taxon spec="Taxon" id="t17"/>
         <taxon spec="Taxon" id="t18"/>
         <taxon spec="Taxon" id="t19"/>
-        <taxon spec="Taxon" id="t20"/>
+        <taxon spec="Taxon" id="t20"/> -->
     </taxonset>
 
     <traitSet spec="TraitSet" traitname="date-backward" id="traitSet">
-        t1=0, t2=0.1, t3=0.2, t4=0.3, t5=0.4, t6=0.5, t7=0.6, t8=0.7, t9=0.8, t10=0.9,
-        t11=0, t12=0.1, t13=0.2, t14=0.3, t15=0.4, t16=0.5, t17=0.6, t18=0.7, t19=0.8, t20=0.9
+        t1=0, t2=0.1, t3=0.2, t4=0.3, t5=0.4, t6=0.5, t7=0.6, t8=0.7, t9=0.8, t10=0.9
+        <!-- t11=0, t12=0.1, t13=0.2, t14=0.3, t15=0.4, t16=0.5, t17=0.6, t18=0.7, t19=0.8, t20=0.9 -->
         <taxa idref="taxonSet"/>
     </traitSet>
 
-    <run spec="MCMC" chainLength="10000000">
+    <run spec="MCMC" chainLength="5000000">
 
-        <state>
+        <state storeEvery="5000">
             <stateNode id="seg1tree" spec="Tree" taxonset="@taxonSet" trait="@traitSet"/>
             <stateNode id="seg2tree" spec="Tree" taxonset="@taxonSet" trait="@traitSet"/>
             <stateNode id="reassortmentRate" spec="RealParameter" value="1.0"/>
-            <stateNode id="clockRate" spec="RealParameter" value="0.05"/>
+            <stateNode id="clockRate" spec="RealParameter" value="0.15"/>
+            <stateNode id="coalescenceRate" spec="RealParameter" value="0.5"/>
             <stateNode id="popSize" spec="RealParameter" value="1.0"/>
 
-            <stateNode id="network" spec="SimulatedCoalescentNetwork"
+            <stateNode id="network" spec="SimulatedReducedCoalescentNetwork"
                        nSegments="2" enableSegmentTreeUpdate="false">
 
                 <traitSet idref="traitSet"/>
 
-                <populationModel spec="ConstantPopulation">
+                <!-- <populationModel spec="ConstantPopulation">
                     <popSize spec="RealParameter" value="1.0"/>
-                </populationModel>
+                </populationModel> -->
 
-                <reassortmentRate spec="RealParameter" value="1.0"/>
+                <coalescenceRate spec="RealParameter" value="1.0"/>
+                <maxHeight spec="RealParameter" value="3.0"/>
             </stateNode>
         </state>
 
@@ -96,14 +102,13 @@
                     </siteModel>
                 </distribution>
             </distribution>
+            <!-- 
+            -->
 
             <distribution id="prior" spec="CompoundDistribution">
-                <distribution id="networkPrior" spec="CoalescentWithReassortment">
-                    <networkIntervals spec="NetworkIntervals" network="@network"/>
-
-                    <populationModel spec="ConstantPopulation" popSize="@popSize"/>
-
-                    <reassortmentRate idref="reassortmentRate"/>
+                <distribution id="networkPrior" spec="ReducedCoalescent" coalescenceRate="@coalescenceRate" maxHeight="3.0">
+                    <!-- <networkIntervals spec="NetworkIntervals" network="@network"/> -->
+                    <network idref="network"/>
                 </distribution>
 
                 <distribution id="parametersPrior" spec="CompoundDistribution">
@@ -128,65 +133,80 @@
 
         <!-- Parameter Operators -->
 
+<!-- 
         <operator spec="ScaleOperator" parameter="@reassortmentRate" scaleFactor="0.5" weight="1.0"/>
         <operator spec="ScaleOperator" parameter="@clockRate" scaleFactor="0.5" weight="1.0"/>
         <operator spec="ScaleOperator" parameter="@popSize" scaleFactor="0.5" weight="1.0"/>
+ -->
 
-
-        <operator id="upDownOperator" spec="NetworkScaleOperator"
+<!-- 
+        <operator id="upDownOperator" spec="NetworkScaleOperator" scaleFactor="0.9"
                   network="@network" weight="1.0">
             <segmentTree idref="seg1tree"/>
             <segmentTree idref="seg2tree"/>
             <upParameter idref="popSize"/>
             <downParameter idref="clockRate"/>
-            <downParameter idref="reassortmentRate"/>
         </operator>
+-->
 
 
         <!-- Network Operators -->
 
+        <operator id="localSubtreeSlide" spec="LocalTreeSubtreeSlide" network="@network" size="0.2" weight="1.0">
+            <segmentTree idref="seg1tree"/>
+            <segmentTree idref="seg2tree"/>
+        </operator>
+
+        <operator id="divertSegmentOperator" spec="DivertSingleSegmentOperator" network="@network" weight="1.0">
+            <segmentTree idref="seg1tree"/>
+            <segmentTree idref="seg2tree"/>
+        </operator>
+
+<!--      
+        <operator spec="UniformNetworkNodeHeightOperator" network="@network" weight="1.0">
+            <segmentTree idref="seg1tree"/>
+            <segmentTree idref="seg2tree"/>
+        </operator>
+ -->
+
+        <operator id="NetworkScale" spec="NetworkScaleOperator" scaleFactor="0.9"
+                  network="@network" weight="1.0">
+            <segmentTree idref="seg1tree"/>
+            <segmentTree idref="seg2tree"/>
+        </operator>
+    
+        <operator id="NetworkScaleRootOnly" spec="NetworkScaleOperator" scaleFactor="0.9"
+                  network="@network" scaleRootOnly="true" weight="1.0">
+            <segmentTree idref="seg1tree"/>
+            <segmentTree idref="seg2tree"/>
+        </operator>
+        
+        
+        <!-- 
         <operator spec="AddRemoveReassortment" network="@network" alpha="1.0" weight="1.0">
             <segmentTree idref="seg1tree"/>
             <segmentTree idref="seg2tree"/>
         </operator>
 
-        <operator spec="DivertSegmentOperator" network="@network" weight="1.0">
-            <segmentTree idref="seg1tree"/>
-            <segmentTree idref="seg2tree"/>
-        </operator>
+        -->
 
-        <operator spec="UniformNetworkNodeHeightOperator" network="@network" weight="1.0">
-            <segmentTree idref="seg1tree"/>
-            <segmentTree idref="seg2tree"/>
-        </operator>
+        <!-- Loggers -->
 
-        <operator id="NetworkScale" spec="NetworkScaleOperator"
-                  network="@network" weight="1.0">
-            <segmentTree idref="seg1tree"/>
-            <segmentTree idref="seg2tree"/>
-        </operator>
-
-        <operator id="NetworkScaleRootOnly" spec="NetworkScaleOperator"
-                  network="@network" scaleRootOnly="true" weight="1.0">
-            <segmentTree idref="seg1tree"/>
-            <segmentTree idref="seg2tree"/>
-        </operator>
-
-        <logger spec="Logger" logEvery="10000" mode="tree" fileName="$(filebase).trees">
+        <logger spec="Logger" logEvery="5000" mode="tree" fileName="$(filebase).trees">
             <log idref="network"/>
         </logger>
 
-        <logger spec="Logger" logEvery="10000" mode="tree" fileName="$(filebase).seg1.trees">
+        <logger spec="Logger" logEvery="5000" mode="tree" fileName="$(filebase).seg1.trees">
             <log idref="seg1tree"/>
         </logger>
 
-        <logger spec="Logger" logEvery="10000" mode="tree" fileName="$(filebase).seg2.trees">
+        <logger spec="Logger" logEvery="5000" mode="tree" fileName="$(filebase).seg2.trees">
             <log idref="seg2tree"/>
         </logger>
 
-        <logger spec="Logger" logEvery="10000" fileName="$(filebase).log">
+        <logger spec="Logger" logEvery="5000" fileName="$(filebase).log">
             <log idref="posterior"/>
-            <log idref="likelihood"/>
+            <!-- <log idref="likelihood"/> -->
             <log spec="NetworkStatsLogger" network="@network"/>
             <log spec="TreeStatLogger" tree="@seg1tree"/>
             <log spec="TreeStatLogger" tree="@seg2tree"/>
@@ -197,13 +217,11 @@
 
         <logger spec="Logger" logEvery="10000">
             <log idref="posterior"/>
-            <log idref="likelihood"/>
-            <log idref="networkPrior"/>
+            <!-- <log idref="likelihood"/> -->
+            <!-- <log idref="networkPrior"/> -->
             <log idref="parametersPrior"/>
             <log spec="NetworkStatsLogger" network="@network"/>
-            <log idref="reassortmentRate"/>
             <log idref="clockRate"/>
-            <log idref="popSize"/>
             <log spec="ESS" arg="@posterior"/>
         </logger>
 
