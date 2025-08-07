@@ -1,8 +1,10 @@
 <package name="rephyner" version="0.0.1">
   <depends on='BEAST.base' atleast='2.7.2'/>
   <depends on='BEAST.app' atleast='2.7.2'/>
+  <depends on='CoalRe' atleast='2.6.3'/>
 
   <service type="beast.base.core.BEASTInterface">
+    <provider classname="rephyner.distribution.ReducedCoalescent"/>
     <provider classname="rephyner.distribution.CoalescentWithReassortment"/>
     <provider classname="rephyner.distribution.emptyNetworkEdgesPrior"/>
     <provider classname="rephyner.distribution.NetworkDistribution"/>
@@ -10,21 +12,13 @@
     <provider classname="rephyner.distribution.TipPrior"/>
     <provider classname="rephyner.network.Network"/>
     <provider classname="rephyner.network.SegmentTreeInitializer"/>
-    <provider classname="rephyner.operators.AddRemoveReassortment"/>
-    <provider classname="rephyner.operators.AddRemoveReassortmentCoalescent"/>
+    <provider classname="rephyner.operators.SplitMergeNode"/>
+    <provider classname="rephyner.operators.DivertSingleSegmentOperator"/>
+    <provider classname="rephyner.operators.localtreeoperators.LocalTreeSubtreeSlide"/>
     <provider classname="rephyner.operators.DivertSegmentOperator"/>
-    <provider classname="rephyner.operators.GibbsOperatorAboveSegmentRoots"/>
-    <provider classname="rephyner.operators.MultiTipDatesRandomWalker"/>
-    <provider classname="rephyner.operators.NetworkExchange"/>
     <provider classname="rephyner.operators.NetworkScaleOperator"/>
-    <provider classname="rephyner.operators.SubNetworkSlide"/>
-    <provider classname="rephyner.operators.TipReheight"/>
     <provider classname="rephyner.operators.UniformNetworkNodeHeightOperator"/>
-    <provider classname="rephyner.operators.UniformReassortmentReheight"/>
-    <provider classname="rephyner.simulator.SimulatedCoalescentNetwork"/>
-    <provider classname="rephyner.simulator.SIRwithReassortment"/>
-    <provider classname="rephyner.simulator.SuperspreadingSIRwithReassortment"/>
-    <provider classname="rephyner.simulator.SuperspreadingStructuredSIRwithReassortment"/>
+    <provider classname="rephyner.simulator.SimulatedReducedCoalescentNetwork"/>
     <provider classname="rephyner.statistics.NetworkStatsLogger"/>
     <provider classname="rephyner.statistics.ReducedNetworkLogger"/>
     <provider classname="rephyner.statistics.ReducedNetworkStatsLogger"/>
