@@ -32,19 +32,13 @@ public class DivertSegmentOperatorTest extends RephynerTestClass {
         c1 = new NetworkNode();
         c1.setHeight(0.0);
         edge1 = new NetworkEdge(parentNode, c1, BitSetFun.singleton(0));
-        parentNode.addChildEdge(edge1);
-        c1.addParentEdge(edge1);
 
         // Add second child
         c2 = new NetworkNode();
         c2.setHeight(0.0);
         edge2 = new NetworkEdge(parentNode, c2, BitSetFun.singleton(0));
-        parentNode.addChildEdge(edge2);
-        c2.addParentEdge(edge2);
-        
 
         rootEdge = new NetworkEdge(null, parentNode, BitSetFun.singleton(0));
-        parentNode.addParentEdge(rootEdge);
         network = new ReducedNetwork(new ArrayList<>(Collections.singletonList(rootEdge)));
 
 

@@ -9,7 +9,7 @@ import beast.base.evolution.tree.coalescent.ConstantPopulation;
 import beast.base.util.Randomizer;
 import rephyner.network.ReducedNetwork;
 import rephyner.simulator.SimulatedCoalescentNetwork;
-
+import rephyner.simulator.SimulatedReducedCoalescentNetwork;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
@@ -72,22 +72,17 @@ public abstract class RephynerTestClass {
     }
 
     protected ReducedNetwork getContempNetwork(List<Tree> segmentTrees, double reassortmentRate, TraitSet traitSet) {
-        ConstantPopulation popFunc = new ConstantPopulation();
-        popFunc.initByName("popSize", new RealParameter("1.0"));
-
-        SimulatedCoalescentNetwork network = new SimulatedCoalescentNetwork();
+        SimulatedReducedCoalescentNetwork network = new SimulatedReducedCoalescentNetwork();
         network.initByName(
                 "segmentTree", segmentTrees,
                 "traitSet", traitSet,
-                "populationModel", popFunc,
-                "reassortmentRate", new RealParameter(String.valueOf(reassortmentRate)),
+                "coalescenceRate", new RealParameter(String.valueOf(1.0)),
+                "maxHeight", new RealParameter(String.valueOf(5.0)),
                 "enableSegmentTreeUpdate", false);
 
-        ReducedNetwork reducedNetwork = network.reduce();
-
         // Assert.assertTrue("Network should be valid after reduction.", reducedNetwork.isValid());
-        reducedNetwork.assertValid();
-        return reducedNetwork;
+        network.assertValid();
+        return network;
     }
 
 }
