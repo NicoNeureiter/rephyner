@@ -1081,9 +1081,9 @@ public class ReducedNetwork extends StateNode {
         for (NetworkNode node : getNodes()) {
 
             // Child and parent edges are unique
-            if (Util.allElementsUnique(node.getChildEdges()))
+            if (!Util.allElementsUnique(node.getChildEdges()))
                 return false;
-            if (Util.allElementsUnique(node.getParentEdges()))
+            if (!Util.allElementsUnique(node.getParentEdges()))
                 return false;
 
             // All segments are active at leaf nodes

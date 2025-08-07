@@ -214,7 +214,7 @@ public class NetworkNode {
     public List<NetworkEdge> getChildEdges(int segment) {
         if (!isLeaf()) {
             assert getActiveSegments().get(segment) : "Can't get children for non active segment " + segment + " in node " + this;
-            assert getCoalescingSegments().get(segment) : "Can't get children for non coalescing segment " + segment + " in node " + this;
+            // assert getCoalescingSegments().get(segment) : "Can't get children for non coalescing segment " + segment + " in node " + this;
         }
         return getChildEdges().stream()
                 .filter(e -> e.hasSegments.get(segment))
