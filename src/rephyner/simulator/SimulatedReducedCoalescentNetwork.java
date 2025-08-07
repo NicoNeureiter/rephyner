@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import beast.base.core.Function;
 import beast.base.core.Input;
 import beast.base.evolution.alignment.TaxonSet;
@@ -13,7 +14,6 @@ import beast.base.evolution.tree.TraitSet;
 import beast.base.evolution.tree.Tree;
 import beast.base.evolution.tree.coalescent.PopulationFunction;
 import beast.base.util.Randomizer;
-import rephyner.network.NetworkEdge;
 import rephyner.network.NetworkNode;
 import rephyner.network.ReducedNetwork;
 import rephyner.util.RandomUtil;
@@ -44,10 +44,14 @@ public class SimulatedReducedCoalescentNetwork extends ReducedNetwork {
 
     public Input<String> fileNameInput = new Input<>("fileName", "Name of file to write simulated network to.");
 
-    public Input<Function> maxHeightInput = new Input<>("maxHeight", "Maximum height of the tree.");
+    public Input<Function> maxHeightInput = new Input<>(
+            "maxHeight",
+            "Maximum height of the network.",
+            Input.Validate.REQUIRED);
 
     private Function coalescenceRate;
     private Function binomialProb;
+    private Function maxHeight;
 
     public PopulationFunction timeVaryingReassortmentRates;
 
@@ -56,6 +60,7 @@ public class SimulatedReducedCoalescentNetwork extends ReducedNetwork {
     private int nSegments, nTaxa;
 
     public void initAndValidate() {
+        maxHeight = maxHeightInput.get();
 
         if (segmentTreesInput.get().isEmpty()) {
             nSegments = nSegmentsInput.get();
@@ -67,7 +72,7 @@ public class SimulatedReducedCoalescentNetwork extends ReducedNetwork {
             for (int segIdx = 0; segIdx < nSegments; segIdx++) {
                 segmentNames[segIdx] = segmentTreesInput.get().get(segIdx).getID().replace(baseName, "");
             }
-            segmentTreesInput.get().clear();
+            // segmentTreesInput.get().clear();
         }
         // segmentCount = nSegments;  // To avoid potentially saving the wrong number in initializaton
 
@@ -142,10 +147,6 @@ public class SimulatedReducedCoalescentNetwork extends ReducedNetwork {
 
         super.initAndValidate();
 
-        if (!isValid()) {
-            System.err.println("not valid");
-        }
-
         assertValid();
     }
 
@@ -167,6 +168,7 @@ public class SimulatedReducedCoalescentNetwork extends ReducedNetwork {
         for (int segment : Util.range(1, nSegments)) {
             simulateNextLocalTree(internalNodes, sampleNodes, segment);
         }
+        
     }
 
     /**
@@ -178,9 +180,10 @@ public class SimulatedReducedCoalescentNetwork extends ReducedNetwork {
         List<Double> sampleHeights = sampleNodes.stream().map(n -> n.getHeight()).toList();
 
         // Create n - 1 new nodes
-        List<Double> newHeights = sampleCoalescentHeights(sampleHeights);
+        List<Double> newHeights = sampleHeights(sampleHeights, new ArrayList<>());
+
+        // List<Double> newHeights = sampleCoalescentHeights(sampleHeights);
         List<NetworkNode> newNodes = newHeights.stream().map(h -> new NetworkNode(h)).collect(Collectors.toList());
-        newNodes.sort(Comparator.comparingDouble(NetworkNode::getHeight));
 
         // Samples edges between nodes
         sampleEdges(sampleNodes, newNodes, 0);
@@ -202,8 +205,10 @@ public class SimulatedReducedCoalescentNetwork extends ReducedNetwork {
         // TODO: Select proportional to number of segments in node ?
 
         // Create n - 1 - k new nodes
-        List<Double> newHeightsFull = sampleCoalescentHeights(sampleHeights);
-        List<Double> newHeights = RandomUtil.subset(newHeightsFull, nInternal - nKeep);
+        List<Double> oldHeights = keepNodes.stream().map(n->n.getHeight()).toList();
+        List<Double> newHeights = sampleHeights(sampleHeights, oldHeights);
+        // List<Double> newHeightsFull = sampleCoalescentHeights(sampleHeights);
+        // List<Double> newHeights = RandomUtil.subset(newHeightsFull, nInternal - nKeep);
         List<NetworkNode> newNodes = newHeights.stream()
                 .map(h -> new NetworkNode(h))
                 .collect(Collectors.toList());
@@ -219,52 +224,95 @@ public class SimulatedReducedCoalescentNetwork extends ReducedNetwork {
         sampleEdges(sampleNodes, newNodes, segment);
     }
 
-    private List<Double> sampleCoalescentHeights(List<Double> leafHeights) {
-        assert leafHeights.size() > 1;
-        List<Double> remainingSampleHeights = new ArrayList<>(leafHeights);
-        remainingSampleHeights.sort(Double::compareTo);
-
-        List<Double> heights = new ArrayList<>();
+    private List<Double> sampleHeights(List<Double> leafHeights, List<Double> fixedInternalHeights) {
         int n = leafHeights.size() - 1;
-        int extantLineages = 0;
-        double currentTime = 0.0;
-        double timeToNextSample;
-        double timeToNextEvent;
+        int nNew = n - fixedInternalHeights.size();
+        double minHeight = leafHeights.get(0);
+        List<Double> heights;
         do {
-            // get the timing of the next sampling event
-            if (!remainingSampleHeights.isEmpty()) {
-                timeToNextSample = remainingSampleHeights.get(0) - currentTime;
-            } else {
-                timeToNextSample = Double.POSITIVE_INFINITY;
-            }
-
-            if (extantLineages > 1) {
-                timeToNextEvent = Randomizer.nextExponential(extantLineages * coalescenceRate.getArrayValue());
-            } else {
-                timeToNextEvent = Double.POSITIVE_INFINITY;
-            }
-
-            // next event time
-            if (timeToNextEvent < timeToNextSample) {
-                // Coalescent event
-                currentTime += timeToNextEvent;
-                heights.add(currentTime);
-                extantLineages -= 1;
-            } else {
-                // Sample event
-                currentTime += timeToNextSample;
-                remainingSampleHeights.remove(0);
-                extantLineages += 1;
-            }
-
-        } while (extantLineages > 1 || !remainingSampleHeights.isEmpty());
-
-
-        assert heights.size() == n;
-        assert heights.get(n - 1) >= leafHeights.get(leafHeights.size() - 1);
-
+            heights = IntStream.range(0, nNew)
+                    .mapToDouble(i -> RandomUtil.uniform(minHeight, maxHeight.getArrayValue()))
+                    .boxed()
+                    .sorted(Comparator.naturalOrder())
+                    .collect(Collectors.toList());
+        } while (!isValidLocalTree(leafHeights, fixedInternalHeights, heights));
         return heights;
     }
+
+    private boolean isValidLocalTree(List<Double> leafHeights, List<Double> internalHeightsNew, List<Double> internalHeightsOld) {
+        int nLeaf = leafHeights.size();
+        int iLeaf = 0;
+        int nIntN = internalHeightsNew.size();
+        int iIntN = 0;
+        int nIntO = internalHeightsOld.size();
+        int iIntO = 0;
+        int extantLineages = 0;
+        do {
+            double tLeaf = iLeaf < nLeaf ? leafHeights.get(iLeaf) : Double.POSITIVE_INFINITY;
+            double tIntN = iIntN < nIntN ? internalHeightsNew.get(iIntN) : Double.POSITIVE_INFINITY;
+            double tIntO = iIntO < nIntO ? internalHeightsOld.get(iIntO) : Double.POSITIVE_INFINITY;
+            double tInt = Math.min(tIntN, tIntO);
+            if (tLeaf <= tInt) {
+                extantLineages += 1;
+                iLeaf += 1;
+            } else {
+                extantLineages -= 1;
+                if (extantLineages <= 0) return false;
+                if (tIntN < tIntO) iIntN += 1;
+                else iIntO += 1;
+            }
+
+        } while (iLeaf < nLeaf || iIntN < nIntN || iIntO < nIntO);
+        
+        return true;
+    }
+
+    // private List<Double> sampleCoalescentHeights(List<Double> leafHeights, int nSamples) {
+    //     assert leafHeights.size() > 1;
+    //     List<Double> remainingSampleHeights = new ArrayList<>(leafHeights);
+    //     remainingSampleHeights.sort(Double::compareTo);
+
+    //     List<Double> heights = new ArrayList<>();
+    //     int n = leafHeights.size() - 1;
+    //     int extantLineages = 0;
+    //     double currentTime = 0.0;
+    //     double timeToNextSample;
+    //     double timeToNextEvent;
+    //     do {
+    //         // get the timing of the next sampling event
+    //         if (!remainingSampleHeights.isEmpty()) {
+    //             timeToNextSample = remainingSampleHeights.get(0) - currentTime;
+    //         } else {
+    //             timeToNextSample = Double.POSITIVE_INFINITY;
+    //         }
+
+    //         if (extantLineages > 1) {
+    //             timeToNextEvent = Randomizer.nextExponential(extantLineages * coalescenceRate.getArrayValue());
+    //         } else {
+    //             timeToNextEvent = Double.POSITIVE_INFINITY;
+    //         }
+
+    //         // next event time
+    //         if (timeToNextEvent < timeToNextSample) {
+    //             // Coalescent event
+    //             currentTime += timeToNextEvent;
+    //             heights.add(currentTime);
+    //             extantLineages -= 1;
+    //         } else {
+    //             // Sample event
+    //             currentTime += timeToNextSample;
+    //             remainingSampleHeights.remove(0);
+    //             extantLineages += 1;
+    //         }
+
+    //     } while (heights.size() < nSamples);
+
+
+    //     assert heights.size() == nSamples;
+    //     assert heights.get(n - 1) >= leafHeights.get(leafHeights.size() - 1);
+
+    //     return heights;
+    // }
 
     private void sampleEdges(List<NetworkNode> sampleNodes, List<NetworkNode> internalNodes, int segment) {
         assert Util.isSorted(sampleNodes, Comparator.comparingDouble(NetworkNode::getHeight));
@@ -285,6 +333,7 @@ public class SimulatedReducedCoalescentNetwork extends ReducedNetwork {
                 tNextInternal = Double.POSITIVE_INFINITY;
             else
                 tNextInternal = remainingInternalNodes.get(0).getHeight();
+
             if (tNextSample <= tNextInternal) {
                 assert !remainingSampleNodes.isEmpty() : "" + tNextSample + " <= " + tNextInternal;
                 // Sample event
@@ -292,6 +341,9 @@ public class SimulatedReducedCoalescentNetwork extends ReducedNetwork {
                 extantLineages.add(node);
             } else {
                 // Coalescence event
+
+                assert extantLineages.size() >= 2;
+
                 NetworkNode node = remainingInternalNodes.remove(0);
 
                 // Pick 2 child nodes from extant lineages
