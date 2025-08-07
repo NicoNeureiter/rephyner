@@ -1,0 +1,197 @@
+package rephyner.operators;
+
+import beast.base.core.Input;
+import beast.base.core.Input.Validate;
+import beast.base.evolution.tree.Node;
+import beast.base.inference.operator.kernel.KernelDistribution;
+import beast.base.inference.parameter.RealParameter;
+import beast.base.util.Randomizer;
+import rephyner.network.NetworkEdge;
+import rephyner.network.NetworkNode;
+import rephyner.util.RandomUtil;
+import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+public class NetworkScaleOperator extends NetworkOperator {
+
+    final public Input<Double> scaleFactorInput =
+            new Input<>("scaleFactor", "magnitude factor used for scaling", Validate.REQUIRED);
+
+
+    public Input<Boolean> scaleRootOnlyInput = new Input<>("scaleRootOnly", "Scale only the root node.", false);
+
+    public Input<List<RealParameter>> upParametersInput =
+            new Input<>("upParameter", "Parameters to scale in the SAME direction as the network.", new ArrayList<>());
+
+    public Input<List<RealParameter>> downParametersInput = new Input<>("downParameter",
+            "Parameters to scale in the OPPOSITE direction as the network.", new ArrayList<>());
+
+    final public Input<Boolean> optimiseInput = new Input<>("optimise",
+            "flag to indicate that the scale factor is automatically changed in order to achieve a good acceptance rate (default true)",
+            true);
+
+    // final public Input<Boolean> useprime = new Input<>(
+    // "useprime",
+    // "flag to indicate that the scale factor is automatically changed in order to achieve a good acceptance rate
+    // (default true)",
+    // true);
+
+
+    final public Input<Double> scaleUpperLimit = new Input<>("upper", "Upper Limit of scale factor", 10.0);
+    final public Input<Double> scaleLowerLimit = new Input<>("lower", "Lower limit of scale factor", 0.0);
+
+
+    double scaleFactor;
+    boolean scaleRootOnly;
+    List<RealParameter> upParameters, downParameters;
+    double upper, lower;
+
+    Map<NetworkNode, Double> oldLengths;
+    Map<NetworkNode, Boolean> updated;
+
+
+    @Override
+    public void initAndValidate() {
+        super.initAndValidate();
+
+        scaleFactor = scaleFactorInput.get();
+        scaleRootOnly = scaleRootOnlyInput.get();
+        upParameters = upParametersInput.get();
+        downParameters = downParametersInput.get();
+
+        upper = scaleUpperLimit.get();
+        lower = scaleLowerLimit.get();
+
+
+    }
+
+    protected double getScaler() {
+        return (scaleFactor + (Randomizer.nextDouble() * ((1.0 / scaleFactor) - scaleFactor)));
+    }
+
+    @Override
+    public double networkProposal() {
+        network.assertValid();
+
+        double logHR = 0.0;
+        int count = 0;
+        final double f = getScaler();
+
+        network.startEditing(this);
+
+        if (scaleRootOnly) { // Scale a root node
+
+            // Choose which root node to scale. Exclude segment tree roots that have parents in other segments.
+            List<NetworkNode> rootNodes = network.getRootEdges().stream()
+                    .map(e -> e.childNode)
+                    .filter(n -> n.isGlobalRoot())
+                    .toList();
+            assert !rootNodes.isEmpty();
+            NetworkNode rootNode = RandomUtil.choice(rootNodes);
+            logHR -= Math.log(1.0 / rootNodes.size());
+
+            // Set the new height
+            rootNode.setHeight(rootNode.getHeight() * f);
+            count += 1;
+
+            // Directly reject if root would end up below a child node
+            if (f < 1.0) {
+                for (NetworkEdge childEdge : rootNode.getChildEdges())
+                    if (rootNode.getHeight() < childEdge.childNode.getHeight())
+                        return Double.NEGATIVE_INFINITY;
+            }
+
+        } else { // Scale all nodes
+
+            for (NetworkNode node : network.getInternalNodes()) {
+                node.setHeight(node.getHeight() * f);
+                count += 1;
+            }
+
+            // Directly reject if a leaf node would end up above its parent
+            if (f < 1.0) {
+                for (NetworkNode leaf : network.getLeafNodes()) {
+                    if (leaf.getYoungestParentHeight() < leaf.getHeight()) {
+                        return Double.NEGATIVE_INFINITY;
+                    }
+                }
+            }
+        }
+
+        // Scale parameters
+        try {
+            for (RealParameter param : upParameters) {
+                param.startEditing(this);
+                count += param.scale(f);
+            }
+
+            for (RealParameter param : downParameters) {
+                param.startEditing(this);
+                count -= param.scale(1.0 / f);
+            }
+
+        } catch (IllegalArgumentException ex) {
+            network.assertValid();
+            return Double.NEGATIVE_INFINITY;
+        }
+
+        network.assertValid();
+
+        return logHR + Math.log(f) * (count - 2);
+    }
+
+    /**
+     * automatic parameter tuning *
+     */
+    @Override
+    public void optimize(final double logAlpha) {
+        if (optimiseInput.get()) {
+            double delta = calcDelta(logAlpha);
+            double scaleFactor = getCoercableParameterValue();
+            delta += Math.log(scaleFactor);
+            scaleFactor = Math.exp(delta);
+            setCoercableParameterValue(scaleFactor);
+        }
+    }
+
+    @Override
+    public double getCoercableParameterValue() {
+        return scaleFactor;
+    }
+
+    @Override
+    public void setCoercableParameterValue(final double value) {
+        scaleFactor = Math.max(Math.min(value, scaleUpperLimit.get()), scaleLowerLimit.get());
+    }
+
+    @Override
+    public double getTargetAcceptanceProbability() {
+        return 0.3;
+    }
+
+    @Override
+    public String getPerformanceSuggestion() {
+        double prob = m_nNrAccepted / (m_nNrAccepted + m_nNrRejected + 0.0);
+        double targetProb = getTargetAcceptanceProbability();
+
+        double ratio = prob / targetProb;
+        if (ratio > 2.0)
+            ratio = 2.0;
+        if (ratio < 0.5)
+            ratio = 0.5;
+
+        // new scale factor
+        double newWindowSize = getCoercableParameterValue() * ratio;
+
+        DecimalFormat formatter = new DecimalFormat("#.###");
+        if (prob < 0.10 || prob > 0.40) {
+            return "Try setting scale factor to about " + formatter.format(newWindowSize);
+        } else
+            return "";
+    }
+
+
+}

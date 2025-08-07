@@ -9,6 +9,8 @@ import rephyner.network.NetworkEdge;
 import rephyner.network.NetworkNode;
 import rephyner.network.ReducedNetwork;
 import rephyner.util.BitSetFun;
+import rephyner.util.RandomUtil;
+import rephyner.util.Util;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.List;
@@ -31,6 +33,7 @@ public abstract class NetworkOperator extends Operator {
     @Override
     public void initAndValidate() {
         network = networkInput.get();
+        System.out.println("INIT " + network.getID());
         segmentTrees = segmentTreesInput.get();
 
         if (segmentTrees.isEmpty()) {
@@ -67,63 +70,24 @@ public abstract class NetworkOperator extends Operator {
 
     }
 
-//    static int count = 0;
-
     public double proposal() {
-//        count += 1;
-//
-//        System.out.println("count = " + count);
-    	
-//        System.out.println(network);
-        
-//        for (int segIdx=0; segIdx<segmentTrees.size(); segIdx++)
-//            System.out.println(segmentTrees.get(segIdx) +";");
-//        System.out.println("=========");
-
-//        String[] trees = new String[segmentTrees.size()];
-//        if (this instanceof TipReheight) {
-//            if (((TipReheight) this).taxonsetInput.get().getTaxonId(0).contentEquals("RVA/1070/Thailand|2013-01-01")) {
-//                System.out.println(network);
-//                for (int i =0; i < segmentTrees.size(); i++) {
-//                    trees[i] = segmentTrees.get(i) + ";";
-//                }
-//            }
-//        }
-
+        // System.out.println("\n@@@ " + getName() + "           ..." + network.getID());
+        network.assertValid();
 
         double logHR = networkProposal();
 
         if (logHR>Double.NEGATIVE_INFINITY) {
-            for (int segIdx=0; segIdx<segmentTrees.size(); segIdx++)
+
+            assert logHR < Double.POSITIVE_INFINITY;
+
+            // System.out.println(getClass().getName());
+            network.assertValid();
+            for (int segIdx : Util.range(segmentTrees.size()))
                 network.updateSegmentTree(segmentTrees.get(segmentTreeMap[segIdx]), segmentTreeMap[segIdx]);
+            // System.err.println(".");
+        } else {
+            // System.err.println("DIRECT REJECT");
         }
-
-
-
-//        if (this instanceof TipReheight) {
-//            if (((TipReheight) this).taxonsetInput.get().getTaxonId(0).contentEquals("RVA/1070/Thailand|2013-01-01")) {
-//                System.out.println("\n\n\n\n\n\n\n\n\n\n\n\n\n");
-//                for (int i =0; i < segmentTrees.size(); i++) {
-//                    System.out.println(segmentTrees.get(i).getID());
-//                    System.out.println(trees[i]);
-//                    System.out.println(segmentTrees.get(i) + ";");
-//                }
-//                System.out.println(network);
-//
-//                System.out.println("\n=========");
-//            }
-//        }
-
-        
-//        System.out.println(getID());
-//        System.out.println(network);
-        
-//        System.out.println(network);
-//        System.out.println(".............");
-//        
-//        for (int segIdx=0; segIdx<segmentTrees.size(); segIdx++)
-//            System.out.println(segmentTrees.get(segIdx) +";");
-
 
         return logHR;
     }
@@ -145,7 +109,7 @@ public abstract class NetworkOperator extends Operator {
     protected List<NetworkEdge> getSisterEdges(NetworkEdge edge) {
         return edge.parentNode.getChildEdges().stream()
                 .filter(e -> e != edge)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     /**
@@ -155,7 +119,7 @@ public abstract class NetworkOperator extends Operator {
      */
     protected NetworkEdge getSisterEdge(NetworkEdge edge, int segment) {
         assert edge.hasSegments.get(segment);
-        return edge.parentNode.getChildEdges().stream()
+        return edge.parentNode.getChildEdges(segment).stream()
                 .filter(e -> e != edge)
                 .findFirst()
                 .orElse(null);
@@ -174,113 +138,34 @@ public abstract class NetworkOperator extends Operator {
         return segments;
     }
 
-    /**
+     /**
      * Retrieve spouse of given edge
      * @param parentEdge parent edge
      * @return spouse of given parent edge
      */
-    protected NetworkEdge getSpouseEdge(NetworkEdge parentEdge) {
-        int idx = parentEdge.childNode.getParentEdges().indexOf(parentEdge);
-        int otherIdx = (idx + 1) % 2;
-        return parentEdge.childNode.getParentEdges().get(otherIdx);
-    }
-
-    /**
-     * Retrieve spouse of given edge
-     * @param parentEdge parent edge
-     * @return spouse of given parent edge
-     */
-    protected NetworkEdge getRandomSpouseEdge(NetworkEdge parentEdge) {
+    protected List<NetworkEdge> getSpouseEdges(NetworkEdge parentEdge, boolean excludeRootEdges) {
         NetworkNode childNode = parentEdge.childNode;
-        List<NetworkEdge> spouses = childNode.getParentEdges();
-        int numSpouses = spouses.size() - 1;
-
-        if (numSpouses < 1) {
-            throw new IllegalStateException("Cannot get spouse edge for node with less than two parents.");
-            // TODO: possibly just reject the proposal instead?
-        }
-
-        // Randomly choose one of the two parent edges
-        int rndSpouseIdx = Randomizer.nextInt(numSpouses);
-
-        // Ensure we don't choose the parentEdge itself
-        if (spouses.get(rndSpouseIdx) == parentEdge) {
-            rndSpouseIdx = numSpouses;
-        }
-
-        return spouses.get(rndSpouseIdx);
+        List<NetworkEdge> spouses = childNode.getParentEdges().stream()
+                .filter(e -> e != parentEdge)
+                .filter(e -> !(excludeRootEdges && e.isRootEdge()))
+                .toList();
+        return spouses;
     }
 
-    /**
-     * Retrieve spouse of given edge
-     * @param parentEdge parent edge
-     * @return spouse of given parent edge
-     */
-    protected double getRandomSpouseProb(NetworkEdge parentEdge) {
-        NetworkNode childNode = parentEdge.childNode;
-        List<NetworkEdge> spouses = childNode.getParentEdges();
-        int numSpouses = spouses.size() - 1;
-        return Math.log(1. / numSpouses);
-    }
-
-
-    /**
-     * Get an existing or new edge from parent to child.
-     * @param parent
-     * @param child
-     * @return existing or new edge from parent to child
-     */
     public NetworkEdge getEdge(NetworkNode parent, NetworkNode child) {
-        // Look for an existing edge betweek parent and child
-        NetworkEdge edge = child.getParentEdges().stream()
-            .filter(e -> e.parentNode == parent)
-            .findFirst()
-            .orElse(null);
-
-        // Create the edge if it doesn't exist yet
-        if (edge == null) {
-            edge = new NetworkEdge(parent, child, new BitSet());
-            child.addParentEdge(edge);
-            if (parent != null) {
-                parent.addChildEdge(edge);
-            } else {
-                network.getRootEdges().add(edge);
-            }
-        }
-
-        return edge;
+        return network.getEdge(parent, child);
     }
 
     public NetworkEdge createOrUpdateEdge(NetworkNode parent, NetworkNode child, int segment) {
-        return createOrUpdateEdge(parent, child, BitSetFun.singleton(segment));
+        return network.createOrUpdateEdge(parent, child, segment);
     }
 
     public NetworkEdge createOrUpdateEdge(NetworkNode parent, NetworkNode child, BitSet newSegments) {
-        // Check for existing edges
-        NetworkEdge edge = getEdge(parent, child);
-        edge.hasSegments.or(newSegments);
-
-        return edge;
+        return network.createOrUpdateEdge(parent, child, newSegments);
     }
 
-    /**
-     * Remove `edge` from the network, by removing its refernce from the parent and child node.
-     * NB: Only safe when no segments are present.
-     */
     public void removeEdge(NetworkEdge edge) {
-        assert edge.hasSegments.isEmpty();
-        
-        // Remove `edge` from its childNode (never null)
-        edge.childNode.removeParentEdge(edge);
-
-        // Remove `edge` from its parent node if not null
-        if (edge.parentNode != null) {
-            edge.parentNode.removeChildEdge(edge);
-        } else {
-            // Otherwise, remove from network.rootEdges
-            network.getRootEdges().remove(edge);
-        }
-
+        network.removeEdge(edge);
     }
 
     /**
