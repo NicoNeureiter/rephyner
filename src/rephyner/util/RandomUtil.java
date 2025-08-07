@@ -68,4 +68,8 @@ public class RandomUtil {
         return k;
     }
 
+    public static double uniform(double lower, double upper) {
+        return lower + (upper - lower) * Randomizer.nextDouble();
+    }
+
 }
