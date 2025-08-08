@@ -13,6 +13,7 @@
 # Build/test files
 /bin
 /build
+/build-beastfx
 /build-lib
 /build-beast
 /build-test
@@ -30,3 +31,16 @@
 # Ignore generated R files
 .Rhistory
 /validation/*.png
+
+# Misc
+notes.txt
+rephyner.tex
+beast-source
+beastfx-source
+lib/LICENSE
+lib/NOTICE
+lib/RELEASE-NOTES.txt
+validation/wcss/.snakemake/
+validation/wcss/prior/
+validation/wcss/posterior/
+validation/wcss/simulated_data/
