@@ -1,0 +1,95 @@
+configfile: "config.yaml"
+
+
+simulation_ids = list(range(config["n_sims"]))
+segments = [f"{i+1}" for i in range(config["n_segments"])]
+taxon_names = [f"t{i+1}" for i in range(config["n_taxa"])]
+dates = [f"{n}={i/10:.1f}" for i, n in enumerate(taxon_names)]
+
+
+rule clean:
+    shell:
+        """
+        rm -f prior/simulation.xml
+        rm -f prior/*.tree
+        rm -f simulated_data/*.alignment.nexus
+        rm -f posterior/inference.xml
+        rm -f posterior/inference.log
+        rm -f posterior/*.trees
+        """
+
+rule all:
+    input:
+        expand("prior/simulation_{id}.xml", id=simulation_ids),
+        expand("prior/sim_{id}_network.tree", id=simulation_ids),
+        expand("prior/sim_{id}_seg{seg}.tree", id=simulation_ids, seg=segments),
+        expand("simulated_data/sim_{id}_seg{seg}.alignment.nexus", id=simulation_ids, seg=segments)
+
+rule generate_simulation_xml:
+    input:
+        template="templates/simulation.xml",
+    output:
+        xml="prior/simulation_{id}.xml",
+    params:
+        n_sims=config["n_sims"],
+        segments=",".join(segments),
+        taxon_names=",".join(taxon_names),
+        dates=",".join(dates),
+    shell:
+        """
+        TAXA={params.taxon_names} \
+        DATES={params.dates} \
+        SEGMENTS={params.segments} \
+        envsubst < {input.template} > {output.xml}
+        """
+
+
+rule generate_inference_xml:
+    input:
+        template="templates/inference.xml",
+    output:
+        xml="posterior/inference.xml",
+    params:
+        segments=",".join(segments),
+        taxon_names=",".join(taxon_names),
+        dates=",".join(dates),
+        chain_length=config["chain_length"],
+    shell:
+        """
+        TAXA={params.taxon_names} \
+        DATES={params.dates} \
+        SEGMENTS={params.segments} \
+        CHAIN_LENGTH={params.chain_length} \
+        envsubst < {input.template} > {output.xml}
+        """
+
+
+rule run_simulation:
+    input:
+        xml="prior/simulation.xml",
+    output:
+        network="prior/network.tree",
+        trees=expand("prior/seg{seg}.tree", seg=segments),
+        alignments=expand("simulated_data/seg{seg}.alignment.nexus", seg=segments),
+    params:
+        JAVA="/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/bin/java",
+        JAVA_CLASSPATH="../../../rephyner/build-beast:../../../rephyner/build-beastfx:../../../CoalRe/build:../../../rephyner/build:../../../beast2/lib/beagle.jar",
+    shell:
+        "{params.JAVA} -classpath {params.JAVA_CLASSPATH} beastfx.app.beast.BeastMain -overwrite -version_file /Users/nneureiter/Projects/BEAST/rephyner/version.xml -seed 123 {input.xml}"
+
+
+rule run_inference:
+    input:  # TODO
+        xml="posterior/inference.xml",
+        alignments=expand("simulated_data/seg{seg}.alignment.nexus", seg=segments),
+    output:
+        network="posterior/network.trees",
+        trees=expand("posterior/seg{seg}.trees", seg=segments),
+    params:
+        JAVA="/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/bin/java",
+        JAVA_CLASSPATH="../../../rephyner/build-beast:../../../rephyner/build-beastfx:../../../CoalRe/build:../../../rephyner/build:../../../beast2/lib/beagle.jar",
+    shell:
+        "{params.JAVA} -classpath {params.JAVA_CLASSPATH} beastfx.app.beast.BeastMain -overwrite -version_file /Users/nneureiter/Projects/BEAST/rephyner/version.xml -seed 123 {input.xml}"
+
+
+# rule analyse_results:

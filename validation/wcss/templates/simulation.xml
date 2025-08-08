@@ -1,0 +1,63 @@
+<!DOCTYPE note [
+  <!ENTITY taxa "${TAXA}">
+  <!ENTITY segments "${SEGMENTS}">
+]>
+<beast version="2.0"
+       namespace="beast.pkgmgmt:beast.base.core:beast.base.inference
+                 :beast.base.inference.util
+                 :beast.base.inference.parameter
+                 :beast.base.evolution.alignment
+                 :beast.base.evolution.likelihood
+                 :beast.base.evolution.tree
+                 :beast.base.evolution.tree.coalescent
+                 :beast.base.evolution.sitemodel
+                 :beast.base.evolution.substitutionmodel
+                 :beast.base.evolution.operator
+                 :beast.base.inference.distribution
+                 :beast.base.inference.distribution.Prior
+                 :feast.simulation
+                 :rephyner.network
+                 :rephyner.statistics
+                 :rephyner.simulator
+                 :rephyner.distribution
+                 :rephyner.operators">
+
+    <run spec="GPSimulator" nSims="1">
+        <simulationObject id="network_truth" spec="SimulatedReducedCoalescentNetwork" fileName="prior/network.tree" maxHeight="3.0" >
+            <coalescenceRate spec="RealParameter" value="1.0"/>
+            <taxonSet spec="TaxonSet" id="taxonSet">
+                <plate var="tax" range="&taxa;">
+                    <taxon spec="Taxon" id="$(tax)"/>
+                </plate>
+            </taxonSet>
+
+            <traitSet spec="TraitSet" traitname="date-backward" id="traitSet">
+                ${DATES}
+                <taxa idref="taxonSet"/>
+            </traitSet>
+
+            <plate var="seg" range="&segments;">
+                <segmentTree id="seg$(seg)tree_truth" spec="Tree" taxonset="@taxonSet" trait="@traitSet"/>
+            </plate>
+        </simulationObject>
+
+        
+        <plate var="seg" range="&segments;">
+            <simulationObject id="seg$(seg)align" spec="SimulatedAlignment" outputFileName="simulated_data/seg$(seg).alignment.nexus"
+                    sequenceLength="20" tree="@seg$(seg)tree_truth">
+                <siteModel spec="SiteModel">
+                    <mutationRate spec="RealParameter" value="0.15"/>
+                    <substModel spec="JukesCantor"/>
+                </siteModel>
+            </simulationObject>
+        </plate>
+
+        <plate var="seg" range="&segments;">
+            <logger spec="Logger" fileName="prior/seg$(seg).tree" logEvery="1">
+                <log idref="seg$(seg)tree_truth"/>
+            </logger>
+        </plate>
+
+    </run>
+
+</beast>

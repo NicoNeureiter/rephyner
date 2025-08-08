@@ -1,0 +1,9 @@
+# GENERAL
+n_sims: 1
+
+# MODEL
+n_segments: 2 
+n_taxa: 11
+
+# INFERENCE
+chain_length: 100_000
