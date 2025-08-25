@@ -175,6 +175,37 @@ public class ReducedCoalescent extends Distribution {
         return logP;
     }
 
+
+    // public double calculateLogP() {
+    // logP = 0;
+
+    // // Calculate tree intervals
+    // List<NetworkEvent> networkEventList = intervals.getNetworkEventList();
+
+    // NetworkEvent prevEvent = null;
+
+
+    // for (NetworkEvent event : networkEventList) {
+    // if (prevEvent != null)
+    // logP += intervalContribution(prevEvent, event);
+
+    // switch (event.type) {
+    // case COALESCENCE:
+    // logP += coalesce(event);
+    // break;
+
+    // case SAMPLE:
+    // break;
+    // }
+
+    // if (logP==Double.NEGATIVE_INFINITY)
+    // break;
+
+    // prevEvent = event;
+    // }
+    // return logP;
+    // }
+
     private double coalesce(NetworkEvent event) {
         double logP = 0.0;
         logP += Math.log(coalescenceRate.getArrayValue());
