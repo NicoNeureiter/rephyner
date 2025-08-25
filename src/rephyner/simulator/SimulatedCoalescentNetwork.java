@@ -1,24 +1,23 @@
 package rephyner.simulator;
 
-import beast.base.core.Function;
-import beast.base.core.Input;
-import beast.base.core.Input.Validate;
-import beast.base.inference.parameter.RealParameter;
-import beast.base.evolution.alignment.TaxonSet;
-import beast.base.evolution.tree.TraitSet;
-import beast.base.evolution.tree.Tree;
-import beast.base.evolution.tree.coalescent.PopulationFunction;
-import beast.base.util.Randomizer;
-import rephyner.network.Network;
-import rephyner.network.NetworkEdge;
-import rephyner.network.NetworkNode;
-
 import java.io.FileNotFoundException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Comparator;
 import java.util.List;
+import beast.base.core.Function;
+import beast.base.core.Input;
+import beast.base.core.Input.Validate;
+import beast.base.evolution.alignment.TaxonSet;
+import beast.base.evolution.tree.TraitSet;
+import beast.base.evolution.tree.Tree;
+import beast.base.evolution.tree.coalescent.PopulationFunction;
+import beast.base.inference.parameter.RealParameter;
+import beast.base.util.Randomizer;
+import rephyner.network.Network;
+import rephyner.network.NetworkEdge;
+import rephyner.network.NetworkNode;
 
 public class SimulatedCoalescentNetwork extends Network {
 
@@ -26,8 +25,8 @@ public class SimulatedCoalescentNetwork extends Network {
             new Input<>("reassortmentRate", "Rate of reassortment (per lineage per unit time)");
 
     public Input<PopulationFunction> timeVaryingReassortmentRatesInput = new Input<>("timeVaryingReassortmentRates",
-            "reassortment rates that vary over time", Input.Validate.XOR, reassortmentRateInput);
-
+            "reassortment rates that vary over time",
+            Input.Validate.XOR, reassortmentRateInput);
 
     public Input<Function> binomialProbInput =
             new Input<>("binomialProb", "Probability parameter in binomial reassortment distribution.");
