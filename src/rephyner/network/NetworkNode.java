@@ -56,7 +56,15 @@ public class NetworkNode {
     }
 
     public NetworkNode(double height) {
+        assert Double.isFinite(height);
         this.height = height;
+    }
+
+    public NetworkNode(double height, String taxonLabel, int taxonIndex) {
+        assert Double.isFinite(height);
+        this.height = height;
+        this.taxonLabel = taxonLabel;
+        this.taxonIndex = taxonIndex;
     }
 
     public double getHeight() {
@@ -64,6 +72,7 @@ public class NetworkNode {
     }
 
     public NetworkNode setHeight(final double height) {
+        assert Double.isFinite(height);
         this.height = height;
         return this;
     }
@@ -107,9 +116,9 @@ public class NetworkNode {
 
     public NetworkEdge getEdgeToChild(NetworkNode child) {
         return children.stream()
-                       .filter(childEdge -> childEdge.childNode == child)
-                       .findFirst()
-                       .orElse(null);
+                .filter(childEdge -> childEdge.childNode == child)
+                .findFirst()
+                .orElse(null);
     }
 
     public NetworkNode removeChildEdge(NetworkEdge childEdge) {
@@ -150,7 +159,7 @@ public class NetworkNode {
         boolean seen = false;
         for (NetworkEdge childEdge : children) {
             if (childEdge.hasSegments.get(segmentIdx)) {
-                if (seen) 
+                if (seen)
                     return true; // More than one child with this segment
                 else
                     seen = true;
@@ -163,11 +172,11 @@ public class NetworkNode {
         return getParentCount() > 1;
     }
 
-    public boolean isSegmentRoot(){
+    public boolean isSegmentRoot() {
         return getParentEdges().stream().anyMatch(NetworkEdge::isRootEdge);
     }
 
-    public boolean isGlobalRoot(){
+    public boolean isGlobalRoot() {
         return getParentEdges().stream().allMatch(NetworkEdge::isRootEdge);
     }
 
@@ -181,21 +190,22 @@ public class NetworkNode {
 
     public double getYoungestParentHeight() {
         return parents.stream()
-            .filter(e -> !e.isRootEdge())
-            .map(e -> e.parentNode.getHeight())
-            .min(Double::compare)
-            .orElse(Double.POSITIVE_INFINITY);
+                .filter(e -> !e.isRootEdge())
+                .map(e -> e.parentNode.getHeight())
+                .min(Double::compare)
+                .orElse(Double.POSITIVE_INFINITY);
     }
 
     public double getOldestChildHeight() {
         return parents.stream()
-            .map(e -> e.childNode.getHeight())
-            .max(Double::compare)
-            .get();
+                .map(e -> e.childNode.getHeight())
+                .max(Double::compare)
+                .get();
     }
 
-     /**
+    /**
      * Retrieve parent edge in the local tree of the given segment
+     * 
      * @return sister of given edge for segment
      */
     public NetworkEdge getParentEdge(int segment) {
@@ -204,24 +214,23 @@ public class NetworkNode {
                 .filter(e -> e.hasSegments.get(segment))
                 .findFirst()
                 .get();
-                // .orElse(null);    ...replaced by assert above
+        // .orElse(null); ...replaced by assert above
     }
 
-     /**
+    /**
      * Retrieve parent edge in the local tree of the given segment
+     * 
      * @return sister of given edge for segment
      */
     public List<NetworkEdge> getChildEdges(int segment) {
         if (!isLeaf()) {
-            assert getActiveSegments().get(segment) : "Can't get children for non active segment " + segment + " in node " + this;
-            // assert getCoalescingSegments().get(segment) : "Can't get children for non coalescing segment " + segment + " in node " + this;
+            assert getActiveSegments().get(segment) : "Can't get children for non active segment " + segment
+                    + " in node " + this;
         }
         return getChildEdges().stream()
                 .filter(e -> e.hasSegments.get(segment))
                 .toList();
     }
-
-    
 
     public int getDegree() {
         return getChildCount() + getParentCount();
@@ -329,7 +338,9 @@ public class NetworkNode {
     public BitSet getActiveSegments() {
         // List<NetworkEdge> edges = (parents.size() > children.size()) ? children : parents;
         // return edges.stream().map(edge -> edge.hasSegments).reduce(new BitSet(), BitSetFun::or);
-        return parents.stream().map(edge -> edge.hasSegments).reduce(new BitSet(), BitSetFun::or);
+        return parents.stream()
+                .map(edge -> edge.hasSegments)
+                .reduce(new BitSet(), BitSetFun::or);
     }
 
     /**
@@ -350,7 +361,7 @@ public class NetworkNode {
     public Set<NetworkNode> getDescendants() {
         Set<NetworkNode> descendants = new HashSet<>();
         getDescendantsRecurse(descendants);
-        
+
         // Remove `this` node itself from descendants
         descendants.remove(this);
 
@@ -359,9 +370,9 @@ public class NetworkNode {
 
     private void getDescendantsRecurse(Set<NetworkNode> networkNodeSet) {
         // If node was already covered, return directly
-        if (networkNodeSet.contains(this)) 
+        if (networkNodeSet.contains(this))
             return;
-        
+
         // Include node in set of descendants
         networkNodeSet.add(this);
 
@@ -376,7 +387,7 @@ public class NetworkNode {
     public Set<NetworkNode> getAncestors() {
         Set<NetworkNode> ancestors = new HashSet<>();
         getAncestorsRecurse(ancestors);
-        
+
         // Remove `this` node itself from ancestors
         ancestors.remove(this);
 
@@ -385,9 +396,9 @@ public class NetworkNode {
 
     private void getAncestorsRecurse(Set<NetworkNode> networkNodeSet) {
         // If node was already covered, return directly
-        if (networkNodeSet.contains(this)) 
+        if (networkNodeSet.contains(this))
             return;
-        
+
         // Include node in set of descendants
         networkNodeSet.add(this);
 

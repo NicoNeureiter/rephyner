@@ -1,13 +1,21 @@
 package rephyner.network;
 
+import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.BitSet;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+import beast.base.evolution.tree.Node;
+import beast.base.evolution.tree.Tree;
 import beast.base.inference.StateNode;
 import rephyner.util.BitSetFun;
 import rephyner.util.Util;
-import beast.base.evolution.tree.Node;
-import beast.base.evolution.tree.Tree;
-import java.io.PrintStream;
-import java.util.*;
-import java.util.stream.Collectors;
 
 public class ReducedNetwork extends StateNode {
 
@@ -47,6 +55,16 @@ public class ReducedNetwork extends StateNode {
      */
     public List<NetworkEdge> getRootEdges() {
         return rootEdges;
+    }
+
+    /**
+     * @return the root edge for local tree of `segment`
+     */
+    public NetworkEdge getSegmentRootEdge(int segment) {
+        for (NetworkEdge e : rootEdges)
+            if (e.hasSegments.get(segment))
+                return e;
+        throw new IllegalArgumentException("No root edge found for segment " + segment + ".");
     }
 
     /**
@@ -135,6 +153,19 @@ public class ReducedNetwork extends StateNode {
         for (NetworkEdge childEdge : edge.childNode.getChildEdges())
             getEdgesRecurse(childEdge, networkEdgeSet);
     }
+
+    public int getNodeCount() {
+        return getNodes().size();
+    }
+
+    public int getInternalNodeCount() {
+        return getInternalNodes().size();
+    }
+
+    public int getEdgeCount() {
+        return getEdges().size();
+    }
+
 
     /**
      * @return the height of the highest root of the network
@@ -337,7 +368,7 @@ public class ReducedNetwork extends StateNode {
 
     @Override
     public StateNode copy() {
-        Map<NetworkNode,NetworkNode> seenNodes = new HashMap<>();
+        Map<NetworkNode, NetworkNode> seenNodes = new HashMap<>();
         List<NetworkEdge> newRootEdges = rootEdges.stream().map(e -> e.getCopy(seenNodes)).collect(Collectors.toList());
         return new ReducedNetwork(newRootEdges);
     }
@@ -389,17 +420,17 @@ public class ReducedNetwork extends StateNode {
         assertValid();
         // String s1 = getDotString();
 
-        Map<NetworkNode,NetworkNode> seenNodes = new HashMap<>();
+        Map<NetworkNode, NetworkNode> seenNodes = new HashMap<>();
         storedRootEdges = rootEdges.stream().map(e -> e.getCopy(seenNodes)).collect(Collectors.toList());
-        
+
         // restore();
         // String s2 = getDotString();
         // if (!s1.equals(s2)) {
-        //     System.out.println(s1);
-        //     System.out.println(s2);
+        // System.out.println(s1);
+        // System.out.println(s2);
         // }
 
-        
+
     }
 
     @Override
@@ -465,6 +496,7 @@ public class ReducedNetwork extends StateNode {
         // Start the DOT representation by declaring a directed graph
         sb.append("digraph G {");
 
+
         // Create a mapping from network nodes to indices
         List<NetworkNode> nodes = getNodes().stream()
                 .sorted((n1, n2) -> Double.compare(n1.getHeight(), n2.getHeight()))
@@ -484,6 +516,7 @@ public class ReducedNetwork extends StateNode {
 
             sb.append(nodeLabels.get(i)).append(" [t=").append(String.format("%.4f", node.getHeight())).append("];");
         }
+
         // Iterate through the edges and create the connections
         for (NetworkEdge edge : getEdges()) {
             if (edge.parentNode == null) {
@@ -508,8 +541,22 @@ public class ReducedNetwork extends StateNode {
         out.println("tree STATE_" + sample + " = " + getDotString().replace("\n", "\\n") + ";");
     }
 
+    public List<Double> getNodeHeights() {
+        return getNodes().stream()
+                .map(NetworkNode::getHeight)
+                .collect(Collectors.toList());
+    }
+
+    public double getAverageNodeHeight() {
+        return getNodes().stream()
+                .mapToDouble(NetworkNode::getHeight)
+                .average()
+                .getAsDouble();
+    }
+
     /**
      * Get an existing or new edge from parent to child.
+     * 
      * @param parent parent node of the edge
      * @param child child node of the edge
      * @return existing or new edge from parent to child
@@ -517,9 +564,9 @@ public class ReducedNetwork extends StateNode {
     public NetworkEdge getEdge(NetworkNode parent, NetworkNode child) {
         // Look for an existing edge betweek parent and child
         NetworkEdge edge = child.getParentEdges().stream()
-            .filter(e -> e.parentNode == parent)
-            .findFirst()
-            .orElse(null);
+                .filter(e -> e.parentNode == parent)
+                .findFirst()
+                .orElse(null);
 
         if (edge == null) {
             edge = createEdge(parent, child);
@@ -556,6 +603,7 @@ public class ReducedNetwork extends StateNode {
 
     /**
      * Add `segment` to existing or new edge from parent to child
+     * 
      * @param parent parent node of the edge
      * @param child child node of the edge
      * @param segment segment to add to the edge
@@ -567,13 +615,14 @@ public class ReducedNetwork extends StateNode {
 
     /**
      * Add `newSegments` to existing or new edge from parent to child
+     * 
      * @param parent parent node of the edge
      * @param child child node of the edge
      * @param newSegments segments to add to the edge
      * @return existing or new edge from parent to child
      */
     public NetworkEdge createOrUpdateEdge(NetworkNode parent, NetworkNode child, BitSet newSegments) {
-        assert parent != child; 
+        assert parent != child;
         // Check for existing edges
         NetworkEdge edge = getEdge(parent, child);
         edge.hasSegments.or(newSegments);
@@ -582,12 +631,12 @@ public class ReducedNetwork extends StateNode {
     }
 
     /**
-     * Remove `edge` from the network, by removing its refernce from the parent and child node.
-     * NB: Only safe when no segments are present.
+     * Remove `edge` from the network, by removing its refernce from the parent and child node. NB: Only safe when no
+     * segments are present.
      */
     public void removeEdge(NetworkEdge edge) {
         assert edge.hasSegments.isEmpty();
-        
+
         // Remove `edge` from its childNode (never null)
         edge.childNode.removeParentEdge(edge);
 
@@ -807,22 +856,10 @@ public class ReducedNetwork extends StateNode {
 
         // Traverse segment tree in network, adding new nodes from
         // bin as required
-        NetworkEdge segmentRootEdge = getSegmentRoot(segmentIdx);
+        NetworkEdge segmentRootEdge = getSegmentRootEdge(segmentIdx);
         BitSet rootClade = buildSegmentTree(segmentRootEdge.childNode, segmentIdx, cladeNodes, nodeBin);
 
         segmentTree.setRoot(cladeNodes.get(rootClade));
-    }
-
-    NetworkEdge getSegmentRoot(int segmentIdx) {
-        assert !getRootEdges().isEmpty();
-
-        for (NetworkEdge rootEdge : getRootEdges()) {
-            if (rootEdge.hasSegments.get(segmentIdx)) {
-                return rootEdge;
-            }
-        }
-
-        throw new IllegalStateException("No root edge found for segment index " + segmentIdx);
     }
 
     /**
@@ -1019,16 +1056,18 @@ public class ReducedNetwork extends StateNode {
         return sb.toString();
     }
 
-    public List<NetworkEdge> getEdgesAtHeight(double height) {
-        List<NetworkEdge> edgesAtHeight = new ArrayList<>();
+    public Set<NetworkEdge> getEdgesAtHeight(double height) {
+        Set<NetworkEdge> edgesAtHeight = new HashSet<>();
         for (NetworkEdge rootEdge : rootEdges) {
             getEdgesAtHeightRecurse(height, rootEdge, edgesAtHeight);
         }
         return edgesAtHeight;
     }
 
-    private void getEdgesAtHeightRecurse(double height, NetworkEdge edge, List<NetworkEdge> edgesAtHeight) {
+    private void getEdgesAtHeightRecurse(double height, NetworkEdge edge, Set<NetworkEdge> edgesAtHeight) {
         assert edge.isRootEdge() || (edge.parentNode.getHeight() > height);
+        if (edgesAtHeight.contains(edge))
+            return;
         if (edge.childNode.getHeight() <= height) {
             edgesAtHeight.add(edge);
         } else {
@@ -1038,13 +1077,22 @@ public class ReducedNetwork extends StateNode {
         }
     }
 
-    int countSegmentTreeNodes(int segment) {
-        NetworkEdge rootEdge = rootEdges.stream()
-                .filter(e -> e.hasSegments.get(segment))
-                .findFirst()
-                .orElse(null);
-        assert rootEdge != null : "No root found for segment " + segment;
+    public Set<NetworkEdge> getSegmentEdges(int segment) {
+        Set<NetworkEdge> segEdges = new HashSet<>();
+        getSegmentEdgesRecurse(segment, getSegmentRootEdge(segment), segEdges);
+        return segEdges;
+    }
 
+    private void getSegmentEdgesRecurse(int segment, NetworkEdge e, Set<NetworkEdge> segEdges) {
+        assert e.hasSegments.get(segment);
+        segEdges.add(e);
+        for (NetworkEdge childEdge : e.childNode.getChildEdges(segment)) {
+            getSegmentEdgesRecurse(segment, childEdge, segEdges);
+        }
+    }
+
+    int countSegmentTreeNodes(int segment) {
+        NetworkEdge rootEdge = getSegmentRootEdge(segment);
         return countSegmentTreeNodesRecurse(segment, rootEdge.childNode);
     }
 
@@ -1054,6 +1102,25 @@ public class ReducedNetwork extends StateNode {
             count += countSegmentTreeNodesRecurse(segment, e.childNode);
         }
         return count;
+    }
+
+    public boolean edgesUnique() {
+        List<String> edgeStrings = getEdges().stream()
+                .map(e -> e.edgeString())
+                .toList();
+        return Util.allElementsUnique(edgeStrings);
+    }
+
+    public void printDuplicateEdgeStrings() {
+        Set<String> seen = new HashSet<>();
+        for (NetworkEdge e : getEdges()) {
+            String s = e.edgeString();
+            if (seen.contains(s))
+                System.err.println(s);
+            else
+                seen.add(s);
+        }
+
     }
 
     public boolean isValid() {
@@ -1084,6 +1151,12 @@ public class ReducedNetwork extends StateNode {
             if (!Util.allElementsUnique(node.getChildEdges()))
                 return false;
             if (!Util.allElementsUnique(node.getParentEdges()))
+                return false;
+
+            // Child and parent nodes are unique
+            if (!Util.allElementsUnique(node.getChildEdges().stream().map(e -> e.childNode).toList()))
+                return false;
+            if (!Util.allElementsUnique(node.getParentEdges().stream().map(e -> e.parentNode).toList()))
                 return false;
 
             // All segments are active at leaf nodes
@@ -1138,7 +1211,7 @@ public class ReducedNetwork extends StateNode {
                 if (edge.parentNode.getHeight() < edge.childNode.getHeight())
                     return false;
         }
-        
+
         // If no check failed, we assume the rARG is valid
         return true;
     }
@@ -1154,18 +1227,24 @@ public class ReducedNetwork extends StateNode {
         BitSet allRootSegments = rootEdges.stream()
                 .map(e -> e.hasSegments)
                 .reduce(BitSetFun.empty(1), BitSetFun::or);
-        assert allRootSegments.equals(allSegments) : "Segments " + BitSetFun.andNot(allSegments, allRootSegments) + " are not active on any root edge";
+        assert allRootSegments.equals(allSegments) : "Segments " + BitSetFun.andNot(allSegments, allRootSegments)
+                + " are not active on any root edge";
 
         // All segments have full size segment trees
         int expectedTreeSize = 2 * getLeafNodes().size() - 1;
         for (int segment : Util.range(segmentCount))
-            assert countSegmentTreeNodes(segment) == expectedTreeSize : "Segment " + segment + " does not have a full segment tree (" 
+            assert countSegmentTreeNodes(segment) == expectedTreeSize : "Segment " + segment
+                    + " does not have a full segment tree ("
                     + countSegmentTreeNodes(segment) + " nodes, expected " + expectedTreeSize + ")";
 
         for (NetworkNode node : getNodes()) {
             // Child and parent edges are unique
             assert Util.allElementsUnique(node.getChildEdges());
             assert Util.allElementsUnique(node.getParentEdges());
+
+            // Child and parent nodes are unique
+            assert Util.allElementsUnique(node.getChildEdges().stream().map(e -> e.childNode).toList());
+            assert Util.allElementsUnique(node.getParentEdges().stream().map(e -> e.parentNode).toList());
 
             // All segments are active at leaf nodes
             if (node.isLeaf()) {
@@ -1215,7 +1294,7 @@ public class ReducedNetwork extends StateNode {
 
             // Parents must be older than their children
             if (!edge.isRootEdge())
-                assert edge.parentNode.getHeight() >= edge.childNode.getHeight();
+                assert edge.parentNode.getHeight() >= edge.childNode.getHeight() : edge;
         }
     }
 
@@ -1264,16 +1343,16 @@ public class ReducedNetwork extends StateNode {
         _hashValues[6] = rootEdges.size();
 
         int checksum = Arrays.deepHashCode(_hashValues);
-        
+
         // System.out.println(
-        //     "CHECKSUM " + checksum + ":    {" + 
-        //     "nNodes=" + getNodes().size() + ", " + 
-        //     "nEdges=" + getEdges().size() + ", " + 
-        //     "meanRootHeight=" + meanRootHeight + ", " + 
-        //     "meanNodeHeight=" + meanNodeHeight + ", " + 
-        //     "maxDegree=" + maxDegree + ", " + 
-        //     "segmentCount=" + getSegmentCount() + ", " + 
-        //     "nRoots=" + rootEdges.size() + "}"
+        // "CHECKSUM " + checksum + ": {" +
+        // "nNodes=" + getNodes().size() + ", " +
+        // "nEdges=" + getEdges().size() + ", " +
+        // "meanRootHeight=" + meanRootHeight + ", " +
+        // "meanNodeHeight=" + meanNodeHeight + ", " +
+        // "maxDegree=" + maxDegree + ", " +
+        // "segmentCount=" + getSegmentCount() + ", " +
+        // "nRoots=" + rootEdges.size() + "}"
         // );
 
         return checksum;

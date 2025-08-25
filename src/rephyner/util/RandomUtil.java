@@ -2,20 +2,38 @@ package rephyner.util;
 
 import java.util.ArrayList;
 import java.util.BitSet;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.IntStream;
 import beast.base.util.Randomizer;
 
 public class RandomUtil {
 
-    public static <T> T choice(List<T> list) {
-        if (list.isEmpty()) {
+    public static <T> T choice(List<T> items) {
+        if (items.isEmpty()) {
             throw new IllegalArgumentException("Cannot choose from an empty list");
         }
-        int i = Randomizer.nextInt(list.size());
-        return list.get(i);
+        int i = Randomizer.nextInt(items.size());
+        return items.get(i);
+    }
+
+    public static <T> T choice(List<T> items, List<Double> weights) {
+        if (items.isEmpty()) {
+            throw new IllegalArgumentException("Cannot choose from an empty list");
+        }
+        if (items.size() != weights.size()) {
+            throw new IllegalArgumentException("Items and weights must have the same size");
+        }
+
+        double total = Util.sum(weights);
+        double u = Randomizer.nextDouble();
+        double s = 0.0;
+        for (int i : Util.range(items.size())) {
+            double prob = weights.get(i) / total;
+            s += prob;
+            if (u < s)
+                return items.get(i);
+        }
+        throw new IllegalStateException("Should not reach here: total probability is " + s + ", but u is " + u);
     }
 
     public static <T> T choice(Set<T> set) {
@@ -45,13 +63,14 @@ public class RandomUtil {
             if (samples.size() == size)
                 return samples;
         }
-        throw new IllegalStateException("Should not reach here: size of samples is " + samples.size() + ", expected " + size);
+        throw new IllegalStateException(
+                "Should not reach here: size of samples is " + samples.size() + ", expected " + size);
     }
 
     public static BitSet subset(BitSet s, double p) {
         return s.stream()
                 .filter(x -> (Randomizer.nextDouble() < p))
-                .collect(BitSet::new, BitSet::set,BitSet::or);
+                .collect(BitSet::new, BitSet::set, BitSet::or);
     }
 
     public static boolean bernoulli(double p) {

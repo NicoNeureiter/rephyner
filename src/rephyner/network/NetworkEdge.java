@@ -142,5 +142,17 @@ public class NetworkEdge {
         return edgeCopy;
     }
 
+    public String edgeString() {
+        return edgeString(false);
+    }
+
+    public String edgeString(boolean includeSegments) {
+        String parentString = isRootEdge() ? "null" : Integer.toHexString(parentNode.hashCode());
+        String childString = Integer.toHexString(childNode.hashCode());
+        if (includeSegments)
+            return parentString + "-" + hasSegments + "-" + childString;
+        else
+            return parentString + "-" + childString;
+    }
 
 }

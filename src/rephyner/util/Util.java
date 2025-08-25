@@ -28,4 +28,13 @@ public class Util {
         }
         return true;
     }
+
+    public static double sum(List<Double> xs) {
+        double s = 0.0;
+        for (double x : xs) {
+            s += x;
+        }
+        return s;
+    }
+
 }
