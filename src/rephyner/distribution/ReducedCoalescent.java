@@ -4,14 +4,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
-import org.apache.commons.math.util.MathUtils;
-import org.apache.commons.math3.distribution.BinomialDistribution;
 import beast.base.core.Description;
 import beast.base.core.Function;
 import beast.base.core.Input;
 import beast.base.core.Input.Validate;
 import beast.base.inference.Distribution;
 import beast.base.inference.State;
+import beast.base.inference.parameter.RealParameter;
 import beast.base.util.Binomial;
 import rephyner.network.NetworkNode;
 import rephyner.network.ReducedNetwork;
@@ -40,6 +39,12 @@ public class ReducedCoalescent extends Distribution {
             "Maximum height of the network.",
             Input.Validate.REQUIRED);
 
+    public Input<Function> keepNodeProbInput = new Input<>(
+            "keepNodeProbability",
+            "Probability of keeping a node from a previous local tree in the next one.",
+            new RealParameter("0.5"));
+
+
     public Function coalescenceRate;
     public Function maxHeight;
 
@@ -63,6 +68,8 @@ public class ReducedCoalescent extends Distribution {
 
 
     public double calculateLogP() {
+        network = networkInput.get();
+
         logP = 0;
         if (network.getNetworkHeight() > maxHeight.getArrayValue()) {
             return Double.NEGATIVE_INFINITY;
@@ -76,6 +83,7 @@ public class ReducedCoalescent extends Distribution {
 
         network.assertValid();
 
+
         return logP;
     }
 
@@ -85,7 +93,7 @@ public class ReducedCoalescent extends Distribution {
                 .filter(n -> n.getActiveSegments().get(segment))
                 .toList();
         List<NetworkNode> newNodes = localTreeNodes.stream()
-                .filter(n -> !internalNodes.contains(internalNodes))
+                .filter(n -> !internalNodes.contains(n))
                 .toList();
 
         // Randomly pick k <= (n-1) internal ndoes to include in this local tree
@@ -93,34 +101,50 @@ public class ReducedCoalescent extends Distribution {
         int nNew = newNodes.size();
         int nKeep = nTaxa - 1 - nNew;
 
+        assert localTreeNodes.size() == nTaxa - 1;
         assert nNew <= nTaxa - 1;
         assert nKeep <= nTaxa - 1;
-
 
         if (nOld == 0) {
             assert nNew == nTaxa - 1;
             // No old nodes -> first segment tree -> all nodes are new
             // No randomness involved in choosing the subset to keep
+
         } else {
+            assert nOld >= nTaxa - 1;
 
-            // Add logP of keeping exactly nKeep nodes from before
-            logP += (new BinomialDistribution(nTaxa - 1, 0.95)).logProbability(nKeep);
+            double pKeep = keepNodeProbInput.get().getArrayValue();
 
-            // Add logP for keeping the chosen nKeep nodes out of all the previous internal nodes
-            logP -= MathUtils.binomialCoefficientLog(nOld, nKeep);
+            // Probability of keeping exactly the `nKeep` new nodes from previous segment trees
+            logP += nKeep * Math.log(pKeep) + nNew * Math.log(1 - pKeep);
+            for (int i = nOld; i > nOld - nKeep; i--)
+                logP -= Math.log(i);
         }
 
         // Heights are uniform over the polytope of valid height combinations
-        // -> nothing to do
+        List<Double> newHeights = newNodes.stream().map(n -> n.getHeight()).toList();
+        logP += calcHeightsLogP(newHeights);
 
         // Edges attachment probability
         logP += calcEdgeLogP(sampleNodes, localTreeNodes);
 
+        // Update the available internalNodes for the next segment tree
+        internalNodes.addAll(newNodes);
+        
         return logP;
     }
 
+    double calcHeightsLogP(List<Double> heights) {
+        return heights.size() * Math.log(1.0 / maxHeight.getArrayValue());
+        // TODO: Adapt to serially sampled leaves
+    }
 
-    public double calcEdgeLogP(List<NetworkNode> leafNodes, List<NetworkNode> internalNodes) {
+    double calcHeightLogP(double h) {
+        return Math.log(1.0 / maxHeight.getArrayValue());
+        // TODO: Adapt to serially sampled leaves
+    }
+
+    double calcEdgeLogP(List<NetworkNode> leafNodes, List<NetworkNode> internalNodes) {
         double logP = 0.0;
 
         List<Double> leafHeights = leafNodes.stream().map(n -> n.getHeight()).sorted().toList();
@@ -150,37 +174,6 @@ public class ReducedCoalescent extends Distribution {
 
         return logP;
     }
-
-
-    // public double calculateLogP() {
-    // logP = 0;
-
-    // // Calculate tree intervals
-    // List<NetworkEvent> networkEventList = intervals.getNetworkEventList();
-
-    // NetworkEvent prevEvent = null;
-
-
-    // for (NetworkEvent event : networkEventList) {
-    // if (prevEvent != null)
-    // logP += intervalContribution(prevEvent, event);
-
-    // switch (event.type) {
-    // case COALESCENCE:
-    // logP += coalesce(event);
-    // break;
-
-    // case SAMPLE:
-    // break;
-    // }
-
-    // if (logP==Double.NEGATIVE_INFINITY)
-    // break;
-
-    // prevEvent = event;
-    // }
-    // return logP;
-    // }
 
     private double coalesce(NetworkEvent event) {
         double logP = 0.0;
@@ -218,12 +211,5 @@ public class ReducedCoalescent extends Distribution {
 
     @Override
     public void sample(State state, Random random) {}
-
-    // @Override
-    // protected boolean requiresRecalculation() {
-    // if (networkIntervalsInput.get().isDirty())
-    // return true;
-    // return false;
-    // }
 
 }
