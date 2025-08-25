@@ -1,5 +1,8 @@
 package rephyner.operators;
 
+import java.util.ArrayList;
+import java.util.BitSet;
+import java.util.List;
 import beast.base.core.Input;
 import beast.base.core.Log;
 import beast.base.evolution.tree.Tree;
@@ -8,13 +11,7 @@ import beast.base.util.Randomizer;
 import rephyner.network.NetworkEdge;
 import rephyner.network.NetworkNode;
 import rephyner.network.ReducedNetwork;
-import rephyner.util.BitSetFun;
-import rephyner.util.RandomUtil;
 import rephyner.util.Util;
-import java.util.ArrayList;
-import java.util.BitSet;
-import java.util.List;
-import java.util.stream.Collectors;
 
 public abstract class NetworkOperator extends Operator {
 
@@ -29,6 +26,8 @@ public abstract class NetworkOperator extends Operator {
     protected ReducedNetwork network;
     List<Tree> segmentTrees;
     int[] segmentTreeMap;
+
+    public boolean _updateSegmentTrees = true;
 
     @Override
     public void initAndValidate() {
@@ -45,25 +44,25 @@ public abstract class NetworkOperator extends Operator {
                         "to operator must match number of segments in network.");
             // ensure the order of the segment trees is correct
             segmentTreeMap = new int[network.getSegmentCount()];
-            
-            if (network.segmentNames==null) {
-            	network.segmentNames=new String[segmentTreesInput.get().size()];
-            	for (int j = 0; j < segmentTreesInput.get().size(); j++) {
-            		network.segmentNames[j] = segmentTreesInput.get().get(j).getID();
-            	}
+
+            if (network.segmentNames == null) {
+                network.segmentNames = new String[segmentTreesInput.get().size()];
+                for (int j = 0; j < segmentTreesInput.get().size(); j++) {
+                    network.segmentNames[j] = segmentTreesInput.get().get(j).getID();
+                }
             }
-            
-            int c=0;
+
+            int c = 0;
             for (int i = 0; i < network.getSegmentCount(); i++) {
-            	for (int j = 0; j < segmentTreesInput.get().size(); j++) {
-            		if (segmentTreesInput.get().get(j).getID().contentEquals(network.segmentNames[i])) {
-            			segmentTreeMap[i] = j;
-            			c++;
-            		}
-            	}
+                for (int j = 0; j < segmentTreesInput.get().size(); j++) {
+                    if (segmentTreesInput.get().get(j).getID().contentEquals(network.segmentNames[i])) {
+                        segmentTreeMap[i] = j;
+                        c++;
+                    }
+                }
             }
-            if (c!=network.getSegmentCount()) {
-            	throw new IllegalArgumentException("not all segments found");
+            if (c != network.getSegmentCount()) {
+                throw new IllegalArgumentException("not all segments found");
             }
 
         }
@@ -71,20 +70,24 @@ public abstract class NetworkOperator extends Operator {
     }
 
     public double proposal() {
-        // System.out.println("\n@@@ " + getName() + "           ..." + network.getID());
+        // System.out.println("\n@@@ " + getName() + " ..." + network.getID());
         network.assertValid();
 
-        double logHR = networkProposal();
+        double logHR;
+        try {
+            logHR = networkProposal();
+        } catch (DirectRejectException e) {
+            // System.err.println("DIRECT REJECT");
+            return Double.NEGATIVE_INFINITY;
+        } finally {
+        }
 
-        if (logHR>Double.NEGATIVE_INFINITY) {
-
+        if (logHR > Double.NEGATIVE_INFINITY) {
             assert logHR < Double.POSITIVE_INFINITY;
-
-            // System.out.println(getClass().getName());
             network.assertValid();
-            for (int segIdx : Util.range(segmentTrees.size()))
-                network.updateSegmentTree(segmentTrees.get(segmentTreeMap[segIdx]), segmentTreeMap[segIdx]);
-            // System.err.println(".");
+            if (_updateSegmentTrees)
+                for (int segIdx : Util.range(segmentTrees.size()))
+                    network.updateSegmentTree(segmentTrees.get(segmentTreeMap[segIdx]), segmentTreeMap[segIdx]);
         } else {
             // System.err.println("DIRECT REJECT");
         }
@@ -93,8 +96,7 @@ public abstract class NetworkOperator extends Operator {
     }
 
     /**
-     * Propose a new network state.  The network state will be
-     * used to update the segment trees once the network proposal
+     * Propose a new network state. The network state will be used to update the segment trees once the network proposal
      * is complete.
      *
      * @return log of HR for proposal.
@@ -103,6 +105,7 @@ public abstract class NetworkOperator extends Operator {
 
     /**
      * Retrieve all sisters of given edge
+     * 
      * @param edge child edge
      * @return sisters of given edge
      */
@@ -114,6 +117,7 @@ public abstract class NetworkOperator extends Operator {
 
     /**
      * Retrieve sister of given edge in the local tree of the given segment
+     * 
      * @param edge child edge
      * @return sister of given edge for segment
      */
@@ -127,6 +131,7 @@ public abstract class NetworkOperator extends Operator {
 
     /**
      * Retrieve segments that appear in any sister edge of `edge`
+     * 
      * @param edge child edge
      * @return bitset of segments from sister edges
      */
@@ -138,8 +143,9 @@ public abstract class NetworkOperator extends Operator {
         return segments;
     }
 
-     /**
+    /**
      * Retrieve spouse of given edge
+     * 
      * @param parentEdge parent edge
      * @return spouse of given parent edge
      */
@@ -169,17 +175,16 @@ public abstract class NetworkOperator extends Operator {
     }
 
     /**
-     * Chooses a number of segments from a subset of the provided source segments.
-     * A first segment is chosen uniformly at random will definitely be included in the subset.
-     * Another segment chosen uniformly at random will not be included in the subset.
-     * Each of the remaining segments are included in the subset with probability 0.5.
+     * Chooses a number of segments from a subset of the provided source segments. A first segment is chosen uniformly
+     * at random will definitely be included in the subset. Another segment chosen uniformly at random will not be
+     * included in the subset. Each of the remaining segments are included in the subset with probability 0.5.
      *
      * @param sourceSegments set of segments from which to choose
      * @return the segment subset or null if conditional subsetting is impossible.
      */
     protected BitSet getRandomConditionedSubset(BitSet sourceSegments) {
 
-        if (sourceSegments.cardinality()<2)
+        if (sourceSegments.cardinality() < 2)
             return null;
 
         BitSet destSegments = new BitSet();
@@ -187,8 +192,8 @@ public abstract class NetworkOperator extends Operator {
         do {
             destSegments.clear();
 
-            for (int segIdx = sourceSegments.nextSetBit(0); segIdx != -1;
-                 segIdx = sourceSegments.nextSetBit(segIdx + 1)) {
+            for (int segIdx = sourceSegments.nextSetBit(0); segIdx != -1; segIdx =
+                    sourceSegments.nextSetBit(segIdx + 1)) {
 
                 if (Randomizer.nextBoolean())
                     destSegments.set(segIdx);
@@ -201,31 +206,33 @@ public abstract class NetworkOperator extends Operator {
     }
 
     /**
-     * Compute the probability of choosing a particular subset of source segments
-     * using the getRandomConditionedSubset method.
+     * Compute the probability of choosing a particular subset of source segments using the getRandomConditionedSubset
+     * method.
      *
      * @param sourceSegments set of segments used as the argument to getRandomConditionedSubset
      * @return log probability of subset
      */
     protected double getLogConditionedSubsetProb(BitSet sourceSegments) {
 
-        if (sourceSegments.cardinality()<2)
+        if (sourceSegments.cardinality() < 2)
             return Double.NEGATIVE_INFINITY;
 
-        return sourceSegments.cardinality()*Math.log(0.5)
-                - Math.log(1.0 - 2.0*Math.pow(0.5, sourceSegments.cardinality()));
+        return sourceSegments.cardinality() * Math.log(0.5)
+                - Math.log(1.0 - 2.0 * Math.pow(0.5, sourceSegments.cardinality()));
     }
-    
+
     public void replace(final NetworkNode node, final NetworkEdge child, final NetworkEdge replacement) {
-    	node.removeChildEdge(child);
-    	node.addChildEdge(replacement);
+        node.removeChildEdge(child);
+        node.addChildEdge(replacement);
     }
 
     /**
-     * Will be used in the next version of BEAST to prevent date trait cloning
-     * from breaking the BEAuti model.
+     * Will be used in the next version of BEAST to prevent date trait cloning from breaking the BEAuti model.
      */
     public boolean notCloneable() {
         return true;
+    }
+
+    public static class DirectRejectException extends RuntimeException {
     }
 }
