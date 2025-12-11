@@ -4,7 +4,9 @@
   <depends on='CoalRe' atleast='2.6.3'/>
 
   <service type="beast.base.core.BEASTInterface">
+    <provider classname="rephyner.distribution.UniformTree"/>
     <provider classname="rephyner.distribution.ReducedCoalescent"/>
+    <provider classname="rephyner.distribution.UniformReducedNetworkPrior"/>
     <provider classname="rephyner.distribution.CoalescentWithReassortment"/>
     <provider classname="rephyner.distribution.emptyNetworkEdgesPrior"/>
     <provider classname="rephyner.distribution.NetworkDistribution"/>
@@ -15,10 +17,14 @@
     <provider classname="rephyner.operators.SplitMergeNode"/>
     <provider classname="rephyner.operators.DivertSingleSegmentOperator"/>
     <provider classname="rephyner.operators.localtreeoperators.LocalTreeSubtreeSlide"/>
+    <provider classname="rephyner.operators.localtreeoperators.LocalTreeSPR"/>
+    <provider classname="rephyner.operators.localtreeoperators.LocalTreeWilsonBalding"/>
+    <provider classname="rephyner.operators.localtreeoperators.LocalTreeWilsonBaldingTargeted"/>
     <provider classname="rephyner.operators.DivertSegmentOperator"/>
     <provider classname="rephyner.operators.NetworkScaleOperator"/>
     <provider classname="rephyner.operators.UniformNetworkNodeHeightOperator"/>
     <provider classname="rephyner.simulator.SimulatedReducedCoalescentNetwork"/>
+    <provider classname="rephyner.simulator.SimulatedUniformReducedNetwork"/>
     <provider classname="rephyner.statistics.NetworkStatsLogger"/>
     <provider classname="rephyner.statistics.ReducedNetworkLogger"/>
     <provider classname="rephyner.statistics.ReducedNetworkStatsLogger"/>
