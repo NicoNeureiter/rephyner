@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 
 @Description("Calculates the probability of a reassortment network using under" +
         " the framework of Mueller (2018).")
-public class emptyNetworkEdgesPrior extends NetworkDistribution {
+public class EmptyNetworkEdgesPrior extends NetworkDistribution {
 
 	final public Input<ParametricDistribution> nrEventsDistributionInput = new Input<>("nrEventsDistribution", "distribution used to calculate prior, e.g. normal, beta, gamma.", Validate.REQUIRED);
 	final public Input<ParametricDistribution> emptyLengthDistributionInput = new Input<>("emptyLengthDistribution", "distribution used to calculate prior, e.g. normal, beta, gamma.", Validate.REQUIRED);

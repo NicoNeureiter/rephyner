@@ -25,7 +25,7 @@ import rephyner.util.BitSetFun;
  * @author Nico Neureiter
  */
 @Description("TODO")
-public class LearnedReducedNetworPrior extends NetworkDistribution {
+public class LearnedReducedNetworkPrior extends NetworkDistribution {
 
     public Input<NetworkDistribution> reassortmentRateInput = new Input<>(
             "fullNetworkPrior",
