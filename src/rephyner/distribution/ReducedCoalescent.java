@@ -8,239 +8,240 @@ import beast.base.core.Description;
 import beast.base.core.Function;
 import beast.base.core.Input;
 import beast.base.core.Input.Validate;
-import beast.base.inference.Distribution;
+import beast.base.evolution.tree.TraitSet;
+import beast.base.evolution.tree.coalescent.PopulationFunction;
+import beast.base.inference.CalculationNode;
 import beast.base.inference.State;
 import beast.base.inference.parameter.RealParameter;
 import beast.base.util.Binomial;
+import coalre.simulator.SimulatedCoalescentNetwork;
+import coalre.statistics.NetworkStatsLogger;
 import rephyner.network.NetworkNode;
 import rephyner.network.ReducedNetwork;
-import rephyner.util.Util;
-
 
 /**
  * @author Nico Neureiter
  */
-
 @Description("TODO")
-// public class ReducedCoalescent extends NetworkDistribution {
-public class ReducedCoalescent extends Distribution {
+public class ReducedCoalescent extends NetworkDistribution {
 
+    public Input<Function> reassortmentRateInput = new Input<>(
+            "reassortmentRate",
+            "reassortment rate (per lineage per unit time)");
 
-    public Input<ReducedNetwork> networkInput = new Input<>("network",
-            "Reduced phylogenetic network", Validate.REQUIRED);
-
-    public Input<Function> coalescenceRateInput = new Input<>(
-            "coalescenceRate",
-            "Rate at which coalescence events (i.e. internal nodes) appear.",
+    public Input<PopulationFunction> populationFunctionInput = new Input<>(
+            "populationModel",
+            "Population model.",
             Input.Validate.REQUIRED);
 
-    public Input<Function> maxHeightInput = new Input<>(
-            "maxHeight",
-            "Maximum height of the network.",
-            Input.Validate.REQUIRED);
+    public Input<PopulationFunction> timeVaryingReassortmentRatesInput = new Input<>(
+            "timeVaryingReassortmentRates",
+            "reassortment rates that vary over time",
+            Input.Validate.XOR, reassortmentRateInput);
 
-    public Input<Function> keepNodeProbInput = new Input<>(
-            "keepNodeProbability",
-            "Probability of keeping a node from a previous local tree in the next one.",
-            new RealParameter("0.5"));
+    public Input<Double> redFactorInput = new Input<>(
+            "redFactor",
+            "by how much the recombination rate should be reduced after reaching the maxHeightRatio.", 0.1);
 
+    public Input<TraitSet> traitSetInput = new Input<>(
+            "traitSet",
+            "Trait set used to assign leaf ages.",
+            Validate.REQUIRED);
 
-    public Function coalescenceRate;
-    public Function maxHeight;
+    public PopulationFunction populationFunction;
+    private Function reassortmentRate;
+    public PopulationFunction timeVaryingReassortmentRates;
 
     public NetworkIntervals intervals;
-    public ReducedNetwork network;
 
-    public int nTaxa, nSegments;
+    private boolean isTimeVarying = false;
 
+    public double redFactor;
+    double[][] logBinomval;
 
     @Override
     public void initAndValidate() {
-        maxHeight = maxHeightInput.get();
-        coalescenceRate = coalescenceRateInput.get();
-        // intervals = networkIntervalsInput.get();
-        // network = intervals.networkInput.get();
-        network = networkInput.get();
+        populationFunction = populationFunctionInput.get();
+        intervals = networkIntervalsInput.get();
+        if (reassortmentRateInput.get() != null) {
+            reassortmentRate = reassortmentRateInput.get();
+        } else {
+            isTimeVarying = true;
+            timeVaryingReassortmentRates = timeVaryingReassortmentRatesInput.get();
+        }
 
-        nTaxa = network.getLeafNodes().size();
-        nSegments = network.getSegmentCount();
+        initializeLogBinomCache(intervals.networkInput.get().getSegmentCount());
+
+        learnApproximator();
+    }
+
+    /**
+     * Initialize the cache for efficient log-binomial for the given number of segments.
+     * @param nSegments
+     */
+    void initializeLogBinomCache(int nSegments) {
+        double p = intervals.getBinomialProb();
+        logBinomval = new double[nSegments + 1][nSegments + 1];
+        for (int i = 0; i < nSegments + 1; i++) {
+            for (int j = 0; j <= i; j++) {
+                logBinomval[i][j] = Math.log(Math.pow(p, j) * Math.pow(1 - p, i - j)
+                        + Math.pow(p, i - j) * Math.pow(1 - p, j));
+            }
+        }
+    }
+
+    public void learnApproximator() {
+        SimulatedCoalescentNetwork simulator = new SimulatedCoalescentNetwork();
+        ReducedNetwork network = networkIntervalsInput.get().networkInput.get();
+        simulator.initByName(
+                "reassortmentRate", reassortmentRateInput.get(),
+                "timeVaryingReassortmentRates", timeVaryingReassortmentRatesInput.get(),
+                "binomialProb", new RealParameter("0.5"),
+                "populationModel", populationFunctionInput.get(),
+                "nSegments", network.getSegmentCount(),
+                "traitSet", traitSetInput.get(),
+                "enableSegmentTreeUpdate", false
+            );
+
+        System.out.println(":::" + simulator);
+        simulator.initAndValidate();
+        System.out.println(":::" + simulator);
     }
 
 
     public double calculateLogP() {
-        network = networkInput.get();
+        ReducedNetwork network = networkIntervalsInput.get().networkInput.get();
 
         logP = 0;
-        if (network.getNetworkHeight() > maxHeight.getArrayValue()) {
+        // Calculate tree intervals
+        intervals.update();
+
+        // get the mrca of all loci trees
+        double maxHeight = Double.POSITIVE_INFINITY;
+
+        NetworkEvent prevEvent = null;
+
+        double logPinterval = 0.0;
+        double logPevent = 0.0;
+
+        for (NetworkEvent event : intervals.networkEventList) {
+            if (prevEvent != null) {
+                logPinterval += intervalContribution(prevEvent, event, maxHeight, network.getNetworkHeight());
+            }
+
+            switch (event.type) {
+                case INTERNAL:
+                    logPevent += coalesce(event);
+                    break;
+
+                case SAMPLE:
+                    break;
+            }
+
+
+            if (logP == Double.NEGATIVE_INFINITY)
+                break;
+
+            prevEvent = event;
+        }
+        logP = logPinterval + logPevent;
+        return logP;
+    }
+
+    private double reassortment(NetworkEvent event, double maxHeight) {
+        double logBinomval = 0.0;
+        // if (intervals.getBinomialProb() != 0.5) {
+        // logBinomval = Math.log(Math.pow(intervals.getBinomialProb(), event.segsSortedLeft)
+        // * Math.pow(1 - intervals.getBinomialProb(), event.segsToSort - event.segsSortedLeft)
+        // + Math.pow(intervals.getBinomialProb(), event.segsToSort - event.segsSortedLeft)
+        // * Math.pow(1 - intervals.getBinomialProb(), event.segsSortedLeft));
+        // } else {
+        // try {
+        // logBinomval = this.logBinomval[event.segsToSort][event.segsSortedLeft];
+        // } catch (ArrayIndexOutOfBoundsException e) {
+        // System.err.println(intervals.networkInput.get());
+        // System.err.println(event.segsToSort + " " + event.segsSortedLeft);
+        // for (NetworkNode n : intervals.networkInput.get().getNodes()) {
+        // if (n.getHeight() == event.time) {
+        // System.err.println(n.getChildCount());
+        // System.err.println(n.getParentCount());
+        // }
+        // }
+        // System.err.println("empty edge remaining, should not happen, event at time " + event.time);
+        // return Double.NEGATIVE_INFINITY;
+        // // logBinomval=1;
+        // }
+        // }
+
+        double reassortRate = getReassortmentRate(event.time, maxHeight);
+        return Math.log(reassortRate) + logBinomval;
+    }
+
+    private double getReassortmentRate(double height, double maxHeight) {
+        // Get constant or time-varying rate
+        double rate;
+        if (isTimeVarying)
+            rate = timeVaryingReassortmentRates.getPopSize(height);
+        else
+            rate = reassortmentRate.getArrayValue();
+
+        // Correct for maxHeight violation
+        if (height > maxHeight)
+            rate *= redFactor;
+
+        return rate;
+    }
+
+    private double coalesce(NetworkEvent event) {
+        return Math.log(1.0 / populationFunction.getPopSize(event.time));
+    }
+
+    private double intervalContribution(
+        NetworkEvent prevEvent,
+        NetworkEvent nextEvent,
+        double maxHeight,
+        double oriLociMRCA
+    ) {
+        double logP = 0.0;
+
+        // Add a simple segemtn reassortment probability 
+        // logP -= Math.log(0.5) * intervals.networkInput.get().getSegmentCount();
+        
+        // double reassortmentObsProb = prevEvent.totalReassortmentObsProb;
+        // logP = -reassortmentObsProb * getReassortmentIntegral(prevEvent.time, nextEvent.time);
+
+        double logLineagePairs = 0.5 * prevEvent.lineages * (prevEvent.lineages - 1);
+        logP += -logLineagePairs * populationFunction.getIntegral(prevEvent.time, nextEvent.time);
+
+        if (nextEvent.time > oriLociMRCA && prevEvent.lineages == 1) {
+            // ensures that root is actually the root, this was previous done by the network terminates
+            // at tMRCA class however, this is a more efficient way of keeping track of that
             return Double.NEGATIVE_INFINITY;
         }
 
-        List<NetworkNode> sampleNodes = network.getLeafNodes().stream().toList();
-        Set<NetworkNode> internalNodes = new HashSet<>();
-        for (int segment : Util.range(nSegments)) {
-            logP += calcLocalTreeLogP(sampleNodes, internalNodes, segment);
-        }
-
-        network.assertValid();
-
-
         return logP;
     }
 
-    public double calcLocalTreeLogP(List<NetworkNode> sampleNodes, Set<NetworkNode> internalNodes, int segment) {
-        // Collect nodes that were newly added in local tree of `segment`
-        List<NetworkNode> localTreeNodes = network.getInternalNodes().stream()
-                .filter(n -> n.getActiveSegments().get(segment))
-                .toList();
-        List<NetworkNode> newNodes = localTreeNodes.stream()
-                .filter(n -> !internalNodes.contains(n))
-                .toList();
-
-        // Randomly pick k <= (n-1) internal ndoes to include in this local tree
-        int nOld = internalNodes.size();
-        int nNew = newNodes.size();
-        int nKeep = nTaxa - 1 - nNew;
-
-        assert localTreeNodes.size() == nTaxa - 1;
-        assert nNew <= nTaxa - 1;
-        assert nKeep <= nTaxa - 1;
-
-        if (nOld == 0) {
-            assert nNew == nTaxa - 1;
-            // No old nodes -> first segment tree -> all nodes are new
-            // No randomness involved in choosing the subset to keep
-
-        } else {
-            assert nOld >= nTaxa - 1;
-
-            double pKeep = keepNodeProbInput.get().getArrayValue();
-
-            // Probability of keeping exactly the `nKeep` new nodes from previous segment trees
-            logP += nKeep * Math.log(pKeep) + nNew * Math.log(1 - pKeep);
-            for (int i = nOld; i > nOld - nKeep; i--)
-                logP -= Math.log(i);
-        }
-
-        // Heights are uniform over the polytope of valid height combinations
-        List<Double> newHeights = newNodes.stream().map(n -> n.getHeight()).toList();
-        logP += calcHeightsLogP(newHeights);
-
-        // Edges attachment probability
-        logP += calcEdgeLogP(sampleNodes, localTreeNodes);
-
-        // Update the available internalNodes for the next segment tree
-        internalNodes.addAll(newNodes);
-        
-        return logP;
+    private double getReassortmentIntegral(double tStart, double tEnd) {
+        if (isTimeVarying)
+            return timeVaryingReassortmentRates.getIntegral(tStart, tEnd);
+        else
+            return reassortmentRate.getArrayValue() * (tEnd - tStart);
     }
-
-    double calcHeightsLogP(List<Double> heights) {
-        return heights.size() * Math.log(1.0 / maxHeight.getArrayValue());
-        // TODO: Adapt to serially sampled leaves
-    }
-
-    double calcHeightLogP(double h) {
-        return Math.log(1.0 / maxHeight.getArrayValue());
-        // TODO: Adapt to serially sampled leaves
-    }
-
-    double calcEdgeLogP(List<NetworkNode> leafNodes, List<NetworkNode> internalNodes) {
-        double logP = 0.0;
-
-        List<Double> leafHeights = leafNodes.stream().map(n -> n.getHeight()).sorted().toList();
-        List<Double> internalHeights = internalNodes.stream().map(n -> n.getHeight()).sorted().toList();
-
-        int nLeaf = leafHeights.size();
-        int iLeaf = 0;
-        int nInt = internalHeights.size();
-        int iInt = 0;
-        int extantLineages = 0;
-        do {
-            double tLeaf = iLeaf < nLeaf ? leafHeights.get(iLeaf) : Double.POSITIVE_INFINITY;
-            double tInt = iInt < nInt ? internalHeights.get(iInt) : Double.POSITIVE_INFINITY;
-
-            if (tLeaf <= tInt) {
-                extantLineages += 1;
-                iLeaf += 1;
-            } else {
-                logP += Math.log(Binomial.choose2(extantLineages));
-                extantLineages -= 1;
-                iInt += 1;
-            }
-
-            assert extantLineages > 0;
-
-        } while (iLeaf < nLeaf || iInt < nInt);
-
-        return logP;
-    }
-
-
-    // public double calculateLogP() {
-    // logP = 0;
-
-    // // Calculate tree intervals
-    // List<NetworkEvent> networkEventList = intervals.getNetworkEventList();
-
-    // NetworkEvent prevEvent = null;
-
-
-    // for (NetworkEvent event : networkEventList) {
-    // if (prevEvent != null)
-    // logP += intervalContribution(prevEvent, event);
-
-    // switch (event.type) {
-    // case COALESCENCE:
-    // logP += coalesce(event);
-    // break;
-
-    // case SAMPLE:
-    // break;
-    // }
-
-    // if (logP==Double.NEGATIVE_INFINITY)
-    // break;
-
-    // prevEvent = event;
-    // }
-    // return logP;
-    // }
-
-    private double coalesce(NetworkEvent event) {
-        double logP = 0.0;
-        logP += Math.log(coalescenceRate.getArrayValue());
-        // logP += Math.log(0.5) * intervals.;
-        return logP;
-    }
-
-    private double intervalContribution(NetworkEvent prevEvent, NetworkEvent nextEvent) {
-        double result = -(nextEvent.time - prevEvent.time) * coalescenceRate.getArrayValue();
-        return result;
-    }
-
 
     @Override
     protected boolean requiresRecalculation() {
-        // if (networkInput.get().isDirtyCalculation())
-        // return true;
-        // if (((CalculationNode) coalescenceRate).isDirtyCalculation())
-        // return true;
+        if (isTimeVarying) {
+            if (((CalculationNode) timeVaryingReassortmentRates).isDirtyCalculation())
+                return true;
+        } else {
+            if (((CalculationNode) reassortmentRate).isDirtyCalculation())
+                return true;
+        }
+        if (((CalculationNode) populationFunction).isDirtyCalculation())
+            return true;
 
-        // return super.requiresRecalculation();
-        return true;
+        return super.requiresRecalculation();
     }
-
-    @Override
-    public List<String> getArguments() {
-        return null;
-    }
-
-    @Override
-    public List<String> getConditions() {
-        return null;
-    }
-
-    @Override
-    public void sample(State state, Random random) {}
 
 }

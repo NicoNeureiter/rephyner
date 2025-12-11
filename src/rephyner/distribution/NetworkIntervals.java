@@ -28,7 +28,7 @@ public class NetworkIntervals extends CalculationNode {
 
     private ReducedNetwork network;
 
-    private List<NetworkEvent> networkEventList, storedNetworkEventList;
+    protected List<NetworkEvent> networkEventList, storedNetworkEventList;
 
     public boolean eventListDirty = true;
 
@@ -65,10 +65,14 @@ public class NetworkIntervals extends CalculationNode {
 
         int lineages = 0;
 
-
         for (NetworkEvent event : networkEventList) {
             lineages += event.node.getParentEdges().size() - event.node.getChildEdges().size();  // TODO: Find better metric for reduced ARG
             event.lineages = lineages;
+
+            
+
+            event.childCandidates = 0;
+            // event.childSegmentCandidates = null;
         }
 
         eventListDirty = false;
