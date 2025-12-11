@@ -37,4 +37,11 @@ public class Util {
         return s;
     }
 
+    List<Double> normalize(List<Double> xs) {
+        double sum = sum(xs);
+        for (int i=0; i<xs.size(); i++) {
+            xs.set(i, xs.get(i)/sum);
+        }
+        return xs;
+    }
 }

@@ -3,6 +3,7 @@ package rephyner.util;
 import java.util.HashMap;
 
 public class Counter<T> extends HashMap<T, Integer> {
+    
     public void increment(T key) {
         this.put(key, this.getOrDefault(key, 0) + 1);
     }

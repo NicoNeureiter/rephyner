@@ -36,6 +36,26 @@ public class RandomUtil {
         throw new IllegalStateException("Should not reach here: total probability is " + s + ", but u is " + u);
     }
 
+    /**
+     * Sample from categorical distribution defined by probs
+     * 
+     * @param probs (probabilities, must sum to 1)
+     * @return index of sampled category
+     */
+    public static int sampleCategorical(List<Double> probs) {
+        assert Math.abs(Util.sum(probs) - 1.) < 1E-6 : "Probabilities must sum to 1";
+
+        double u = Randomizer.nextDouble();
+        double currW = 0;
+        for (int i = 0; i < probs.size(); i++) {
+            currW += probs.get(i);
+            if (u < currW) {
+                return i;
+            }
+        }
+        throw new IllegalArgumentException("Sampling loop failed");
+    }
+
     public static <T> T choice(Set<T> set) {
         return choice(new ArrayList<>(set));
     }

@@ -1,13 +1,22 @@
 package rephyner.util;
 
 import java.util.BitSet;
-import java.util.Iterator;
+import java.util.List;
+import java.util.stream.IntStream;
 
 public class BitSetFun {
 
     public static BitSet or(BitSet a, BitSet b) {
         BitSet result = (BitSet) a.clone();
         result.or(b);
+        return result;
+    }
+
+    public static BitSet or(List<BitSet> bitsets) {
+        assert !bitsets.isEmpty();
+        BitSet result = empty(bitsets.get(0).size());
+        for (BitSet a : bitsets)
+            result.or(a);
         return result;
     }
 
@@ -59,8 +68,16 @@ public class BitSetFun {
         return result;
     }
 
-    public static Iterable<Integer> iterable(BitSet bitset) {
-    return bitset.stream()::iterator;
+    public static Iterable<Integer> iterate(BitSet bitset) {
+        return bitset.stream()::iterator;
+    }
+
+    public static String toBitString(BitSet bitset, int nbits) {
+        final StringBuilder buffer = new StringBuilder(nbits);
+        IntStream.range(0, nbits)
+                .mapToObj(i -> bitset.get(i) ? '1' : '0')
+                .forEach(buffer::append);
+        return buffer.toString();
     }
 
 
