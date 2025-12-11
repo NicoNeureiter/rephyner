@@ -36,7 +36,7 @@
         <taxon spec="Taxon" id="t8"/>
         <taxon spec="Taxon" id="t9"/>
         <taxon spec="Taxon" id="t10"/>
-        <!-- <taxon spec="Taxon" id="t11"/>
+        <taxon spec="Taxon" id="t11"/>
         <taxon spec="Taxon" id="t12"/>
         <taxon spec="Taxon" id="t13"/>
         <taxon spec="Taxon" id="t14"/>
@@ -45,36 +45,30 @@
         <taxon spec="Taxon" id="t17"/>
         <taxon spec="Taxon" id="t18"/>
         <taxon spec="Taxon" id="t19"/>
-        <taxon spec="Taxon" id="t20"/> -->
+        <taxon spec="Taxon" id="t20"/>
     </taxonset>
 
     <traitSet spec="TraitSet" traitname="date-backward" id="traitSet">
-        t1=0, t2=0.1, t3=0.2, t4=0.3, t5=0.4, t6=0.5, t7=0.6, t8=0.7, t9=0.8, t10=0.9
-        <!-- t11=0, t12=0.1, t13=0.2, t14=0.3, t15=0.4, t16=0.5, t17=0.6, t18=0.7, t19=0.8, t20=0.9 -->
+        t1=0, t2=0.1, t3=0.2, t4=0.3, t5=0.4, t6=0.5, t7=0.6, t8=0.7, t9=0.8, t10=0.9,
+        t11=0, t12=0.1, t13=0.2, t14=0.3, t15=0.4, t16=0.5, t17=0.6, t18=0.7, t19=0.8, t20=0.9
         <taxa idref="taxonSet"/>
     </traitSet>
 
-    <run spec="MCMC" chainLength="5000000">
+    <run spec="MCMC" chainLength="10000000">
 
         <state storeEvery="5000">
             <stateNode id="seg1tree" spec="Tree" taxonset="@taxonSet" trait="@traitSet"/>
             <stateNode id="seg2tree" spec="Tree" taxonset="@taxonSet" trait="@traitSet"/>
             <stateNode id="reassortmentRate" spec="RealParameter" value="1.0"/>
             <stateNode id="clockRate" spec="RealParameter" value="0.15"/>
-            <stateNode id="coalescenceRate" spec="RealParameter" value="0.5"/>
-            <stateNode id="popSize" spec="RealParameter" value="1.0"/>
+            <!-- <stateNode id="coalescenceRate" spec="RealParameter" value="0.5"/> -->
+            <!-- <stateNode id="popSize" spec="RealParameter" value="1.0"/> -->
+            <stateNode id="maxHeight" spec="RealParameter" value="10.0"/>
 
-            <stateNode id="network" spec="SimulatedReducedCoalescentNetwork"
-                       nSegments="2" enableSegmentTreeUpdate="false">
-
+            <stateNode id="network" spec="SimulatedUniformReducedNetwork" nSegments="2" 
+                enableSegmentTreeUpdate="false" maxHeight="@maxHeight">
                 <traitSet idref="traitSet"/>
-
-                <!-- <populationModel spec="ConstantPopulation">
-                    <popSize spec="RealParameter" value="1.0"/>
-                </populationModel> -->
-
-                <coalescenceRate spec="RealParameter" value="1.0"/>
-                <maxHeight spec="RealParameter" value="3.0"/>
+                <!-- <coalescenceRate spec="RealParameter" value="1.0"/> -->
             </stateNode>
         </state>
 
@@ -106,8 +100,9 @@
             -->
 
             <distribution id="prior" spec="CompoundDistribution">
-                <distribution id="networkPrior" spec="ReducedCoalescent" coalescenceRate="@coalescenceRate" maxHeight="3.0">
+                <distribution id="networkPrior" spec="UniformReducedNetworkPrior" maxHeight="@maxHeight">
                     <!-- <networkIntervals spec="NetworkIntervals" network="@network"/> -->
+                    <!-- <coalescenceRate idref="coalescenceRate"/> -->
                     <network idref="network"/>
                 </distribution>
 
@@ -122,10 +117,9 @@
                         <distr spec="beast.base.inference.distribution.OneOnX"/>
                     </distribution>
 
-                    <distribution spec="Prior" x="@popSize">
-                        <!--distr spec="beast.base.inference.distribution.Uniform" lower="0.0" upper="10.0"/-->
+                    <!-- <distribution spec="Prior" x="@popSize">
                         <distr spec="beast.base.inference.distribution.OneOnX"/>
-                    </distribution>
+                    </distribution> -->
                 </distribution>
             </distribution>
 
@@ -156,11 +150,13 @@
             <segmentTree idref="seg1tree"/>
             <segmentTree idref="seg2tree"/>
         </operator>
-
+<!-- 
         <operator id="divertSegmentOperator" spec="DivertSingleSegmentOperator" network="@network" weight="1.0">
             <segmentTree idref="seg1tree"/>
             <segmentTree idref="seg2tree"/>
-        </operator>
+        </operator> 
+-->
+
 
 <!--      
         <operator spec="UniformNetworkNodeHeightOperator" network="@network" weight="1.0">
@@ -168,7 +164,7 @@
             <segmentTree idref="seg2tree"/>
         </operator>
  -->
-
+ 
         <operator id="NetworkScale" spec="NetworkScaleOperator" scaleFactor="0.9"
                   network="@network" weight="1.0">
             <segmentTree idref="seg1tree"/>
@@ -180,31 +176,23 @@
             <segmentTree idref="seg1tree"/>
             <segmentTree idref="seg2tree"/>
         </operator>
-        
-        
-        <!-- 
-        <operator spec="AddRemoveReassortment" network="@network" alpha="1.0" weight="1.0">
-            <segmentTree idref="seg1tree"/>
-            <segmentTree idref="seg2tree"/>
-        </operator>
 
-        -->
 
         <!-- Loggers -->
 
-        <logger spec="Logger" logEvery="5000" mode="tree" fileName="$(filebase).trees">
+        <logger spec="Logger" logEvery="10000" mode="tree" fileName="$(filebase).trees">
             <log idref="network"/>
         </logger>
 
-        <logger spec="Logger" logEvery="5000" mode="tree" fileName="$(filebase).seg1.trees">
+        <logger spec="Logger" logEvery="10000" mode="tree" fileName="$(filebase).seg1.trees">
             <log idref="seg1tree"/>
         </logger>
 
-        <logger spec="Logger" logEvery="5000" mode="tree" fileName="$(filebase).seg2.trees">
+        <logger spec="Logger" logEvery="10000" mode="tree" fileName="$(filebase).seg2.trees">
             <log idref="seg2tree"/>
         </logger>
 
-        <logger spec="Logger" logEvery="5000" fileName="$(filebase).log">
+        <logger spec="Logger" logEvery="10000" fileName="$(filebase).log">
             <log idref="posterior"/>
             <!-- <log idref="likelihood"/> -->
             <log spec="NetworkStatsLogger" network="@network"/>
@@ -212,7 +200,7 @@
             <log spec="TreeStatLogger" tree="@seg2tree"/>
             <log idref="reassortmentRate"/>
             <log idref="clockRate"/>
-            <log idref="popSize"/>
+            <!-- <log idref="popSize"/> -->
         </logger>
 
         <logger spec="Logger" logEvery="10000">

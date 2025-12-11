@@ -6,10 +6,12 @@ import beast.base.evolution.tree.TraitSet;
 import beast.base.evolution.tree.Tree;
 import rephyner.RephynerTestClass;
 import rephyner.util.BitSetFun;
+import rephyner.util.Util;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.*;
+import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
 public class NetworkTest extends RephynerTestClass {
@@ -164,17 +166,9 @@ public class NetworkTest extends RephynerTestClass {
         segs.set(0);
 
 
-        NetworkNode child1 = new NetworkNode(0.0);
-        child1.setTaxonLabel("C1");
-        child1.setTaxonIndex(0);
-
-        NetworkNode child2 = new NetworkNode(0.0);
-        child2.setTaxonLabel("C2");
-        child2.setTaxonIndex(0);
-
-        NetworkNode sibling = new NetworkNode(0.0);
-        sibling.setTaxonLabel("S");
-        sibling.setTaxonIndex(0);
+        NetworkNode child1 = new NetworkNode(0.0, "C1", 0);
+        NetworkNode child2 = new NetworkNode(0.0, "C2", 1);
+        NetworkNode sibling = new NetworkNode(0.0, "S", 2);
 
         NetworkNode me = new NetworkNode(2.0);
         NetworkNode parent = new NetworkNode(3.0);
@@ -188,14 +182,14 @@ public class NetworkTest extends RephynerTestClass {
         ReducedNetwork network = new ReducedNetwork(new ArrayList<>(Collections.singletonList(rootEdge)));
 
         // Test: get edges at height 1.0 (should return edgeLeaf)
-        List<NetworkEdge> edges = network.getEdgesAtHeight(1.0);
+        Set<NetworkEdge> edges = network.getEdgesAtHeight(1.0);
         Assert.assertEquals(3, edges.size());
         Assert.assertTrue(edges.contains(edgeChild1));
         Assert.assertTrue(edges.contains(edgeChild2));
         Assert.assertTrue(edges.contains(edgeSibling));
 
         // Test: get edges at height 2.5 (should return edgeChild)
-        List<NetworkEdge> edges2 = network.getEdgesAtHeight(2.5);
+        Set<NetworkEdge> edges2 = network.getEdgesAtHeight(2.5);
         Assert.assertEquals(2, edges2.size());
         Assert.assertTrue(edges2.contains(edgeMe));
         Assert.assertTrue(edges2.contains(edgeSibling));
@@ -244,5 +238,24 @@ public class NetworkTest extends RephynerTestClass {
         // Check that the network is back to its original state
         Assert.assertEquals(originalChecksum, network.getChecksum());
         Assert.assertEquals(originalString, network.getDotString());
+    }
+
+    @Test
+    public void getSegmentEdgesTest() {
+        int nTaxa = 5;
+        int nSegments = 3;
+        ReducedNetwork network = getContempNetwork(nTaxa, nSegments, 0.5);
+        for (int s : Util.range(nSegments)) {
+            Set<NetworkEdge> edges1 = network.getSegmentEdges(s);
+            Set<NetworkEdge> edges2 = network.getEdges().stream()
+                    .filter(e -> e.hasSegments.get(s))
+                    .collect(Collectors.toSet());
+
+            Assert.assertEquals(edges1.size(), 2 * nTaxa - 1);
+            Assert.assertEquals(edges2.size(), 2 * nTaxa - 1);
+            
+            edges1.removeAll(edges2);
+            Assert.assertEquals(edges1.size(), 0);
+        }
     }
 }

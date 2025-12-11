@@ -5,11 +5,10 @@ import beast.base.evolution.alignment.Taxon;
 import beast.base.evolution.alignment.TaxonSet;
 import beast.base.evolution.tree.TraitSet;
 import beast.base.evolution.tree.Tree;
-import beast.base.evolution.tree.coalescent.ConstantPopulation;
 import beast.base.util.Randomizer;
 import rephyner.network.ReducedNetwork;
-import rephyner.simulator.SimulatedCoalescentNetwork;
 import rephyner.simulator.SimulatedReducedCoalescentNetwork;
+import rephyner.simulator.SimulatedUniformReducedNetwork;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
@@ -29,7 +28,6 @@ public abstract class RephynerTestClass {
         return new TaxonSet(taxa);
     }
 
-
     protected TraitSet getDateTraitSet(TaxonSet taxonSet, Supplier<Double> timeFunc) {
         TraitSet traitSet = new TraitSet();
         traitSet.initByName("traitname", "date",
@@ -40,14 +38,28 @@ public abstract class RephynerTestClass {
         return traitSet;
     }
 
+    protected TraitSet getSerialDateTraitSet(int nTaxa, double timeWindow) {
+        return getSerialDateTraitSet(getTaxonSet(nTaxa), timeWindow);
+    }
+
     protected TraitSet getSerialDateTraitSet(TaxonSet taxonSet, double timeWindow) {
         return getDateTraitSet(taxonSet, () -> Randomizer.nextDouble()*timeWindow);
+    }
+
+    protected TraitSet getContempDateTraitSet(int nTaxa) {
+        return getContempDateTraitSet(getTaxonSet(nTaxa));
     }
 
     protected TraitSet getContempDateTraitSet(TaxonSet taxonSet) {
         return getDateTraitSet(taxonSet, () -> 0.0);
     }
 
+    protected List<Tree> getSegmentTreeObjects(int nSegments, int nTaxa) {
+        TaxonSet taxonSet = getTaxonSet(nTaxa);
+        TraitSet traitSet = getContempDateTraitSet(taxonSet);
+        return getSegmentTreeObjects(nSegments, traitSet);
+    }
+    
     protected List<Tree> getSegmentTreeObjects(int nSegments, TraitSet traitSet) {
 
         List<Tree> segmentTrees = new ArrayList<>();
@@ -62,26 +74,25 @@ public abstract class RephynerTestClass {
         return segmentTrees;
     }
 
-    protected ReducedNetwork getContempNetwork(int nTaxa, int nSegments, double reassortmentRate) {
-
-        TaxonSet taxonSet = getTaxonSet(nTaxa);
-        TraitSet traitSet = getContempDateTraitSet(taxonSet);
+    protected ReducedNetwork getContempNetwork(int nTaxa, int nSegments, double keepNodeProbability) {
+        TraitSet traitSet = getContempDateTraitSet(nTaxa);
         List<Tree> segmentTrees = getSegmentTreeObjects(nSegments, traitSet);
-
-        return getContempNetwork(segmentTrees, reassortmentRate, traitSet);
+        return getContempNetwork(segmentTrees, keepNodeProbability, traitSet);
     }
 
-    protected ReducedNetwork getContempNetwork(List<Tree> segmentTrees, double reassortmentRate, TraitSet traitSet) {
-        SimulatedReducedCoalescentNetwork network = new SimulatedReducedCoalescentNetwork();
+    protected ReducedNetwork getContempNetwork(List<Tree> segmentTrees, double keepNodeProbability, TraitSet traitSet) {
+        SimulatedUniformReducedNetwork network = new SimulatedUniformReducedNetwork();
         network.initByName(
                 "segmentTree", segmentTrees,
                 "traitSet", traitSet,
-                "coalescenceRate", new RealParameter(String.valueOf(1.0)),
-                "maxHeight", new RealParameter(String.valueOf(5.0)),
-                "enableSegmentTreeUpdate", false);
+                "keepNodeProbability", new RealParameter(String.valueOf(keepNodeProbability)),
+                "maxHeight", new RealParameter(String.valueOf(3.0)),
+                "enableSegmentTreeUpdate", false
+                // "coalescenceRate", new RealParameter("1.0")
+        );
 
-        // Assert.assertTrue("Network should be valid after reduction.", reducedNetwork.isValid());
-        network.assertValid();
+        assert network.assertValid();
+
         return network;
     }
 
