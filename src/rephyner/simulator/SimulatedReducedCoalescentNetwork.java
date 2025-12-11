@@ -44,11 +44,6 @@ public class SimulatedReducedCoalescentNetwork extends ReducedNetwork {
 
     public Input<String> fileNameInput = new Input<>("fileName", "Name of file to write simulated network to.");
 
-    public Input<Function> maxHeightInput = new Input<>(
-            "maxHeight",
-            "Maximum height of the network.",
-            Input.Validate.REQUIRED);
-
     public Input<Function> keepNodeProbInput = new Input<>(
             "keepNodeProbability",
             "Probability of keeping a node from a previous local tree in the next one.",
@@ -65,8 +60,6 @@ public class SimulatedReducedCoalescentNetwork extends ReducedNetwork {
     private int nSegments, nTaxa;
 
     public void initAndValidate() {
-        maxHeight = maxHeightInput.get();
-
         if (segmentTreesInput.get().isEmpty()) {
             nSegments = nSegmentsInput.get();
         } else {
@@ -152,7 +145,7 @@ public class SimulatedReducedCoalescentNetwork extends ReducedNetwork {
 
         super.initAndValidate();
 
-        assertValid();
+        assert isValid();
     }
 
     private double getBinomialProb() {
@@ -169,10 +162,7 @@ public class SimulatedReducedCoalescentNetwork extends ReducedNetwork {
         sampleNodes.sort(Comparator.comparingDouble(NetworkNode::getHeight));
         simulateFirstLocalTree(sampleNodes);
 
-        List<NetworkNode> internalNodes = getInternalNodes().stream().collect(Collectors.toList());
-        for (int segment : Util.range(1, nSegments)) {
-            simulateNextLocalTree(internalNodes, sampleNodes, segment);
-        }
+        // ...
 
     }
 
@@ -211,8 +201,6 @@ public class SimulatedReducedCoalescentNetwork extends ReducedNetwork {
         // Create n - 1 - k new nodes
         List<Double> oldHeights = keepNodes.stream().map(n -> n.getHeight()).toList();
         List<Double> newHeights = sampleHeights(sampleHeights, oldHeights);
-        // List<Double> newHeightsFull = sampleCoalescentHeights(sampleHeights);
-        // List<Double> newHeights = RandomUtil.subset(newHeightsFull, nInternal - nKeep);
         List<NetworkNode> newNodes = newHeights.stream()
                 .map(h -> new NetworkNode(h))
                 .collect(Collectors.toList());
@@ -243,8 +231,7 @@ public class SimulatedReducedCoalescentNetwork extends ReducedNetwork {
         return heights;
     }
 
-    private boolean isValidLocalTree(List<Double> leafHeights, List<Double> internalHeightsNew,
-            List<Double> internalHeightsOld) {
+    private boolean isValidLocalTree(List<Double> leafHeights, List<Double> internalHeightsNew, List<Double> internalHeightsOld) {
         int nLeaf = leafHeights.size();
         int iLeaf = 0;
         int nIntN = internalHeightsNew.size();

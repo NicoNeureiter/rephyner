@@ -120,12 +120,7 @@ public class NetworkEdge {
             childNodeCopy = seenNodes.get(childNode);
             traverse = false;
         } else {
-            childNodeCopy = new NetworkNode();
-            childNodeCopy.setHeight(childNode.getHeight());
-            childNodeCopy.setTaxonLabel(childNode.getTaxonLabel());
-            childNodeCopy.setTaxonIndex(childNode.getTaxonIndex());
-            childNodeCopy.setTypeIndex(childNode.typeIndex);
-            childNodeCopy.setTypeLabel(childNode.typeLabel);
+            childNodeCopy = childNode.getCopy();
             seenNodes.put(childNode, childNodeCopy);
         }
 

@@ -9,17 +9,20 @@ import beast.base.core.BEASTObject;
 import beast.base.core.Input;
 import beast.base.core.Loggable;
 import beast.base.evolution.tree.Tree;
-import rephyner.network.Network;
+import coalre.network.Network;
 import rephyner.network.NetworkEdge;
 import rephyner.network.NetworkNode;
+import rephyner.network.NetworkReducer;
 import rephyner.network.ReducedNetwork;
 
 public class ReducedNetworkStatsLogger extends BEASTObject implements Loggable {
 
+    public Input<Network> fullNetworkInput = new Input<>("fullNetwork",
+            "Full network to reduce and log.");
 
-    public Input<Network> networkInput = new Input<>("network",
-            "Network for which to log statistics.",
-            Input.Validate.REQUIRED);
+    public Input<ReducedNetwork> reducedNetworkInput = new Input<>("reducedNetwork",
+            "Reduced network to log.",
+            Input.Validate.XOR, fullNetworkInput);
 
     public Input<List<Tree>> segmentTreesInput = new Input<>("segmentTree",
             "Segment tree associated with network.",
@@ -27,17 +30,22 @@ public class ReducedNetworkStatsLogger extends BEASTObject implements Loggable {
 
 
     Network fullNetwork;
+    ReducedNetwork reducedNetwork;
 
     public ReducedNetworkStatsLogger() {}
 
     @Override
     public void initAndValidate() {
-        fullNetwork = networkInput.get();
+        if (fullNetworkInput.get() != null) {
+            fullNetwork = fullNetworkInput.get();
+            reducedNetwork = NetworkReducer.reduce(fullNetwork);
+        } else {
+            reducedNetwork = reducedNetworkInput.get();
+        }
     }
 
     @Override
     public void init(PrintStream out) {
-        ReducedNetwork reducedNetwork = fullNetwork.reduce();
         String prefix = reducedNetwork.getID() == null ? "networkStat." : reducedNetwork.getID() + ".";
         out.print(
                 prefix + "height\t" +
@@ -51,7 +59,6 @@ public class ReducedNetworkStatsLogger extends BEASTObject implements Loggable {
 
     @Override
     public void log(long sample, PrintStream out) {
-        ReducedNetwork reducedNetwork = fullNetwork.reduce();
         out.print(
                 getTotalHeight(reducedNetwork) + "\t" +
                         getTotalEdgeLength(reducedNetwork) + "\t" +

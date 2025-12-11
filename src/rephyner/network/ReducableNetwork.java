@@ -120,7 +120,8 @@ public class ReducableNetwork extends Network {
         // if (!reducedNetwork.isValid()){
         // System.err.println(false);
         // }
-        reducedNetwork.assertValid();
+
+        assert reducedNetwork.isValid();
 
         return reducedNetwork;
     }
@@ -239,7 +240,7 @@ public class ReducableNetwork extends Network {
 
             if (!coalSegments.isEmpty()) {
                 // If any segments from `a` coalesce at `node`, we create a new edge
-                NetworkEdge coalEdge = new NetworkEdge(newNode, a.node, coalSegments);
+                new NetworkEdge(newNode, a.node, coalSegments);
             }
             if (!skipSegments.isEmpty()) {
                 // The segments from `a` that do not coalesce at `node` are passed up as activeLineages

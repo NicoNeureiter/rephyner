@@ -2,6 +2,7 @@ package rephyner.network;
 
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.HashSet;
 import java.util.List;
@@ -223,13 +224,10 @@ public class NetworkNode {
      * @return sister of given edge for segment
      */
     public List<NetworkEdge> getChildEdges(int segment) {
-        if (!isLeaf()) {
-            assert getActiveSegments().get(segment) : "Can't get children for non active segment " + segment
-                    + " in node " + this;
-        }
-        return getChildEdges().stream()
-                .filter(e -> e.hasSegments.get(segment))
-                .toList();
+        assert isLeaf() || getActiveSegments().get(segment) : "Segment " + segment + " not active in node " + this;
+        
+        return getChildEdges().stream().filter(e -> e.hasSegments.get(segment)).toList();
+
     }
 
     public int getDegree() {
@@ -408,5 +406,64 @@ public class NetworkNode {
             p.getAncestorsRecurse(networkNodeSet);
         }
     }
+
+    /**
+     * Create a copy of this NetworkNode
+     * @return the copy
+     */
+    public NetworkNode getCopy() {
+        NetworkNode copy = new NetworkNode();
+        copy.setHeight(getHeight());
+        copy.setTaxonLabel(getTaxonLabel());
+        copy.setTaxonIndex(getTaxonIndex());
+        copy.setTypeIndex(typeIndex);
+        copy.setTypeLabel(typeLabel);
+        if (segmentIndices != null) {
+            // copy.setSegmentIndices(segmentIndices.clone());
+            copy.segmentIndices = new int[segmentIndices.length];
+            System.arraycopy(segmentIndices, 0, copy.segmentIndices, 0, segmentIndices.length);
+        }
+        return copy;
+    }
+
+    /**
+     * The index of the correspoding node in each segment tree.
+     */
+    private int[] segmentIndices;
+
+    /**
+     * Initialize the segmentIndices array
+     * @param nSegments
+     */
+    public void initializeSegmentIndices(int nSegments) {
+        assert segmentIndices == null;
+        segmentIndices = new int[nSegments];
+        Arrays.fill(segmentIndices, -1);
+    }
+   
+    /**
+     * set the Node number of segments that this node has
+     */
+    public void setSegmentIndices(int[] segmentIndices) {
+        this.segmentIndices = segmentIndices;
+    }
+    
+	/**
+	 * set the corresponding Node number of segment idx
+	 */
+	public void setSegmentIndex(int segmentIdx, int nodeNumber, int nSegments) {
+        if (this.segmentIndices == null)
+            initializeSegmentIndices(nSegments);
+		segmentIndices[segmentIdx] = nodeNumber;
+	}
+
+	public int[] getSegmentIndices() {
+		return segmentIndices;
+	}
+
+	public int getSegmentIndex(int segmentIdx) {
+		return segmentIndices[segmentIdx];
+	}
+
 
 }

@@ -10,7 +10,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.Stack;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import beast.base.evolution.tree.Node;
 import beast.base.evolution.tree.Tree;
 import beast.base.inference.StateNode;
@@ -28,8 +31,13 @@ public class ReducedNetwork extends StateNode {
     public String[] segmentNames;
     public String baseName;
 
+    public boolean segmentTreesNeedInit = true;
 
-    public ReducedNetwork() {}
+    public List<List<NetworkNode>> treeToNetworkNode;
+
+
+    public ReducedNetwork() {
+    }
 
     public ReducedNetwork(List<NetworkEdge> rootEdges) {
         this.rootEdges = rootEdges;
@@ -81,11 +89,9 @@ public class ReducedNetwork extends StateNode {
      */
     public Set<NetworkNode> getNodes() {
         Set<NetworkNode> networkNodeSet = new HashSet<>();
-
         for (NetworkEdge rootEdge : rootEdges) {
             getNodesRecurse(rootEdge, networkNodeSet);
         }
-
         return networkNodeSet;
     }
 
@@ -100,18 +106,54 @@ public class ReducedNetwork extends StateNode {
             getNodesRecurse(childLineage, networkNodeSet);
     }
 
+     /**
+     * @return set of node objects comprising network
+     */
+    public Set<NetworkNode> getNodes(final int segment) {
+        Set<NetworkNode> networkNodeSet = new HashSet<>();
+        getNodesRecurse(getSegmentRootEdge(segment), networkNodeSet, segment);
+        return networkNodeSet;
+    }
+
+    private void getNodesRecurse(NetworkEdge lineage, Set<NetworkNode> networkNodeSet, int segment) {
+
+        if (networkNodeSet.contains(lineage.childNode))
+            return;
+
+        networkNodeSet.add(lineage.childNode);
+
+        for (NetworkEdge childLineage : lineage.childNode.getChildEdges(segment))
+            getNodesRecurse(childLineage, networkNodeSet, segment);
+    }
+
     /**
      * @return set of leaf nodes in network
      */
     public Set<NetworkNode> getLeafNodes() {
-        return getNodes().stream().filter(NetworkNode::isLeaf).collect(Collectors.toSet());
+        return getLeafNodeStream().collect(Collectors.toSet());
+    }
+
+    public Stream<NetworkNode> getLeafNodeStream() {
+        return getNodes().stream().filter(NetworkNode::isLeaf);
     }
 
     /**
      * @return set of internal nodes in network
      */
     public Set<NetworkNode> getInternalNodes() {
-        return getNodes().stream().filter(n -> !n.isLeaf()).collect(Collectors.toSet());
+        return getInternalNodeStream().collect(Collectors.toSet());
+    }
+
+    public Stream<NetworkNode> getInternalNodeStream() {
+        return getNodes().stream().filter(n -> !n.isLeaf());
+    }
+
+    public Set<NetworkNode> getInternalNodes(final int stream, final int segment) {
+        return getInternalNodeStream(segment).collect(Collectors.toSet());
+    }
+
+    public Stream<NetworkNode> getInternalNodeStream(final int segment) {
+        return getNodes(segment).stream().filter(n -> !n.isLeaf());
     }
 
     /**
@@ -370,7 +412,9 @@ public class ReducedNetwork extends StateNode {
     public StateNode copy() {
         Map<NetworkNode, NetworkNode> seenNodes = new HashMap<>();
         List<NetworkEdge> newRootEdges = rootEdges.stream().map(e -> e.getCopy(seenNodes)).collect(Collectors.toList());
-        return new ReducedNetwork(newRootEdges);
+        ReducedNetwork copy = new ReducedNetwork(newRootEdges);
+        copy.segmentTreesNeedInit = segmentTreesNeedInit;
+        return copy;
     }
 
     @Override
@@ -380,6 +424,7 @@ public class ReducedNetwork extends StateNode {
         otherNetwork.rootEdges = rootEdges;
         otherNetwork.storedRootEdges = null;
         otherNetwork.segmentCount = null;
+        otherNetwork.segmentTreesNeedInit = segmentTreesNeedInit;
     }
 
     @Override
@@ -399,6 +444,7 @@ public class ReducedNetwork extends StateNode {
         rootEdges = otherNetwork.rootEdges;
         storedRootEdges = null;
         segmentCount = null;
+        segmentTreesNeedInit = otherNetwork.segmentTreesNeedInit;
 
         // Restore taxon indices
         getLeafNodes().forEach(n -> n.setTaxonIndex(taxonToIndexMap.get(n.getTaxonLabel())));
@@ -417,20 +463,13 @@ public class ReducedNetwork extends StateNode {
 
     @Override
     protected void store() {
-        assertValid();
+        assert isValid();
         // String s1 = getDotString();
 
         Map<NetworkNode, NetworkNode> seenNodes = new HashMap<>();
-        storedRootEdges = rootEdges.stream().map(e -> e.getCopy(seenNodes)).collect(Collectors.toList());
-
-        // restore();
-        // String s2 = getDotString();
-        // if (!s1.equals(s2)) {
-        // System.out.println(s1);
-        // System.out.println(s2);
-        // }
-
-
+        storedRootEdges = rootEdges.stream()
+                .map(e -> e.getCopy(seenNodes))
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -439,8 +478,9 @@ public class ReducedNetwork extends StateNode {
         storedRootEdges = rootEdges;
         rootEdges = tmp;
         hasStartedEditing = false;
+        segmentTreesNeedInit = false;
 
-        assertValid();
+        assert isValid();
     }
 
     @Override
@@ -514,7 +554,8 @@ public class ReducedNetwork extends StateNode {
         for (int i = 0; i < nodes.size(); i++) {
             NetworkNode node = nodes.get(i);
 
-            sb.append(nodeLabels.get(i)).append(" [t=").append(String.format("%.4f", node.getHeight())).append("];");
+            sb.append(nodeLabels.get(i)).append(" [t=").append(String.format("%.8f", node.getHeight())).append("];");
+            // sb.append(nodeLabels.get(i)).append(" [t=").append(node.getHeight()).append("];");
         }
 
         // Iterate through the edges and create the connections
@@ -526,14 +567,23 @@ public class ReducedNetwork extends StateNode {
             int parentIndex = nodeIndexMap.get(edge.parentNode);
             int childIndex = nodeIndexMap.get(edge.childNode);
 
-            sb.append(nodeLabels.get(parentIndex)).append(" -> ").append(nodeLabels.get(childIndex))
-                    .append(" [segments=\"").append(edge.hasSegments).append("\"];");
+            sb.append(nodeLabels.get(parentIndex))
+              .append(" -> ")
+              .append(nodeLabels.get(childIndex))
+              .append(" [segments=")
+              .append(getSegmentString(edge.hasSegments))
+              .append("];");
+
         }
 
         // Close the main scope of the graph
         sb.append("}\n");
 
         return sb.toString();
+    }
+
+    String getSegmentString(BitSet segments) {
+        return BitSetFun.toBitString(segments, getSegmentCount());
     }
 
     @Override
@@ -647,7 +697,6 @@ public class ReducedNetwork extends StateNode {
             // Otherwise, remove from rootEdges
             getRootEdges().remove(edge);
         }
-
     }
 
 
@@ -833,10 +882,10 @@ public class ReducedNetwork extends StateNode {
 
         // Remove clades from Tree, placing node objects in a bin
 
-        List<Node> nodeBin = new ArrayList<>();
+        Stack<Node> nodeBin = new Stack<>();
         for (BitSet clade : removedClades) {
             Node node = cladeNodes.get(clade);
-            nodeBin.add(node);
+            nodeBin.push(node);
 
             if (!node.isRoot()) {
                 node.getParent().removeChild(node);
@@ -921,8 +970,9 @@ public class ReducedNetwork extends StateNode {
             Node treeNode = segmentTree.getNode(treeNodeNr);
             String taxonID = segmentTree.getTaxonId(treeNode);
 
-            Optional<NetworkNode> maybeNetworkNode =
-                    getLeafNodes().stream().filter(l -> l.getTaxonLabel().equals(taxonID)).findFirst();
+            Optional<NetworkNode> maybeNetworkNode = getLeafNodes().stream()
+                .filter(l -> l.getTaxonLabel().equals(taxonID))
+                .findFirst();
 
             if (maybeNetworkNode.isPresent())
                 nodeNumberMap[treeNodeNr] = maybeNetworkNode.get().getTaxonIndex();
@@ -942,7 +992,8 @@ public class ReducedNetwork extends StateNode {
      * @return corresponding network node number
      */
     int getNetworkNodeNr(Node treeNode) {
-        return treeNode.getTree().getTaxonset() == null ? treeNode.getNr()
+        return treeNode.getTree().getTaxonset() == null
+                ? treeNode.getNr()
                 : getTreeNodeNumberArray(treeNode.getTree())[treeNode.getNr()];
     }
 
@@ -982,26 +1033,25 @@ public class ReducedNetwork extends StateNode {
      * @param nodeBin list containing node objects available for new tree clades
      * @return clade corresponding to networkNode
      */
-    BitSet buildSegmentTree(NetworkNode networkNode, int segmentIdx, Map<BitSet, Node> cladeNodes, List<Node> nodeBin) {
+    BitSet buildSegmentTree(NetworkNode networkNode, int segmentIdx, Map<BitSet, Node> cladeNodes, Stack<Node> nodeBin) {
 
         BitSet thisClade = new BitSet();
         List<BitSet> childClades = new ArrayList<>();
 
-        for (NetworkEdge childEdge : networkNode.getChildEdges()) {
-            if (childEdge.hasSegments.get(segmentIdx)) {
-                BitSet childClade = buildSegmentTree(childEdge.childNode, segmentIdx, cladeNodes, nodeBin);
-                thisClade.or(childClade);
-                childClades.add(childClade);
-            }
+        for (NetworkEdge childEdge : networkNode.getChildEdges(segmentIdx)) {
+            BitSet childClade = buildSegmentTree(childEdge.childNode, segmentIdx, cladeNodes, nodeBin);
+            thisClade.or(childClade);
+            childClades.add(childClade);
         }
 
-        if (childClades.size() == 1)
-            return thisClade;
+        assert childClades.size() != 1;
+        // if (childClades.size() == 1) {
+        //     return thisClade;
+        // }
 
 
         if (childClades.isEmpty()) {
             // Leaf node
-
             thisClade.set(networkNode.getTaxonIndex());
 
         } else {
@@ -1009,15 +1059,9 @@ public class ReducedNetwork extends StateNode {
             // Internal node
 
             // Retrieve/create tree node object
-
-            Node treeNode;
-            if (!cladeNodes.containsKey(thisClade)) {
-                treeNode = nodeBin.get(nodeBin.size() - 1);
-                nodeBin.remove(nodeBin.size() - 1);
-                cladeNodes.put(thisClade, treeNode);
-            } else {
-                treeNode = cladeNodes.get(thisClade);
-            }
+            if (!cladeNodes.containsKey(thisClade))
+                cladeNodes.put(thisClade, nodeBin.pop());
+            Node treeNode = cladeNodes.get(thisClade);
 
             // Update children (is there a more efficient way to do this??)
 
@@ -1040,6 +1084,9 @@ public class ReducedNetwork extends StateNode {
 
         if (cladeNodes.get(thisClade).getHeight() != networkNode.getHeight())
             cladeNodes.get(thisClade).setHeight(networkNode.getHeight());
+
+        // Update the NetworkNode's reference to the segment-tree node index 
+        networkNode.setSegmentIndex(segmentIdx, cladeNodes.get(thisClade).getNr(), getSegmentCount());
 
         return thisClade;
     }
@@ -1073,6 +1120,30 @@ public class ReducedNetwork extends StateNode {
         } else {
             for (NetworkEdge childEdge : edge.childNode.getChildEdges()) {
                 getEdgesAtHeightRecurse(height, childEdge, edgesAtHeight);
+            }
+        }
+    }
+
+    public Set<NetworkEdge> getEdgesAtHeight(final double height, final int segment) {
+        Set<NetworkEdge> edgesAtHeight = new HashSet<>();
+        getEdgesAtHeightRecurse(height, getSegmentRootEdge(segment), edgesAtHeight, segment);
+        return edgesAtHeight;
+    }
+
+    private void getEdgesAtHeightRecurse(
+        final double height,
+        final NetworkEdge edge,
+        final Set<NetworkEdge> edgesAtHeight,
+        final int segment
+    ) {
+        assert edge.isRootEdge() || (edge.parentNode.getHeight() > height);
+        if (edgesAtHeight.contains(edge))
+            return;
+        if (edge.childNode.getHeight() <= height) {
+            edgesAtHeight.add(edge);
+        } else {
+            for (NetworkEdge childEdge : edge.childNode.getChildEdges(segment)) {
+                getEdgesAtHeightRecurse(height, childEdge, edgesAtHeight, segment);
             }
         }
     }
@@ -1120,7 +1191,6 @@ public class ReducedNetwork extends StateNode {
             else
                 seen.add(s);
         }
-
     }
 
     public boolean isValid() {
@@ -1141,8 +1211,9 @@ public class ReducedNetwork extends StateNode {
             return false;
 
         // All segments have full size segment trees
+        int expectedTreeSize = 2 * getLeafNodes().size() - 1;
         for (int segment : Util.range(segmentCount))
-            if (countSegmentTreeNodes(segment) != this.getNodes().size())
+            if (countSegmentTreeNodes(segment) != expectedTreeSize)
                 return false;
 
         for (NetworkNode node : getNodes()) {
@@ -1216,7 +1287,7 @@ public class ReducedNetwork extends StateNode {
         return true;
     }
 
-    public void assertValid() {
+    public boolean assertValid() {
         assert !rootEdges.isEmpty() : "Root edges list is empty";
 
         for (NetworkEdge r : rootEdges)
@@ -1227,7 +1298,7 @@ public class ReducedNetwork extends StateNode {
         BitSet allRootSegments = rootEdges.stream()
                 .map(e -> e.hasSegments)
                 .reduce(BitSetFun.empty(1), BitSetFun::or);
-        assert allRootSegments.equals(allSegments) : "Segments " + BitSetFun.andNot(allSegments, allRootSegments)
+        assert allRootSegments.cardinality() == getSegmentCount() : "Segments " + BitSetFun.andNot(allSegments, allRootSegments)
                 + " are not active on any root edge";
 
         // All segments have full size segment trees
@@ -1296,6 +1367,25 @@ public class ReducedNetwork extends StateNode {
             if (!edge.isRootEdge())
                 assert edge.parentNode.getHeight() >= edge.childNode.getHeight() : edge;
         }
+
+        return true;
+    }
+
+    public boolean isValidSegmentTrees(List<Tree> segTrees) {
+        for (int seg : Util.range(0, segTrees.size())) {
+            Tree tree = segTrees.get(seg);
+            for (NetworkNode node : getNodes()) {
+                int nrNet = node.getSegmentIndex(seg);
+                if (nrNet == -1)
+                    continue;
+                else
+                    assert node.getActiveSegments().get(seg);
+                Node treeNode = tree.getNode(nrNet);
+                assert node.getHeight() == treeNode.getHeight();
+                assert node.getChildEdges(seg).size() == treeNode.getChildCount();
+            }
+        }
+        return true;
     }
 
     /**
@@ -1322,8 +1412,9 @@ public class ReducedNetwork extends StateNode {
         _hashValues[1] = getEdges().size();
 
         // 3. The mean root height should be the same (could be moved to Tree.getChecksum())
-        double meanRootHeight =
-                rootEdges.stream().mapToDouble(edge -> edge.childNode.getHeight()).average().orElse(0.0);
+        double meanRootHeight = rootEdges.stream()
+                .mapToDouble(edge -> edge.childNode.getHeight())
+                .average().orElse(0.0);
         _hashValues[2] = Double.hashCode(meanRootHeight);
 
         // 4. The mean node height should be the same
@@ -1332,7 +1423,8 @@ public class ReducedNetwork extends StateNode {
         // _hashValues[3] = Double.hashCode(meanNodeHeight);
 
         // 5. The maximum node degree should stay the same
-        int maxDegree = getNodes().stream().mapToInt(node -> node.getChildEdges().size() + node.getParentEdges().size())
+        int maxDegree = getNodes().stream()
+                .mapToInt(node -> node.getChildEdges().size() + node.getParentEdges().size())
                 .max().orElse(0);
         _hashValues[4] = maxDegree;
 

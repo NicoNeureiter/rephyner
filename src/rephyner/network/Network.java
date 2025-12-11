@@ -870,7 +870,7 @@ public class Network extends StateNode {
             reducedLeafNode.setTaxonIndex(leafNode.getTaxonIndex());
         }
 
-        reducedNetwork.assertValid();
+        assert reducedNetwork.isValid();
 
         return reducedNetwork;
     }
