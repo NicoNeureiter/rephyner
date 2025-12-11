@@ -1,11 +1,7 @@
 package rephyner.operators.localtreeoperators;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.DoubleStream;
-import beast.base.core.Input;
 import beast.base.evolution.tree.Node;
 import beast.base.evolution.tree.Tree;
 import beast.base.util.Randomizer;
@@ -13,58 +9,20 @@ import rephyner.operators.NetworkOperator;
 import rephyner.network.NetworkEdge;
 import rephyner.network.NetworkNode;
 import rephyner.util.RandomUtil;
-import targetedbeast.edgeweights.EdgeWeights;
-import targo.util.Util;
 
 
 public abstract class LocalTreeOperator extends NetworkOperator {
 
-    public Input<List<EdgeWeights>> edgeWeightsInput = new Input<>("edgeWeights",
-            "List of weights for each segment tree to be used for targeted tree operations",
-            new ArrayList<>());
-
-    // public Input<Boolean> useEdgeLengthInput = new Input<>("useEdgeLength",
-    //         "if true, it uses the relative edge lengths for operations", false);
-
     double pNewNode = 0.5;
     boolean debug = false;
-    List<EdgeWeights> edgeWeights;
     NetworkEdge _toEdgeBack;
 
     @Override
     public void initAndValidate() {
         _updateSegmentTrees = false;
         super.initAndValidate();
-        edgeWeights = edgeWeightsInput.get();
     }
-
-    List<Double> getDestinationEdgeWeights(NetworkEdge sourceEdge, List<NetworkEdge> destinationEdgeCandidates,
-            int segment) {
-        assert sourceEdge.hasSegments.get(segment);
-        assert !sourceEdge.isRootEdge();
-        for (NetworkEdge e : destinationEdgeCandidates)
-            assert e.hasSegments.get(segment);
-
-        List<Integer> destTreeNodes = destinationEdgeCandidates.stream()
-                .map(e -> e.childNode.getSegmentIndex(segment))
-                .toList();
-        assert !destTreeNodes.contains(null);
-
-        int sourceTreeNodeIndex = sourceEdge.childNode.getSegmentIndex(segment);
-        Node sourceTreeNode = getSegmentTree(segment).getNode(sourceTreeNodeIndex);
-
-        // Calculate the consensus sequences without the node i
-        List<Integer> ancestors = getAncestors(sourceTreeNode, destTreeNodes);
-        edgeWeights.get(segment).prestore();
-        edgeWeights.get(segment).updateByOperatorWithoutNode(sourceTreeNodeIndex, ancestors);
-
-        // Calculate edgeWeight distances from source node to destination nodes
-        double[] distances = edgeWeights.get(segment).getTargetWeightsInteger(sourceTreeNodeIndex, destTreeNodes);
-
-        return DoubleStream.of(distances)
-                .map(d -> 1.0 + d*d)
-                .boxed().toList();
-    }
+    
     @Override
     public double networkProposal() {
         double logHR = 0.0;
@@ -78,7 +36,6 @@ public abstract class LocalTreeOperator extends NetworkOperator {
         List<NetworkEdge> sourceCandidates = getSourceCandidates(segment);
         NetworkEdge movingEdge = RandomUtil.choice(sourceCandidates);
         // logHR -= Math.log(1.0 / sourceCandidates.size());
-
 
         // Remember some values for back-probabilirt
         final NetworkNode parent = movingEdge.parentNode;
@@ -174,17 +131,9 @@ public abstract class LocalTreeOperator extends NetworkOperator {
             throw new DirectRejectException();
         }
 
-        if (edgeWeights.isEmpty()){
-            // Pick target edge uniformly at random
-            target.edge = RandomUtil.choice(toEdgeCandidates);
-            target.logP += Math.log(1.0 / toEdgeCandidates.size());
-        } else {
-            List<Double> w = getDestinationEdgeWeights(movingEdge, toEdgeCandidates, segment);
-            List<Double> p = Util.normalize(w);
-            int i = RandomUtil.sampleCategorical(p);
-            target.edge = toEdgeCandidates.get(i);
-            target.logP += Math.log(p.get(i));
-        }
+        // Pick target edge uniformly at random
+        target.edge = RandomUtil.choice(toEdgeCandidates);
+        target.logP += Math.log(1.0 / toEdgeCandidates.size());
 
         assert Double.isFinite(target.logP);
         
@@ -200,14 +149,7 @@ public abstract class LocalTreeOperator extends NetworkOperator {
             System.out.println(123);
         assert toEdgeCandidates.contains(toEdge);
 
-        if (edgeWeights.isEmpty()) {
-            logP += Math.log(1.0 / toEdgeCandidates.size());
-        } else {
-            List<Double> w = getDestinationEdgeWeights(movingEdge, toEdgeCandidates, segment);
-            List<Double> p = Util.normalize(w);
-            int i = toEdgeCandidates.indexOf(toEdge);
-            logP += Math.log(p.get(i));
-        }
+        logP += Math.log(1.0 / toEdgeCandidates.size());
 
         return logP;
     }
