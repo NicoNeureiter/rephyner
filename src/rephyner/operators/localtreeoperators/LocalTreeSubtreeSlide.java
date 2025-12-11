@@ -1,5 +1,6 @@
 package rephyner.operators.localtreeoperators;
 
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -9,6 +10,7 @@ import beast.base.inference.operator.kernel.KernelDistribution;
 import beast.base.util.Randomizer;
 import rephyner.network.NetworkEdge;
 import rephyner.network.NetworkNode;
+import rephyner.network.ReducedNetwork;
 
 public class LocalTreeSubtreeSlide extends LocalTreeOperator {
 
@@ -81,16 +83,12 @@ public class LocalTreeSubtreeSlide extends LocalTreeOperator {
         double maxDelta = size / 2.0;
         double minHeight = edge.parentNode.getHeight() - maxDelta;
         double maxHeight = edge.parentNode.getHeight() + maxDelta;
-        List<NetworkNode> destinationNodeCandidates = network.getInternalNodes().stream()
+        List<NetworkNode> destinationNodeCandidates = network.getInternalNodeStream()
                 .filter(n -> minHeight < n.getHeight() && n.getHeight() < maxHeight) // in height range
                 .filter(n -> !n.getActiveSegments().get(segment)) // not yet in local tree
                 .filter(n -> n != edge.parentNode) // not the current node
                 .collect(Collectors.toList());
         return destinationNodeCandidates;
-    }
-
-    double getDestinationNodeLogProb(List<NetworkNode> destinationNodeCandidates) {
-        return Math.log(1.0 / destinationNodeCandidates.size());
     }
 
     NetworkEdge getAncestorAtHeight(NetworkEdge edge, int segment, double height) {
@@ -115,60 +113,61 @@ public class LocalTreeSubtreeSlide extends LocalTreeOperator {
         return descendants;
     }
 
-    // /**
-    // * automatic parameter tuning *
-    // */
-    // @Override
-    // public void optimize(final double logAlpha) {
-    // if (optimiseInput.get()) {
-    // double delta = calcDelta(logAlpha);
-    // delta += Math.log(size);
-    // final double f = Math.exp(delta);
-    // if (limit > 0) {
-    // final ReducedNetwork network = networkInput.get();
-    // final double h = network.getNetworkHeight();
-    // final double k = Math.log(network.getLeafNodes().size()) / Math.log(2);
-    // final double lim = (h / k) * limit;
-    // if (f <= lim) {
-    // size = f;
-    // }
-    // } else {
-    // size = f;
-    // }
-    // }
-    // }
+    /**
+     * automatic parameter tuning *
+     */
+    @Override
+    public void optimize(final double logAlpha) {
+        if (!optimiseInput.get()) 
+            return;
+        
+        double delta = calcDelta(logAlpha);
+        delta += Math.log(size);
+        final double f = Math.exp(delta);
+        if (limit > 0) {
+            final ReducedNetwork network = networkInput.get();
+            final double h = network.getNetworkHeight();
+            final double k = Math.log(network.getLeafNodes().size()) / Math.log(2);
+            final double lim = (h / k) * limit;
+            if (f <= lim) {
+                size = f;
+            }
+        } else {
+            size = f;
+        }
+    }
 
-    // @Override
-    // public double getCoercableParameterValue() {
-    // return size;
-    // }
+    @Override
+    public double getCoercableParameterValue() {
+        return size;
+    }
 
-    // @Override
-    // public void setCoercableParameterValue(final double value) {
-    // size = value;
-    // }
+    @Override
+    public void setCoercableParameterValue(final double value) {
+        size = value;
+    }
 
-    // @Override
-    // public String getPerformanceSuggestion() {
-    // final double prob = m_nNrAccepted / (m_nNrAccepted + m_nNrRejected + 0.0);
-    // final double targetProb = getTargetAcceptanceProbability();
+    @Override
+    public String getPerformanceSuggestion() {
+        final double prob = m_nNrAccepted / (m_nNrAccepted + m_nNrRejected + 0.0);
+        final double targetProb = getTargetAcceptanceProbability();
 
-    // double ratio = prob / targetProb;
+        double ratio = prob / targetProb;
 
-    // if (ratio > 2.0)
-    // ratio = 2.0;
-    // if (ratio < 0.5)
-    // ratio = 0.5;
+        if (ratio > 2.0)
+            ratio = 2.0;
+        if (ratio < 0.5)
+            ratio = 0.5;
 
-    // final double newDelta = size * ratio;
+        final double newDelta = size * ratio;
 
-    // final DecimalFormat formatter = new DecimalFormat("#.###");
-    // if (prob < 0.10) {
-    // return "Try decreasing size to about " + formatter.format(newDelta);
-    // } else if (prob > 0.40) {
-    // return "Try increasing size to about " + formatter.format(newDelta);
-    // } else
-    // return "";
-    // }
+        final DecimalFormat formatter = new DecimalFormat("#.###");
+        if (prob < 0.10) {
+            return "Try decreasing size to about " + formatter.format(newDelta);
+        } else if (prob > 0.40) {
+            return "Try increasing size to about " + formatter.format(newDelta);
+        } else
+            return "";
+    }
 
 }

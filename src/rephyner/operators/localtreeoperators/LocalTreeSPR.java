@@ -12,16 +12,20 @@ import rephyner.util.Util;
 public class LocalTreeSPR extends LocalTreeOperator {
 
     final public Input<RealParameter> maxheightInput = new Input<>(
-            "maxHeight",
-            "Maximum tree height.",
-            Input.Validate.REQUIRED);
+            "maxHeightFactor",
+            "Maximum node height relative to the current network height.",
+            new RealParameter("1.2"));
 
-    Double maxHeight;
+    Double maxHeightFactor;
 
     @Override
     public void initAndValidate() {
         super.initAndValidate();
-        maxHeight = maxheightInput.get().getValue();
+        maxHeightFactor = maxheightInput.get().getValue();
+    }
+
+    double getMaxHeight() {
+        return maxHeightFactor * network.getNetworkHeight();
     }
 
     @Override
@@ -30,6 +34,10 @@ public class LocalTreeSPR extends LocalTreeOperator {
 
         double minHeight = edge.getChildHeight();
         List<NetworkEdge> destinationCandidates = getDestinationEdgeCandidates(edge, segment);
+        if (destinationCandidates.isEmpty()) {
+            throw new DirectRejectException();
+        }
+
         List<Double> destinationLengths = getDestinationEdgeLengths(destinationCandidates, minHeight);
         double totalLength = Util.sum(destinationLengths);
 
@@ -38,17 +46,19 @@ public class LocalTreeSPR extends LocalTreeOperator {
 
         // Choose height within the valid range
         double nodeMinHeight = Math.max(minHeight, target.edge.getChildHeight());
-        double nodeMaxHeight = Math.min(maxHeight, target.edge.getParentHeight());
+        double nodeMaxHeight = Math.min(getMaxHeight(), target.edge.getParentHeight());
         double newHeight = RandomUtil.uniform(nodeMinHeight, nodeMaxHeight);
 
         target.node = new NetworkNode(newHeight);
         target.logP = Math.log(1.0 / totalLength);
 
+        assert Double.isFinite(target.logP);
+
         return target;
     }
 
     @Override
-    double getNewNodeTargetLogProb(NetworkEdge movingEdge, int segment, double toHeight) {
+    double getNewNodeTargetLogProb(NetworkEdge movingEdge, NetworkEdge toEdge, int segment, double toHeight) {
         double logP = 0.0;
 
         assert toHeight > movingEdge.getChildHeight();
@@ -63,27 +73,27 @@ public class LocalTreeSPR extends LocalTreeOperator {
         return logP;
     }
 
-    List<NetworkEdge> getDestinationEdgeCandidates(NetworkEdge edge, int segment) {
+    List<NetworkEdge> getDestinationEdgeCandidates(final NetworkEdge edge, final int segment) {
+        final double minHeight = edge.getChildHeight();
         return network.getSegmentEdges(segment).stream()
-                .filter(e -> e.isRootEdge() || (e.getParentHeight() > edge.getChildHeight())) // TODO Could be optimized
-                                                                                              // using a tree visitor
+                .filter(e -> e.isRootEdge() || (e.getParentHeight() > minHeight)) // TODO Could be optimized using a tree visitor
                 .filter(e -> e != edge)
                 .toList();
     }
 
-    List<Double> getDestinationEdgeLengths(List<NetworkEdge> destinationCandidates, double minHeight) {
-        List<Double> destinationLengths = new ArrayList<>();
+    List<Double> getDestinationEdgeLengths(final List<NetworkEdge> destinationCandidates, final double minHeight) {
+        final List<Double> destinationLengths = new ArrayList<>();
         for (NetworkEdge e : destinationCandidates) {
             double lower = Math.max(minHeight, e.getChildHeight());
-            double upper = Math.min(maxHeight, e.getParentHeight());
+            double upper = Math.min(getMaxHeight(), e.getParentHeight());
             destinationLengths.add(upper - lower);
         }
         return destinationLengths;
     }
 
-    List<NetworkNode> getDestinationNodeCandidates(NetworkEdge edge, int segment) {
-        double minHeight = edge.getChildHeight();
-        return network.getInternalNodes().stream()
+    List<NetworkNode> getDestinationNodeCandidates(final NetworkEdge edge, final int segment) {
+        final double minHeight = edge.getChildHeight();
+        return network.getInternalNodeStream()
                 .filter(n -> n.getHeight() > minHeight) // above the minimum height
                 .filter(n -> !n.getActiveSegments().get(segment)) // not yet in local tree
                 .filter(n -> n != edge.parentNode) // not the current parent node
@@ -91,8 +101,7 @@ public class LocalTreeSPR extends LocalTreeOperator {
     }
 
     List<NetworkEdge> getDestinationEdgeCandidatesAtHeight(NetworkEdge edge, int segment, double height) {
-        return network.getEdgesAtHeight(height).stream()
-                .filter(e -> e.hasSegments.get(segment))
+        return network.getEdgesAtHeight(height, segment).stream()
                 .filter(e -> e != edge)
                 .toList();
     }

@@ -2,15 +2,19 @@ package rephyner.operators;
 
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import beast.base.core.Input;
 import beast.base.core.Log;
+import beast.base.evolution.tree.Node;
 import beast.base.evolution.tree.Tree;
 import beast.base.inference.Operator;
 import beast.base.util.Randomizer;
 import rephyner.network.NetworkEdge;
 import rephyner.network.NetworkNode;
 import rephyner.network.ReducedNetwork;
+import rephyner.util.BitSetFun;
 import rephyner.util.Util;
 
 public abstract class NetworkOperator extends Operator {
@@ -28,6 +32,10 @@ public abstract class NetworkOperator extends Operator {
     int[] segmentTreeMap;
 
     public boolean _updateSegmentTrees = true;
+
+    public Tree getSegmentTree(int segment) {
+        return segmentTrees.get(segmentTreeMap[segment]);
+    }
 
     @Override
     public void initAndValidate() {
@@ -69,11 +77,27 @@ public abstract class NetworkOperator extends Operator {
 
     }
 
+    public void initializeSegmentTrees() {
+            System.out.println("restore segment trees in first move");
+			// update all segment trees			
+            for (int segIdx=0; segIdx<segmentTrees.size(); segIdx++)
+          		network.updateSegmentTree(segmentTrees.get(segmentTreeMap[segIdx]), segmentTreeMap[segIdx]); 
+            network.segmentTreesNeedInit = false;
+    }
+
     public double proposal() {
         // System.out.println("\n@@@ " + getName() + " ..." + network.getID());
-        network.assertValid();
+        assert network.isValid();
 
-        double logHR;
+        // System.out.println(network.segmentTreesNeedInit + ":" + _updateSegmentTrees);
+
+
+		if (network.segmentTreesNeedInit) {				
+			initializeSegmentTrees();
+			return Double.POSITIVE_INFINITY;
+		}	
+
+        final double logHR;
         try {
             logHR = networkProposal();
         } catch (DirectRejectException e) {
@@ -84,7 +108,8 @@ public abstract class NetworkOperator extends Operator {
 
         if (logHR > Double.NEGATIVE_INFINITY) {
             assert logHR < Double.POSITIVE_INFINITY;
-            network.assertValid();
+            assert network.assertValid();
+            assert network.isValidSegmentTrees(segmentTrees);
             if (_updateSegmentTrees)
                 for (int segIdx : Util.range(segmentTrees.size()))
                     network.updateSegmentTree(segmentTrees.get(segmentTreeMap[segIdx]), segmentTreeMap[segIdx]);
@@ -93,6 +118,32 @@ public abstract class NetworkOperator extends Operator {
         }
 
         return logHR;
+    }
+
+    protected boolean checkNetworkTreeIndexUniqueness(int seg) {
+        Set<Integer> seen = new HashSet<>();
+        for (NetworkNode n : network.getNodes()){
+            if (n.getActiveSegments().get(seg)){
+                int i = n.getSegmentIndex(seg);
+                if (i == -1) continue;
+                if (seen.contains(i)) return false;
+                else seen.add(i);
+            }
+        }
+        return true;
+    }
+    
+    public void setNodeHeight(final NetworkNode node, final double height) {        
+        // Change network node height
+        node.setHeight(height);
+
+        // Change all corresponding segment tree heights
+        for (int seg : BitSetFun.iterate(node.getActiveSegments())) {
+            int treeNodeNr = node.getSegmentIndex(seg);
+            assert treeNodeNr > -1;
+            Node treeNode = getSegmentTree(seg).getNode(treeNodeNr);
+            treeNode.setHeight(height);
+        }
     }
 
     /**
@@ -234,5 +285,8 @@ public abstract class NetworkOperator extends Operator {
     }
 
     public static class DirectRejectException extends RuntimeException {
+        public Throwable fillInStackTrace() {
+            return this;
+        }
     }
 }

@@ -64,7 +64,8 @@ public class NetworkScaleOperator extends NetworkOperator {
 
         upper = scaleUpperLimit.get();
         lower = scaleLowerLimit.get();
-
+        
+        _updateSegmentTrees = false;
 
     }
 
@@ -74,7 +75,7 @@ public class NetworkScaleOperator extends NetworkOperator {
 
     @Override
     public double networkProposal() {
-        network.assertValid();
+        assert network.isValid();
 
         double logHR = 0.0;
         int count = 0;
@@ -91,10 +92,10 @@ public class NetworkScaleOperator extends NetworkOperator {
                     .toList();
             assert !rootNodes.isEmpty();
             NetworkNode rootNode = RandomUtil.choice(rootNodes);
-            logHR -= Math.log(1.0 / rootNodes.size());
+            // logHR -= Math.log(1.0 / rootNodes.size());
 
             // Set the new height
-            rootNode.setHeight(rootNode.getHeight() * f);
+            setNodeHeight(rootNode, rootNode.getHeight() * f);
             count += 1;
 
             // Directly reject if root would end up below a child node
@@ -107,7 +108,7 @@ public class NetworkScaleOperator extends NetworkOperator {
         } else { // Scale all nodes
 
             for (NetworkNode node : network.getInternalNodes()) {
-                node.setHeight(node.getHeight() * f);
+                setNodeHeight(node, node.getHeight() * f);
                 count += 1;
             }
 
@@ -134,11 +135,11 @@ public class NetworkScaleOperator extends NetworkOperator {
             }
 
         } catch (IllegalArgumentException ex) {
-            network.assertValid();
+            assert network.isValid();
             return Double.NEGATIVE_INFINITY;
         }
 
-        network.assertValid();
+        assert network.isValid();
 
         return logHR + Math.log(f) * (count - 2);
     }
@@ -150,10 +151,8 @@ public class NetworkScaleOperator extends NetworkOperator {
     public void optimize(final double logAlpha) {
         if (optimiseInput.get()) {
             double delta = calcDelta(logAlpha);
-            double scaleFactor = getCoercableParameterValue();
-            delta += Math.log(scaleFactor);
-            scaleFactor = Math.exp(delta);
-            setCoercableParameterValue(scaleFactor);
+            delta += Math.log(1.0 / scaleFactor - 1.0);
+			setCoercableParameterValue(1.0 / (Math.exp(delta) + 1.0));
         }
     }
 
@@ -168,11 +167,6 @@ public class NetworkScaleOperator extends NetworkOperator {
     }
 
     @Override
-    public double getTargetAcceptanceProbability() {
-        return 0.3;
-    }
-
-    @Override
     public String getPerformanceSuggestion() {
         double prob = m_nNrAccepted / (m_nNrAccepted + m_nNrRejected + 0.0);
         double targetProb = getTargetAcceptanceProbability();
@@ -184,11 +178,10 @@ public class NetworkScaleOperator extends NetworkOperator {
             ratio = 0.5;
 
         // new scale factor
-        double newWindowSize = getCoercableParameterValue() * ratio;
-
-        DecimalFormat formatter = new DecimalFormat("#.###");
+		final double sf = Math.pow(scaleFactor, ratio);
+        final DecimalFormat formatter = new DecimalFormat("#.###");
         if (prob < 0.10 || prob > 0.40) {
-            return "Try setting scale factor to about " + formatter.format(newWindowSize);
+            return "Try setting scale factor to about " + formatter.format(sf);
         } else
             return "";
     }

@@ -92,8 +92,8 @@ public class DivertSegmentOperator extends NetworkOperator {
             return Double.NEGATIVE_INFINITY;
         }
 
-        // assert network.isValid();
-        network.assertValid();
+        assert network.isValid();
+        // network.assertValid();
 
         if (divertOneSegmentInput.get()) {
             logPBack += Math.log(1.0 / destEdge.hasSegments.cardinality());
@@ -114,7 +114,7 @@ public class DivertSegmentOperator extends NetworkOperator {
         BitSet destSegments = new BitSet();
         destSegments.clear();
 
-        for (int segIdx : BitSetFun.iterable(sourceSegments)) {
+        for (int segIdx : BitSetFun.iterate(sourceSegments)) {
             if (Randomizer.nextBoolean())
                 destSegments.set(segIdx);
         }
@@ -166,7 +166,8 @@ public class DivertSegmentOperator extends NetworkOperator {
      * @param moveallSegments bool indicating whether ALL `movableSegments` should be moved away from edge
      */
     public double detachEdgeSegments(NetworkEdge edge, BitSet movableSegments, boolean moveAllSegments) {
-        network.assertValid();
+        assert network.isValid();
+        // network.assertValid();
 
         // Preconditions
         assert !movableSegments.isEmpty() : "No segments to move";
@@ -242,7 +243,7 @@ public class DivertSegmentOperator extends NetworkOperator {
 
         // For each segment, find the edges that are contemporary to `parent` and have the segment.
         Map<Integer, List<NetworkEdge>> possibleMoves = getSegmentEdgesAtHeight(height, movableSegments);
-        for (int segIdx : BitSetFun.iterable(movableSegments)) {
+        for (int segIdx : BitSetFun.iterate(movableSegments)) {
             List<NetworkEdge> possSegMoves = possibleMoves.get(segIdx);
             if (possSegMoves == null || possSegMoves.isEmpty()) {
                 // Should be impossible to encounter a segment without any possible back moves.
@@ -282,7 +283,7 @@ public class DivertSegmentOperator extends NetworkOperator {
         Map<NetworkNode, NetworkEdge> sisterEdges =
                 parent.getChildEdges().stream().collect(Collectors.toMap(e -> e.childNode, e -> e));
 
-        for (int segIdx : BitSetFun.iterable(movableSegments)) {
+        for (int segIdx : BitSetFun.iterate(movableSegments)) {
             List<NetworkEdge> possSegMoves = possibleSisters.get(segIdx);
             if (possSegMoves == null || possSegMoves.isEmpty()) {
                 if (moveAllSegments)

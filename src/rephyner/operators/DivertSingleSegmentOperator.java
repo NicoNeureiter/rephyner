@@ -76,7 +76,7 @@ public class DivertSingleSegmentOperator extends DivertSegmentOperator {
         if (logP == Double.NEGATIVE_INFINITY || logPBack == Double.NEGATIVE_INFINITY)
             return Double.NEGATIVE_INFINITY;
 
-        network.assertValid(); // TODO CHANGE TO: assert network.isValid();
+        assert network.isValid();
 
         // Calculate probability of reverse move
         logPBack += Math.log(1.0 / destEdge.hasSegments.cardinality());
@@ -112,7 +112,7 @@ public class DivertSingleSegmentOperator extends DivertSegmentOperator {
         double logP = 0.0;
 
         // Preconditions
-        network.assertValid();
+        assert network.isValid();
         assert edge.hasSegments.get(seg) : "All `movableSegments` need to be active on `edge`";
         assert !edge.isRootEdge();
 
