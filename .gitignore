@@ -1,6 +1,7 @@
 # IDE cruft
 .classpath
 .project
+rephyner.iml
 /.settings
 /LAG.iml
 /.idea
