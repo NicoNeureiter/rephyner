@@ -174,20 +174,20 @@
         </javac>
     </target>
 
-<!--    <target name="install-dependencies" depends="build-beast">-->
-<!--      <mkdir dir="deps"/>-->
-<!--      <java fork="true" classname="beast.pkgmgmt.PackageManager">-->
-<!--        <jvmarg line="-Dbeast.user.package.dir=./deps"/>-->
-<!--        <arg line="-add feast"/>-->
-<!--        <classpath>-->
-<!--          <pathelement path="${build-beast}"/>-->
-<!--        </classpath>-->
-<!--      </java>-->
-<!--    </target>-->
+   <target name="install-dependencies" depends="build-beast">
+     <mkdir dir="deps"/>
+     <java fork="true" classname="beast.pkgmgmt.PackageManager">
+       <jvmarg line="-Dbeast.user.package.dir=./deps"/>
+       <arg line="-add CoalRe"/>
+       <classpath>
+         <pathelement path="${build-beast}"/>
+       </classpath>
+     </java>
+   </target>
 
     <!-- Compile -->
-<!--    <target name="compile" depends="build-beast,build-beastfx,install-dependencies">-->
-    <target name="compile" depends="build-beast,build-beastfx">
+   <target name="compile" depends="build-beast,build-beastfx,install-dependencies">
+    <!-- <target name="compile" depends="build-beast,build-beastfx"> -->
 
       <javac target="${targetVersion}" source="${sourceVersion}"
              srcdir="${src}" destdir="${build}"
@@ -201,7 +201,7 @@
                 <pathelement path="${build-beastfx}"/>
                 <fileset dir="${env.JAVA_FX_HOME}" includes="**/*.jar"/>
                 <pathelement path="${local-coalre-source-root}/build"/>
-<!--                <fileset dir="deps/feast" includes="**/*.jar"/>-->
+               <fileset dir="deps/CoalRe" includes="**/*.jar"/>
             </classpath>
         </javac>
     </target>
