@@ -5,6 +5,7 @@ import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
 
 import java.util.BitSet;
+import java.util.List;
 
 public class Particle {
     public Multiset<BitSet> state;
@@ -28,7 +29,9 @@ public class Particle {
         this.logWeight = 0.0;
     }
 
-    public double propagate(ParticleEvent obsEvent, double theta, double rho) {
+    public double propagate(int nextObsEvIdx, List<ParticleEvent> obsEvents, double theta, double rho) {
+
+        ParticleEvent nextObsEvent = obsEvents.get(nextObsEvIdx);
 
         while (true) {
 
@@ -38,8 +41,12 @@ public class Particle {
 
             for (Multiset.Entry<BitSet> entry : state.entrySet()) {
 
-                if (entry.getElement().cardinality()>1)
-                    a_0 += rho*entry.getCount()*(1.0-Math.pow(0.5,entry.getElement().cardinality()-1));
+                if (entry.getElement().cardinality()>1) {
+                    this_a = rho * entry.getCount() * (1.0 - Math.pow(0.5, entry.getElement().cardinality() - 1));
+                    double s = getRecRateScaler(entry.getElement(), nextObsEvIdx, obsEvents);
+
+                    a_0 += this_a*s;
+                }
 
                 for (Multiset.Entry<BitSet> entryPrime : state.entrySet()) {
                     if (entry.getElement() == entryPrime.getElement())
@@ -56,9 +63,9 @@ public class Particle {
 
             double dt = Randomizer.nextExponential(a_0);
 
-            if (t+dt>obsEvent.t) {
-                logWeight -= a_forbidden * (t - obsEvent.t);
-                t = obsEvent.t;
+            if (t+dt>nextObsEvent.t) {
+                logWeight -= a_forbidden * (t - nextObsEvent.t);
+                t = nextObsEvent.t;
                 break;
             }
 
@@ -101,11 +108,11 @@ public class Particle {
             event.updateState(state);
         }
 
-        // TODO: Include weight for observed event
+        // Include weight for observed event:
 
-        double a_0 = 0.0;
+        if (nextObsEvent instanceof CoalEvent obsCoalEvent) {
 
-        if (obsEvent instanceof CoalEvent obsCoalEvent) {
+            double a_0 = 0.0;
 
             BitSet intersection = new BitSet();
 
@@ -153,7 +160,7 @@ public class Particle {
                             ? 0.5*theta*entry.getCount()*(entry.getCount()-1)
                             : theta*entry.getCount()*entryPrime.getCount();
                     if (u<0) {
-                        ParticleEvent particleEvent = new CoalEvent(obsEvent.t,
+                        ParticleEvent particleEvent = new CoalEvent(obsCoalEvent.t,
                                 entry.getElement(), entryPrime.getElement());
                         particleEvent.updateState(state);
                     }
@@ -165,5 +172,28 @@ public class Particle {
         }
 
         return logWeight;
+    }
+
+    double getRecRateScaler(BitSet segments, int obsEvIdx, List<ParticleEvent> obsEvents) {
+
+        double s = 1.0;
+        for (int nextEvIdx=obsEvIdx+1; nextEvIdx<obsEvents.size(); nextEvIdx++) {
+            ParticleEvent nextEvent = obsEvents.get(nextEvIdx);
+            if (nextEvent instanceof CoalEvent nextCoalEvent) {
+                if (!nextCoalEvent.child1.intersects(segments))
+                    continue;
+            }
+        }
+
+        return s;
+    }
+
+    double getCoalRateScaler(BitSet segments1, BitSet segments2, int obsEvIdx, List<ParticleEvent> obsEvents) {
+        double s = 1.0;
+        for (int nextEvIdx=obsEvIdx+1; nextEvIdx<obsEvents.size(); nextEvIdx++) {
+
+        }
+
+        return s;
     }
 }

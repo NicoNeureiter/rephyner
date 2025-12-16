@@ -126,7 +126,7 @@ public class Simulator {
         Randomizer.setSeed(1);
 
         Simulator simulator = new Simulator();
-        List<ParticleEvent> traj = simulator.simulate(0.1, 1, 3, 10);
+        List<ParticleEvent> traj = simulator.simulate(1, 1, 3, 10);
         List<ParticleEvent> obsTraj = simulator.extractObservableEvents(traj);
 
         System.out.println("Simulated trajectory:");

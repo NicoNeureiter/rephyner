@@ -19,7 +19,6 @@
 
 package rephyner.distribution.smc;
 
-import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
 
 import java.util.BitSet;

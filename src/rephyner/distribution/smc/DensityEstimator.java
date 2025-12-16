@@ -1,3 +1,22 @@
+/*
+ * Copyright (c) 2025 ETH Zürich
+ *
+ * This file is part of rephyner.
+ *
+ * rephyner is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or (at
+ * your option) any later version.
+ *
+ * rephyner is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with rephyner. If not, see <https://www.gnu.org/licenses/>.
+ */
+
 package rephyner.distribution.smc;
 
 import java.util.ArrayList;
@@ -9,7 +28,7 @@ public class DensityEstimator {
 
     }
 
-    public double calculateLogP(List<CoalEvent> observableTraj, int nSegments,
+    public double calculateLogP(List<ParticleEvent> observableTraj, int nSegments,
                                 int nSamples, int nParticles, double theta, double rho) {
         double logP = 0;
 
@@ -22,12 +41,13 @@ public class DensityEstimator {
             particlesAlt.add(new Particle(nSegments, nSamples));
         }
 
-        for (ParticleEvent event : observableTraj) {
+        for (int evIdx = 0; evIdx<observableTraj.size(); evIdx++) {
+            ParticleEvent event = observableTraj.get(evIdx);
 
             // Propagate particles
             double maxWeight = Double.NEGATIVE_INFINITY;
             for (int p=0; p<nParticles; p++) {
-                weights[p] = particles.get(p).propagate(event, theta, rho);
+                weights[p] = particles.get(p).propagate(evIdx, observableTraj, theta, rho);
                 maxWeight = Math.max(weights[p], maxWeight);
             }
 
