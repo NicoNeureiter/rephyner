@@ -10,7 +10,6 @@
     <!-- Location to check for local copy of beast2 repository -->
     <property name="local-beast-source-root" location="../beast2"/>
     <property name="local-beastfx-source-root" location="../BeastFX"/>
-    <property name="local-coalre-source-root" location="../CoalRe"/>
 
     <!-- BEAST 2 currently uses Java 1.8 -->
     <property name="sourceVersion" value="17"/>
