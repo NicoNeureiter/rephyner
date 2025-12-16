@@ -21,6 +21,13 @@ public class Particle {
         logWeight = 0.0;
     }
 
+    public void assignFromAndZeroWeight(Particle other) {
+        this.state.clear();
+        this.state.addAll(other.state);
+        this.t = other.t;
+        this.logWeight = 0.0;
+    }
+
     public double propagate(ParticleEvent obsEvent, double theta, double rho) {
 
         while (true) {

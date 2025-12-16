@@ -7,10 +7,8 @@ import java.util.BitSet;
 
 public abstract class ParticleEvent {
     double t;
-//    Multiset<BitSet> stateAfter;
 
     public ParticleEvent() {
-//        stateAfter = HashMultiset.create();
     }
 
     abstract void updateState(Multiset<BitSet> state);

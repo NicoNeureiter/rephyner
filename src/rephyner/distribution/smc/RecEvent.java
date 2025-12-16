@@ -33,8 +33,6 @@ public class RecEvent extends ParticleEvent {
         state.remove(child);
         state.add(parent1);
         state.add(parent2);
-
-//        stateAfter.addAll(state);
     }
 
     @Override
