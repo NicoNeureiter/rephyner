@@ -96,7 +96,7 @@ public class LearnedReducedNetworkPriorTest extends RephynerTestClass {
         // Test softplus
         Assert.assertEquals("softplus(0) should be ln(2)", Math.log(2), prior.softplus(0), 1e-10);
         Assert.assertTrue("softplus(x) > 0 for all x", prior.softplus(-5) > 0);
-        Assert.assertTrue("softplus(large x) ≈ x", Math.abs(prior.softplus(25) - 25) < 0.01);
+        Assert.assertTrue("softplus(large x) is close to x", Math.abs(prior.softplus(25) - 25) < 0.01);
     }
 
     @Test
