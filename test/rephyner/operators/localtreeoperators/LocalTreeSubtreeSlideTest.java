@@ -14,7 +14,6 @@ import rephyner.network.NetworkEdge;
 import rephyner.network.NetworkNode;
 import rephyner.network.ReducedNetwork;
 import rephyner.util.BitSetFun;
-import rephyner.util.Util;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.List;
@@ -54,9 +53,9 @@ public class LocalTreeSubtreeSlideTest extends RephynerTestClass {
         BitSet segs = BitSetFun.full(nSegments);
         
         // Create leaf nodes
-        leafA = new NetworkNode(0.0, "A", 0);
-        leafB = new NetworkNode(0.0, "B", 1);
-        leafC = new NetworkNode(0.0, "C", 2);
+        leafA = new NetworkNode(0.0, "t0", 0);
+        leafB = new NetworkNode(0.0, "t1", 1);
+        leafC = new NetworkNode(0.0, "t2", 2);
 
         // First internal node and child edges
         AB = new NetworkNode(1.0);
@@ -131,7 +130,9 @@ public class LocalTreeSubtreeSlideTest extends RephynerTestClass {
 
     @Test
     public void testProposalReturnsFiniteValue() {
-        Randomizer.setSeed(123);
+        // Randomizer.setSeed(123);
+        assert network.isValid();
+        operator.initializeSegmentTrees();
         double logHastingsRatio = operator.proposal();
         Assert.assertTrue("Hastings ratio should not be positive infinity.", 
                           logHastingsRatio != Double.POSITIVE_INFINITY);

@@ -26,17 +26,18 @@ public class SimulatedCoalescentNetworkTest extends RephynerTestClass {
         ConstantPopulation populationFunction = new ConstantPopulation();
         populationFunction.initByName("popSize", new RealParameter("1.0"));
 
-        int N = 1000;
+        int N = 100;
+        double maxHeight = 5.0;
         double[] excessNodeCounts = new double[N];
         double[] networkHeights = new double[N];
         double[] networkLengths = new double[N];
 
         for (int i = 0; i < N; i++) {
 
-            SimulatedReducedCoalescentNetwork network = new SimulatedReducedCoalescentNetwork();
+            SimulatedUniformReducedNetwork network = new SimulatedUniformReducedNetwork();
             network.initByName(
-                    "coalescenceRate", new RealParameter("1.0"),
-                    "maxHeight", new RealParameter("5.0"),
+                    // "coalescenceRate", new RealParameter("1.0"),
+                    "maxHeight", new RealParameter(String.valueOf(maxHeight)),
                     "traitSet", dateTrait,
                     "segmentTree", segmentTrees.get(0),
                     "segmentTree", segmentTrees.get(1),
@@ -52,22 +53,10 @@ public class SimulatedCoalescentNetworkTest extends RephynerTestClass {
             networkHeights[i] = NetworkStatsLogger.getTotalHeight(network);
             networkLengths[i] = NetworkStatsLogger.getTotalEdgeLength(network);
         }
-        
 
-        double meanCount = SimulatedCoalescentNetworkTest.mean(excessNodeCounts);
-        double meanHeight = SimulatedCoalescentNetworkTest.mean(networkHeights);
-        double meanLength = SimulatedCoalescentNetworkTest.mean(networkLengths);
-
-        System.out.println(this.getClass().getName() + " testSimulator");
-        System.out.println(meanCount);
-        System.out.println(meanHeight);
-        System.out.println(meanLength);
-
-        // Assert.assertEquals(8.05, meanCount, 0.1); // TODO Check what this should be....
-        // Assert.assertEquals(2.93, meanHeight, 0.1);
-        // Assert.assertEquals(10.21, meanLength, 0.5);
-        
-        System.out.println("sim test complete");
+        System.out.println(max(networkHeights));
+        Assert.assertTrue(max(networkHeights) > 0.9 * maxHeight);
+        Assert.assertTrue(max(networkHeights) < maxHeight);
     }
     
     
@@ -86,6 +75,17 @@ public class SimulatedCoalescentNetworkTest extends RephynerTestClass {
         }
 
         return m / count;
+    }
+
+    public static double max(double[] x) {
+        double m = Double.NEGATIVE_INFINITY;
+        for (double aX : x) {
+            if (Double.isNaN(aX)) 
+                return Double.NaN;
+            if (aX > m)
+                m= aX;
+        }
+        return m;
     }
     
     
