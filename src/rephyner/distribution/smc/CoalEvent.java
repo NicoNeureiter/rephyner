@@ -24,22 +24,22 @@ import com.google.common.collect.Multiset;
 import java.util.BitSet;
 
 public class CoalEvent extends ParticleEvent {
-    BitSet child1, child2, parent;
+    SegmentSet child1, child2, parent;
 
-    public CoalEvent(double t, BitSet child1, BitSet child2) {
+    public CoalEvent(double t, SegmentSet child1, SegmentSet child2) {
         super();
 
         this.t = t;
         this.child1 = child1;
         this.child2 = child2;
 
-        parent = new BitSet();
+        parent = new SegmentSet();
         parent.or(child1);
         parent.or(child2);
     }
 
     @Override
-    void updateState(Multiset<BitSet> state) {
+    void updateState(Multiset<SegmentSet> state) {
         state.remove(child1);
         state.remove(child2);
         state.add(parent);

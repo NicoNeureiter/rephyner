@@ -4,22 +4,28 @@ import beast.base.util.Randomizer;
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
 
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.List;
 
 public class Particle {
-    public Multiset<BitSet> state;
+    public Multiset<SegmentSet> state;
     public double t, logWeight;
 
+    List<ParticleEvent> obsEvents;
+    int[] compatibilityExcess;
 
-    public Particle(int nSegments, int nSamples) {
+    public Particle(int nSegments, int nSamples, List<ParticleEvent> obsEvents) {
         state = HashMultiset.create();
-        BitSet allSegs = new BitSet();
+        SegmentSet allSegs = new SegmentSet();
         allSegs.set(0,nSegments);
         state.add(allSegs, nSamples);
 
         t = 0.0;
         logWeight = 0.0;
+
+        this.obsEvents = obsEvents;
+        compatibilityExcess = new int[obsEvents.size()];
     }
 
     public void assignFromAndZeroWeight(Particle other) {
@@ -29,7 +35,7 @@ public class Particle {
         this.logWeight = 0.0;
     }
 
-    public double propagate(int nextObsEvIdx, List<ParticleEvent> obsEvents, double theta, double rho) {
+    public double propagate(int nextObsEvIdx, double theta, double rho) {
 
         ParticleEvent nextObsEvent = obsEvents.get(nextObsEvIdx);
 
@@ -39,16 +45,16 @@ public class Particle {
             double a_forbidden = 0.0;
             double this_a;
 
-            for (Multiset.Entry<BitSet> entry : state.entrySet()) {
+            for (Multiset.Entry<SegmentSet> entry : state.entrySet()) {
 
                 if (entry.getElement().cardinality()>1) {
                     this_a = rho * entry.getCount() * (1.0 - Math.pow(0.5, entry.getElement().cardinality() - 1));
-                    double s = getRecRateScaler(entry.getElement(), nextObsEvIdx, obsEvents);
+                    double s = getRecRateScaler(entry.getElement(), nextObsEvIdx);
 
                     a_0 += this_a*s;
                 }
 
-                for (Multiset.Entry<BitSet> entryPrime : state.entrySet()) {
+                for (Multiset.Entry<SegmentSet> entryPrime : state.entrySet()) {
                     if (entry.getElement() == entryPrime.getElement())
                         this_a = 0.5 * theta * entry.getCount() * (entry.getCount() - 1);
                     else
@@ -75,7 +81,7 @@ public class Particle {
             double u = Randomizer.nextDouble()*a_0;
             ParticleEvent event = null;
 
-            for (Multiset.Entry<BitSet> entry : state.entrySet()) {
+            for (Multiset.Entry<SegmentSet> entry : state.entrySet()) {
 
                 if (entry.getElement().cardinality()>1) {
                     u -= rho * entry.getCount() * (1.0 - Math.pow(0.5, entry.getElement().cardinality() - 1));
@@ -86,7 +92,7 @@ public class Particle {
                     }
                 }
 
-                for (Multiset.Entry<BitSet> entryPrime : state.entrySet()) {
+                for (Multiset.Entry<SegmentSet> entryPrime : state.entrySet()) {
                     if ((entry.getElement() == entryPrime.getElement())
                             || entry.getElement().intersects(entryPrime.getElement()))
                         continue;
@@ -114,10 +120,10 @@ public class Particle {
 
             double a_0 = 0.0;
 
-            BitSet intersection = new BitSet();
+            SegmentSet intersection = new SegmentSet();
 
-            for (Multiset.Entry<BitSet> entry : state.entrySet()) {
-                for (Multiset.Entry<BitSet> entryPrime : state.entrySet()) {
+            for (Multiset.Entry<SegmentSet> entry : state.entrySet()) {
+                for (Multiset.Entry<SegmentSet> entryPrime : state.entrySet()) {
 
                     // Consider every pair of states having an intersection
                     // exactly matching the coalescing segments in obsCoalEvent.
@@ -144,8 +150,8 @@ public class Particle {
             }
 
             double u = Randomizer.nextDouble()*a_0;
-            for (Multiset.Entry<BitSet> entry : state.entrySet()) {
-                for (Multiset.Entry<BitSet> entryPrime : state.entrySet()) {
+            for (Multiset.Entry<SegmentSet> entry : state.entrySet()) {
+                for (Multiset.Entry<SegmentSet> entryPrime : state.entrySet()) {
 
                     if (entry.getElement() == entryPrime.getElement() && entry.getCount()<2)
                         continue;
@@ -174,7 +180,7 @@ public class Particle {
         return logWeight;
     }
 
-    double getRecRateScaler(BitSet segments, int obsEvIdx, List<ParticleEvent> obsEvents) {
+    double getRecRateScaler(SegmentSet segments, int obsEvIdx) {
 
         double s = 1.0;
         for (int nextEvIdx=obsEvIdx+1; nextEvIdx<obsEvents.size(); nextEvIdx++) {
@@ -188,12 +194,28 @@ public class Particle {
         return s;
     }
 
-    double getCoalRateScaler(BitSet segments1, BitSet segments2, int obsEvIdx, List<ParticleEvent> obsEvents) {
+    double getCoalRateScaler(SegmentSet segments1, SegmentSet segments2, int obsEvIdx) {
         double s = 1.0;
         for (int nextEvIdx=obsEvIdx+1; nextEvIdx<obsEvents.size(); nextEvIdx++) {
 
         }
 
         return s;
+    }
+
+    void updateCompatibilityExcess(int nextEvIdx) {
+        Arrays.fill(compatibilityExcess, 0);
+        SegmentSet tmp = new SegmentSet();
+
+        for (Multiset.Entry<SegmentSet> entry : state.entrySet()) {
+            for (Multiset.Entry<SegmentSet> entryPrime : state.entrySet()) {
+                if (entryPrime.getElement() == entry.getElement() && entry.getCount() > 1) {
+                    tmp.clear();
+
+                    for (int evIdx = nextEvIdx; evIdx < obsEvents.size(); evIdx++) {
+                    }
+                }
+            }
+        }
     }
 }

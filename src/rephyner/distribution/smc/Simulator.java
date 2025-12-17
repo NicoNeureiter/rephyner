@@ -31,10 +31,10 @@ public class Simulator {
 
     public List<ParticleEvent> simulate(double theta, double rho, int nSegments, int nSamples) {
 
-        Multiset<BitSet> state = HashMultiset.create();
+        Multiset<SegmentSet> state = HashMultiset.create();
         List<ParticleEvent> trajectory = new ArrayList<>();
 
-        BitSet allSegments = new BitSet();
+        SegmentSet allSegments = new SegmentSet();
         allSegments.set(0, nSegments, true);
 
         state.add(allSegments, nSamples);
@@ -44,9 +44,9 @@ public class Simulator {
         while(state.size()>1) {
 
             double a_0 = 0.0;
-            for (Multiset.Entry<BitSet> entry : state.entrySet()) {
+            for (Multiset.Entry<SegmentSet> entry : state.entrySet()) {
                 a_0 += rho*entry.getCount()*(1.0-Math.pow(0.5,entry.getElement().cardinality()-1));
-                for (Multiset.Entry<BitSet> entryPrime : state.entrySet()) {
+                for (Multiset.Entry<SegmentSet> entryPrime : state.entrySet()) {
                     if (entryPrime.getElement() == entry.getElement()) {
                         a_0 += 0.5*theta*entry.getCount()*(entry.getCount()-1);
                     } else {
@@ -62,14 +62,14 @@ public class Simulator {
             ParticleEvent event = null;
             double this_a;
 
-            for (Multiset.Entry<BitSet> entry : state.entrySet()) {
+            for (Multiset.Entry<SegmentSet> entry : state.entrySet()) {
                 this_a = rho*entry.getCount()*(1.0-2.0*Math.pow(0.5,entry.getElement().cardinality()));
                 u -= this_a;
                 if (u < 0) {
                     event = new RecEvent(t, entry.getElement());
                     break;
                 }
-                for (Multiset.Entry<BitSet> entryPrime : state.entrySet()) {
+                for (Multiset.Entry<SegmentSet> entryPrime : state.entrySet()) {
                     if (entryPrime.getElement() == entry.getElement()) {
                         this_a = 0.5*theta*entry.getCount()*(entry.getCount()-1);
                     } else {
@@ -104,11 +104,11 @@ public class Simulator {
                 if (!coalEvent.child1.intersects(coalEvent.child2))
                     continue;
 
-                BitSet obsChild1 = new BitSet();
+                SegmentSet obsChild1 = new SegmentSet();
                 obsChild1.or(coalEvent.child1);
                 obsChild1.and(coalEvent.child2);
 
-                BitSet obsChild2 = new BitSet();
+                SegmentSet obsChild2 = new SegmentSet();
                 obsChild2.or(obsChild1);
 
                 CoalEvent obsCoalEvent = new CoalEvent(coalEvent.t, obsChild1, obsChild2);

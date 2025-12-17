@@ -30,5 +30,5 @@ public abstract class ParticleEvent {
     public ParticleEvent() {
     }
 
-    abstract void updateState(Multiset<BitSet> state);
+    abstract void updateState(Multiset<SegmentSet> state);
 }

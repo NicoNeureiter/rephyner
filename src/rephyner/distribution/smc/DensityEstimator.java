@@ -37,8 +37,8 @@ public class DensityEstimator {
         double[] weights = new double[nParticles];
 
         for (int p=0; p<nParticles; p++) {
-            particles.add(new Particle(nSegments, nSamples));
-            particlesAlt.add(new Particle(nSegments, nSamples));
+            particles.add(new Particle(nSegments, nSamples, observableTraj));
+            particlesAlt.add(new Particle(nSegments, nSamples, observableTraj));
         }
 
         for (int evIdx = 0; evIdx<observableTraj.size(); evIdx++) {
@@ -47,7 +47,7 @@ public class DensityEstimator {
             // Propagate particles
             double maxWeight = Double.NEGATIVE_INFINITY;
             for (int p=0; p<nParticles; p++) {
-                weights[p] = particles.get(p).propagate(evIdx, observableTraj, theta, rho);
+                weights[p] = particles.get(p).propagate(evIdx, theta, rho);
                 maxWeight = Math.max(weights[p], maxWeight);
             }
 
