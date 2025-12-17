@@ -108,7 +108,6 @@ public class ReducedCoalescent extends NetworkDistribution {
         System.out.println(":::" + simulator);
     }
 
-
     public double calculateLogP() {
         ReducedNetwork network = networkIntervalsInput.get().networkInput.get();
 

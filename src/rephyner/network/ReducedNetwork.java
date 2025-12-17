@@ -12,7 +12,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.Stack;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import beast.base.evolution.tree.Node;
 import beast.base.evolution.tree.Tree;
@@ -542,34 +541,41 @@ public class ReducedNetwork extends StateNode {
                 .sorted((n1, n2) -> Double.compare(n1.getHeight(), n2.getHeight()))
                 .toList();
         Map<NetworkNode, Integer> nodeIndexMap = new HashMap<>();
+        Map<NetworkNode, String> nodeLabelMap = new HashMap<>();
         for (int i = 0; i < nodes.size(); i++) {
             nodeIndexMap.put(nodes.get(i), i);
-        }
 
-        // If nodes have a TaxonLabel, use it; otherwise, use a index-based label
-        List<String> nodeLabels = nodes.stream()
-                .map(n -> n.getTaxonLabel() != null ? n.getTaxonLabel() : "n" + nodeIndexMap.get(n))
-                .toList();
+            // If nodes have a TaxonLabel, use it; otherwise, use a index-based label
+            String label = nodes.get(i).getTaxonLabel();
+            if (label == null)
+                label = "n" + i;
+            nodeLabelMap.put(nodes.get(i), label);
+        }
 
         for (int i = 0; i < nodes.size(); i++) {
             NetworkNode node = nodes.get(i);
-
-            sb.append(nodeLabels.get(i)).append(" [t=").append(String.format("%.8f", node.getHeight())).append("];");
-            // sb.append(nodeLabels.get(i)).append(" [t=").append(node.getHeight()).append("];");
+            sb.append(nodeLabelMap.get(node)).append(" [t=").append(String.format("%.8f", node.getHeight())).append("];");
         }
 
         // Iterate through the edges and create the connections
-        for (NetworkEdge edge : getEdges()) {
+        nodeLabelMap.put(null, "");
+        List<NetworkEdge> edgesSorted = getEdges().stream()
+                .sorted((e1, e2) -> {
+                    int childComp = nodeLabelMap.get(e1.childNode).compareTo(nodeLabelMap.get(e2.childNode));
+                    if (childComp != 0)
+                        return childComp;
+                    else
+                        return nodeLabelMap.get(e1.parentNode).compareTo(nodeLabelMap.get(e2.parentNode));
+                })
+                .toList();
+        for (NetworkEdge edge : edgesSorted) {
             if (edge.parentNode == null) {
                 continue; // Skip if parent node is not found
             }
 
-            int parentIndex = nodeIndexMap.get(edge.parentNode);
-            int childIndex = nodeIndexMap.get(edge.childNode);
-
-            sb.append(nodeLabels.get(parentIndex))
+            sb.append(nodeLabelMap.get(edge.parentNode))
               .append(" -> ")
-              .append(nodeLabels.get(childIndex))
+              .append(nodeLabelMap.get(edge.childNode))
               .append(" [segments=")
               .append(getSegmentString(edge.hasSegments))
               .append("];");
@@ -978,7 +984,7 @@ public class ReducedNetwork extends StateNode {
                 nodeNumberMap[treeNodeNr] = maybeNetworkNode.get().getTaxonIndex();
             else
                 throw new IllegalArgumentException(
-                        "Segment tree " + segmentTree.getID() + " contains taxon not present in network.");
+                        "Segment tree " + segmentTree.getID() + " contains taxon "+ taxonID +" not present in network.(((: " + getLeafNodes().stream().map(n -> n.getTaxonLabel()).toList());
         }
 
         nodeNrArrays.put(segmentTree, nodeNumberMap);

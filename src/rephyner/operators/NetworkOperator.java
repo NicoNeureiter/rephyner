@@ -86,16 +86,14 @@ public abstract class NetworkOperator extends Operator {
     }
 
     public double proposal() {
-        // System.out.println("\n@@@ " + getName() + " ..." + network.getID());
         assert network.isValid();
 
         // System.out.println(network.segmentTreesNeedInit + ":" + _updateSegmentTrees);
 
-
-		if (network.segmentTreesNeedInit) {				
+		if (network.segmentTreesNeedInit) {
 			initializeSegmentTrees();
 			return Double.POSITIVE_INFINITY;
-		}	
+		}
 
         final double logHR;
         try {
