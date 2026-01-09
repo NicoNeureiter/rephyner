@@ -3,7 +3,6 @@ package rephyner.operators.localtreeoperators;
 import java.util.ArrayList;
 import java.util.List;
 import beast.base.core.Input;
-import beast.base.inference.parameter.RealParameter;
 import rephyner.network.NetworkEdge;
 import rephyner.network.NetworkNode;
 import rephyner.util.RandomUtil;
@@ -11,28 +10,29 @@ import rephyner.util.Util;
 
 public class LocalTreeSPR extends LocalTreeOperator {
 
-    final public Input<RealParameter> maxheightInput = new Input<>(
-            "maxHeightFactor",
+    final public Input<Double> maxHeightRatioInput = new Input<>(
+            "maxHeightRatio",
             "Maximum node height relative to the current network height.",
-            new RealParameter("1.2"));
+            1.2);
 
-    Double maxHeightFactor;
+    Double maxHeightRatio;
 
     @Override
     public void initAndValidate() {
         super.initAndValidate();
-        maxHeightFactor = maxheightInput.get().getValue();
+        maxHeightRatio = maxHeightRatioInput.get();
     }
 
     double getMaxHeight() {
-        return maxHeightFactor * network.getNetworkHeight();
+        return maxHeightRatio * network.getNetworkHeight();
     }
 
     @Override
-    Target getNewNodeTarget(NetworkEdge edge, int segment) {
+    protected Target getNewNodeTarget(NetworkEdge edge, int segment) {
         Target target = new Target();
 
         double minHeight = edge.getChildHeight();
+        
         List<NetworkEdge> destinationCandidates = getDestinationEdgeCandidates(edge, segment);
         if (destinationCandidates.isEmpty()) {
             throw new DirectRejectException();
@@ -58,10 +58,14 @@ public class LocalTreeSPR extends LocalTreeOperator {
     }
 
     @Override
-    double getNewNodeTargetLogProb(NetworkEdge movingEdge, NetworkEdge toEdge, int segment, double toHeight) {
+    protected double getNewNodeTargetLogProb(NetworkEdge movingEdge, NetworkEdge toEdge, int segment, double toHeight) {
         double logP = 0.0;
 
         assert toHeight > movingEdge.getChildHeight();
+                
+        // If the old position is outside the backward accessible region, reject
+        if (toHeight > getMaxHeight())
+            throw new DirectRejectException();
 
         List<NetworkEdge> destinationCandidates = getDestinationEdgeCandidates(movingEdge, segment);
         assert !destinationCandidates.isEmpty();
@@ -91,7 +95,7 @@ public class LocalTreeSPR extends LocalTreeOperator {
         return destinationLengths;
     }
 
-    List<NetworkNode> getDestinationNodeCandidates(final NetworkEdge edge, final int segment) {
+    protected List<NetworkNode> getDestinationNodeCandidates(final NetworkEdge edge, final int segment) {
         final double minHeight = edge.getChildHeight();
         return network.getInternalNodeStream()
                 .filter(n -> n.getHeight() > minHeight) // above the minimum height
@@ -100,22 +104,20 @@ public class LocalTreeSPR extends LocalTreeOperator {
                 .toList();
     }
 
-    List<NetworkEdge> getDestinationEdgeCandidatesAtHeight(NetworkEdge edge, int segment, double height) {
+    protected List<NetworkEdge> getDestinationEdgeCandidatesAtHeight(NetworkEdge edge, int segment, double height) {
         return network.getEdgesAtHeight(height, segment).stream()
                 .filter(e -> e != edge)
                 .toList();
     }
 
     @Override
-    double getNewHeight(NetworkEdge edge, int segment) {
+    protected double getNewHeight(NetworkEdge edge, int segment) {
         throw new UnsupportedOperationException("Not used in LocalTreeSPR.");
-        // return RandomUtil.uniform(edge.getChildHeight(), maxHeight);
     }
 
     @Override
-    double getNewHeightLogProb(NetworkEdge edge, int segment, double toHeight) {
+    protected double getNewHeightLogProb(NetworkEdge edge, int segment, double toHeight) {
         throw new UnsupportedOperationException("Not used in LocalTreeSPR.");
-        // return Math.log(1.0 / (maxHeight - edge.getChildHeight()));
     }
 
 }

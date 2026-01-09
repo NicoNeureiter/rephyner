@@ -13,13 +13,18 @@ import rephyner.util.RandomUtil;
 
 public abstract class LocalTreeOperator extends NetworkOperator {
 
-    double pNewNode = 0.5;
+    public beast.base.core.Input<Double> pNewNodeInput = new beast.base.core.Input<>("pNewNode",
+            "Probability of creating a new node instead of attaching to an existing node",
+            0.5);
+
     boolean debug = false;
     NetworkEdge _toEdgeBack;
+    double pNewNode;
 
     @Override
     public void initAndValidate() {
         _updateSegmentTrees = false;
+        pNewNode = pNewNodeInput.get();
         super.initAndValidate();
     }
     
@@ -35,7 +40,7 @@ public abstract class LocalTreeOperator extends NetworkOperator {
         // Choose source edge on segment tree
         List<NetworkEdge> sourceCandidates = getSourceCandidates(segment);
         NetworkEdge movingEdge = RandomUtil.choice(sourceCandidates);
-        // logHR -= Math.log(1.0 / sourceCandidates.size());
+        // Number of edges in segment tree is always n-1 -> proposal is symmetric -> no need to update logHR
 
         // Remember some values for back-probabilirt
         final NetworkNode parent = movingEdge.parentNode;
@@ -53,9 +58,7 @@ public abstract class LocalTreeOperator extends NetworkOperator {
         boolean removeNode = toNodeBack.getActiveSegments().cardinality() == 1;
 
         assert toEdgeBack != null;
-
         assert Double.isFinite(logHR);
-
         assert network.assertValid();
 
         // Decide whether to move to an existing or new node
@@ -65,7 +68,6 @@ public abstract class LocalTreeOperator extends NetworkOperator {
             logHR -= Math.log(pNewNode);
             target = getNewNodeTarget(movingEdge, segment);
             assert Double.isFinite(target.logP);
-
         } else {
             logHR -= Math.log(1 - pNewNode);
             target = getExistingNodeTarget(movingEdge, segment);
@@ -82,7 +84,7 @@ public abstract class LocalTreeOperator extends NetworkOperator {
 
         // Can't create a parent below the child node
         if (newParent.getHeight() < movingEdge.getChildHeight())
-            throw new DirectRejectException();
+            throw new DirectRejectException("newH<childH");
 
         // Move the edge to the new attachment point
         NetworkEdge newEdge = moveSegmentEdge(segment, movingEdge, newParent, toEdge);
@@ -103,16 +105,19 @@ public abstract class LocalTreeOperator extends NetworkOperator {
         } else {
             if (debug) System.err.print(">> KEEP   ");
             logHR += Math.log(1 - pNewNode);
-            logHR += getExistingNodeTargetLogProb(newEdge, segment, oldHeight);
+            logHR += getExistingNodeTargetLogProb(newEdge, _toEdgeBack, segment, oldHeight);
         }
 
         assert !(logHR == Double.POSITIVE_INFINITY || Double.isNaN(logHR));
         if (debug) System.err.println(logHR);
 
+        if (!Double.isFinite(logHR))
+            throw new DirectRejectException("logHR=+-INF");
+
         return logHR;
     }
 
-    Target getNewNodeTarget(NetworkEdge movingEdge, int segment) {
+    protected Target getNewNodeTarget(NetworkEdge movingEdge, int segment) {
         Target target = new Target();
 
         double newHeight = getNewHeight(movingEdge, segment);
@@ -120,7 +125,7 @@ public abstract class LocalTreeOperator extends NetworkOperator {
         assert Double.isFinite(target.logP);
 
         if (newHeight < movingEdge.getChildHeight()) {
-            throw new DirectRejectException();
+            throw new DirectRejectException("NEWNODE:newH<childH");
         }
 
         target.node = new NetworkNode(newHeight);
@@ -128,7 +133,7 @@ public abstract class LocalTreeOperator extends NetworkOperator {
         // Choose u.a.r. from all possible destination edges at the height of newParent
         List<NetworkEdge> toEdgeCandidates = getDestinationEdgeCandidatesAtHeight(movingEdge, segment, newHeight);
         if (toEdgeCandidates.isEmpty()) {
-            throw new DirectRejectException();
+            throw new DirectRejectException("NEWNODE:noCandidates");
         }
 
         // Pick target edge uniformly at random
@@ -140,13 +145,11 @@ public abstract class LocalTreeOperator extends NetworkOperator {
         return target;
     }
 
-    double getNewNodeTargetLogProb(NetworkEdge movingEdge, NetworkEdge toEdge, int segment, double toHeight) {
+    protected double getNewNodeTargetLogProb(NetworkEdge movingEdge, NetworkEdge toEdge, int segment, double toHeight) {
         double logP = 0.0;
         logP += getNewHeightLogProb(movingEdge, segment, toHeight);
 
         List<NetworkEdge> toEdgeCandidates = getDestinationEdgeCandidatesAtHeight(movingEdge, segment, toHeight);
-        if (!toEdgeCandidates.contains(toEdge))
-            System.out.println(123);
         assert toEdgeCandidates.contains(toEdge);
 
         logP += Math.log(1.0 / toEdgeCandidates.size());
@@ -154,47 +157,55 @@ public abstract class LocalTreeOperator extends NetworkOperator {
         return logP;
     }
 
-    Target getExistingNodeTarget(NetworkEdge movingEdge, int segment) {
+    protected Target getExistingNodeTarget(NetworkEdge movingEdge, int segment) {
         Target target = new Target();
 
         // Collect destination node candidates
         List<NetworkNode> toNodeCandidates = getDestinationNodeCandidates(movingEdge, segment);
         if (toNodeCandidates.isEmpty())
-            throw new DirectRejectException();
+            throw new DirectRejectException("EXNODE:noNodeCandidates");
         
         // Pick a destination node from the candidates uniformly at random
         target.node = RandomUtil.choice(toNodeCandidates);
         target.logP += Math.log(1.0 / toNodeCandidates.size());
 
         if (target.node.getHeight() < movingEdge.getChildHeight())
-            throw new DirectRejectException();
+            throw new DirectRejectException("EXNODE:newH<childH");
 
         // Choose u.a.r. from all possible destination edges at the height of newParent
         List<NetworkEdge> toEdgeCandidates = getDestinationEdgeCandidatesAtHeight(movingEdge, segment, target.node.getHeight());
         if (toEdgeCandidates.isEmpty())
-            throw new DirectRejectException();
-        target.edge = RandomUtil.choice(toEdgeCandidates);
-        target.logP += Math.log(1.0 / toEdgeCandidates.size());
+            throw new DirectRejectException("EXNODE:noEdgeCandidates");
+        
+        List<Double> p = getToEdgeProbs(toEdgeCandidates, movingEdge, segment);
+        int i = RandomUtil.sampleCategorical(p);
+        target.edge = toEdgeCandidates.get(i);
+        target.logP += Math.log(p.get(i));
         
         return target;
     }
 
-    double getExistingNodeTargetLogProb(NetworkEdge movingEdge, int segment, double toHeight) {
+    protected double getExistingNodeTargetLogProb(NetworkEdge movingEdge, NetworkEdge toEdge, int segment, double toHeight) {
         double logP = 0.0;
 
         List<NetworkNode> toNodeCandidatesBack = getDestinationNodeCandidates(movingEdge, segment);
         logP += Math.log(1.0 / toNodeCandidatesBack.size());
 
         List<NetworkEdge> toEdgeCandidatesBack = getDestinationEdgeCandidatesAtHeight(movingEdge, segment, toHeight);
-        logP += Math.log(1.0 / toEdgeCandidatesBack.size());
+        List<Double> p = getToEdgeProbs(toEdgeCandidatesBack, movingEdge, segment);
+        int i = toEdgeCandidatesBack.indexOf(toEdge);
+        logP += Math.log(p.get(i));
 
         return logP;
     }
 
+    protected List<Double> getToEdgeProbs(List<NetworkEdge> toEdgeCandidates, NetworkEdge movingEdge, int segment) {
+        return toEdgeCandidates.stream()
+            .map(e -> 1.0 / toEdgeCandidates.size())
+            .toList();
+    }
 
-
-
-    NetworkEdge moveSegmentEdge(
+    protected NetworkEdge moveSegmentEdge(
         final int segment,
         final NetworkEdge movingEdge,
         final NetworkNode toNode,
@@ -373,22 +384,13 @@ public abstract class LocalTreeOperator extends NetworkOperator {
                 toNode.setSegmentIndex(segment, oldRootNr, network.getSegmentCount());
             } else
                 oldSegRoot.setSegmentIndex(segment, oldRootNr, network.getSegmentCount());
-            // System.out.println(".");
-            // System.out.println(".");
-            // System.out.println(".");
-            // System.out.println(oldRootNr);
-            // System.out.println(toNode.getSegmentIndex(segment));
-            // System.out.println(toNode.getHeight());
-            // System.out.println(freeSegNode.getHeight());
-
         }
 
         // Tree segTree = getSegmentTree(segment);
         segTree = getSegmentTree(segment);
         segTree.setNodeCount(segTree.getRoot().getNodeCount());
+
         assert getSegmentTree(segment).getNodeCount() == (2 * network.getLeafNodes().size() - 1);
-
-
         assert checkNetworkTreeIndexUniqueness(segment);
 
         return newEdge;
@@ -446,7 +448,7 @@ public abstract class LocalTreeOperator extends NetworkOperator {
      * @param segment
      * @return
      */
-    Node detachSegmentTreeEdge(final NetworkEdge networkEdge, final int segment) {
+    protected Node detachSegmentTreeEdge(final NetworkEdge networkEdge, final int segment) {
         assert !networkEdge.isRootEdge();
 
         final Tree segTree = getSegmentTree(segment);
@@ -515,7 +517,7 @@ public abstract class LocalTreeOperator extends NetworkOperator {
         return segParent;
     }
 
-    void attachSegmentTreeEdge(
+    protected void attachSegmentTreeEdge(
         final NetworkEdge networkEdge,
         final int segment,
         final Node segNewParent
@@ -569,7 +571,7 @@ public abstract class LocalTreeOperator extends NetworkOperator {
 
     }
 
-    Node getSister(Node child) {
+    protected Node getSister(Node child) {
         Node parent = child.getParent();
         assert parent.getChildren().size() == 2;
 
@@ -579,7 +581,7 @@ public abstract class LocalTreeOperator extends NetworkOperator {
             return parent.getChild(0);
     }
 
-    List<NetworkEdge> getSourceCandidates(int segment) {
+    protected List<NetworkEdge> getSourceCandidates(int segment) {
         return network.getSegmentEdges(segment).stream()
                 .filter(e -> !e.isRootEdge())
                 .toList();
@@ -634,7 +636,7 @@ public abstract class LocalTreeOperator extends NetworkOperator {
         return siblingGrandparentEdge;
     }
 
-    List<Integer> getAncestors(Node node, List<Integer> include){
+    protected List<Integer> getAncestors(Node node, List<Integer> include){
         List<Integer> ancestors = new ArrayList<>();
 		Node ancestor = node.getParent();
 		while (ancestor != null) {
@@ -646,15 +648,15 @@ public abstract class LocalTreeOperator extends NetworkOperator {
         return ancestors;
     }
 
-    abstract double getNewHeight(NetworkEdge edge, int segment);
-    abstract double getNewHeightLogProb(NetworkEdge edge, int segment, double toHeight);
-    abstract List<NetworkNode> getDestinationNodeCandidates(NetworkEdge edge, int segment);
-    abstract List<NetworkEdge> getDestinationEdgeCandidatesAtHeight(NetworkEdge movingEdge, int segment, double newHeight);
+    abstract protected double getNewHeight(NetworkEdge edge, int segment);
+    abstract protected double getNewHeightLogProb(NetworkEdge edge, int segment, double toHeight);
+    abstract protected List<NetworkEdge> getDestinationEdgeCandidatesAtHeight(NetworkEdge movingEdge, int segment, double newHeight);
+    abstract protected List<NetworkNode> getDestinationNodeCandidates(NetworkEdge edge, int segment);
 
-    class Target {
-        NetworkEdge edge;
-        NetworkNode node;
-        double logP = 0.0;
+    public class Target {
+        public NetworkEdge edge;
+        public NetworkNode node;
+        public double logP = 0.0;
     }
 
 }

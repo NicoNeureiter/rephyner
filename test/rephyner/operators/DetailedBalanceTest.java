@@ -40,13 +40,10 @@ public class DetailedBalanceTest extends RephynerTestClass {
     }
 
 
-    // SPR doesn't work yet
-    // TODO: fix
-    //
-    // @Test
-    // public void testLTSPRDetailedBalance() {
-    //     testDetailedBalance(new LocalTreeSPRFactory());
-    // }
+    @Test
+    public void testLTSPRDetailedBalance() {
+        testDetailedBalance(new LocalTreeSPRFactory());
+    }
 
     @BeforeClass
     static public void globalSetUp() {
@@ -86,7 +83,6 @@ public class DetailedBalanceTest extends RephynerTestClass {
 
             String keyNoTransition = nodesBefore + "-" + nodesBefore;
             flow.put(keyNoTransition, flow.get(keyNoTransition) + (1-pAccept));
-
         }
 
         for (String group : groupCounter.keySet()) {
@@ -176,6 +172,7 @@ public class DetailedBalanceTest extends RephynerTestClass {
             LocalTreeSPR operator = new LocalTreeSPR();
             operator.initByName(
                 "network", network,
+                "pNewNode", 0.5,
                 "weight", 1.0,
                 "segmentTree", segmentTrees.get(0),
                 "segmentTree", segmentTrees.get(1)

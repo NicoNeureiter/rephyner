@@ -5,6 +5,8 @@ import java.util.BitSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import com.google.common.collect.HashMultiset;
+import com.google.common.collect.Multiset;
 import beast.base.core.Input;
 import beast.base.core.Log;
 import beast.base.evolution.tree.Node;
@@ -32,6 +34,7 @@ public abstract class NetworkOperator extends Operator {
     int[] segmentTreeMap;
 
     public boolean _updateSegmentTrees = true;
+    Multiset<String> _rejectCounters; 
 
     public Tree getSegmentTree(int segment) {
         return segmentTrees.get(segmentTreeMap[segment]);
@@ -40,7 +43,6 @@ public abstract class NetworkOperator extends Operator {
     @Override
     public void initAndValidate() {
         network = networkInput.get();
-        System.out.println("INIT " + network.getID());
         segmentTrees = segmentTreesInput.get();
 
         if (segmentTrees.isEmpty()) {
@@ -75,10 +77,10 @@ public abstract class NetworkOperator extends Operator {
 
         }
 
+        _rejectCounters = HashMultiset.create();
     }
 
     public void initializeSegmentTrees() {
-            System.out.println("restore segment trees in first move");
 			// update all segment trees			
             for (int segIdx=0; segIdx<segmentTrees.size(); segIdx++)
           		network.updateSegmentTree(segmentTrees.get(segmentTreeMap[segIdx]), segmentTreeMap[segIdx]); 
@@ -99,9 +101,11 @@ public abstract class NetworkOperator extends Operator {
         try {
             logHR = networkProposal();
         } catch (DirectRejectException e) {
-            // System.err.println("DIRECT REJECT");
+            _rejectCounters.add(e.name);
             return Double.NEGATIVE_INFINITY;
         } finally {
+            // if (Randomizer.nextDouble() < 0.002)
+            //     System.out.println("\nDirectRejectCounts:\n" + _rejectCounters);
         }
 
         if (logHR > Double.NEGATIVE_INFINITY) {
@@ -283,6 +287,17 @@ public abstract class NetworkOperator extends Operator {
     }
 
     public static class DirectRejectException extends RuntimeException {
+        String name = "";
+
+        public DirectRejectException() {
+            super();
+        }
+
+        public DirectRejectException(String name) {
+            super();
+            this.name = name;
+        }
+
         public Throwable fillInStackTrace() {
             return this;
         }
