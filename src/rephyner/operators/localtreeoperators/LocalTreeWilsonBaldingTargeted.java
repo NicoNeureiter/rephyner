@@ -9,8 +9,7 @@ import rephyner.network.NetworkNode;
 import rephyner.network.ReducedNetwork;
 
 
-public class LocalTreeWilsonBaldingTargeted extends LocalTreeOperator {
-
+public class LocalTreeWilsonBaldingTargeted extends LocalTreeOperatorTargeted {
 
     final public Input<Double> sizeInput = new Input<>(
             "size",
@@ -37,7 +36,7 @@ public class LocalTreeWilsonBaldingTargeted extends LocalTreeOperator {
         super.initAndValidate();
     }
 
-    List<NetworkNode> getDestinationNodeCandidates(NetworkEdge edge, int segment) {
+    protected List<NetworkNode> getDestinationNodeCandidates(NetworkEdge edge, int segment) {
         double minHeight = Math.max(edge.getChildHeight(), edge.getParentHeight() - 0.5*size);
         double maxHeight = edge.getParentHeight() + 0.5*size;
         return network.getInternalNodes().stream()
@@ -47,7 +46,7 @@ public class LocalTreeWilsonBaldingTargeted extends LocalTreeOperator {
                 .toList();
     }
 
-    List<NetworkEdge> getDestinationEdgeCandidatesAtHeight(NetworkEdge edge, int segment, double height) {
+    protected List<NetworkEdge> getDestinationEdgeCandidatesAtHeight(NetworkEdge edge, int segment, double height) {
         return network.getEdgesAtHeight(height, segment).stream()
                 .filter(e -> e != edge)
                 .toList();
@@ -66,7 +65,7 @@ public class LocalTreeWilsonBaldingTargeted extends LocalTreeOperator {
         return Math.log(1.0 / size);
     }
 
-    double getNewHeight(NetworkEdge edge, int segment) {
+    protected double getNewHeight(NetworkEdge edge, int segment) {
         double h = edge.parentNode.getHeight() + getDelta();
         if (h < edge.getChildHeight())
             throw new DirectRejectException();
@@ -74,7 +73,7 @@ public class LocalTreeWilsonBaldingTargeted extends LocalTreeOperator {
             return h;
     }
 
-    double getNewHeightLogProb(NetworkEdge edge, int segment, double toHeight) {
+    protected double getNewHeightLogProb(NetworkEdge edge, int segment, double toHeight) {
         return getDeltaLogProb();
     }
 

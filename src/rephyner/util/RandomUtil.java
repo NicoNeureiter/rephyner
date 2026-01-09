@@ -43,7 +43,8 @@ public class RandomUtil {
      * @return index of sampled category
      */
     public static int sampleCategorical(List<Double> probs) {
-        assert Math.abs(Util.sum(probs) - 1.) < 1E-6 : "Probabilities must sum to 1";
+        if (Math.abs(Util.sum(probs) - 1.) > 1E-6)
+            throw new IllegalArgumentException("Probabilities must sum to 1");
 
         double u = Randomizer.nextDouble();
         double currW = 0;
@@ -53,7 +54,9 @@ public class RandomUtil {
                 return i;
             }
         }
-        throw new IllegalArgumentException("Sampling loop failed");
+        // Due to floating-point precision, u may be close to 1.0
+        // and currW may not quite reach it. Return the last index.
+        return probs.size() - 1;
     }
 
     public static <T> T choice(Set<T> set) {

@@ -48,7 +48,7 @@ public class LocalTreeSubtreeSlide extends LocalTreeOperator {
     }
 
     @Override
-    List<NetworkEdge> getDestinationEdgeCandidatesAtHeight(NetworkEdge movingEdge, int segment, double newHeight) {
+    protected List<NetworkEdge> getDestinationEdgeCandidatesAtHeight(NetworkEdge movingEdge, int segment, double newHeight) {
         assert movingEdge.childNode.getHeight() < newHeight : "Edge would become negative";
         if (newHeight > movingEdge.parentNode.getHeight()) { // Slide the subtree up
             return Arrays.asList(getAncestorAtHeight(movingEdge, segment, newHeight));
@@ -70,16 +70,16 @@ public class LocalTreeSubtreeSlide extends LocalTreeOperator {
         return Math.log(1.0 / size);
     }
 
-    double getNewHeight(NetworkEdge edge, int segment) {
+    protected double getNewHeight(NetworkEdge edge, int segment) {
         return edge.parentNode.getHeight() + getDelta();
     }
 
-    double getNewHeightLogProb(NetworkEdge edge, int segment, double toHeight) {
+    protected double getNewHeightLogProb(NetworkEdge edge, int segment, double toHeight) {
         return getDeltaLogProb();
     }
 
     @Override
-    List<NetworkNode> getDestinationNodeCandidates(NetworkEdge edge, int segment) {
+    protected List<NetworkNode> getDestinationNodeCandidates(NetworkEdge edge, int segment) {
         double maxDelta = size / 2.0;
         double minHeight = edge.parentNode.getHeight() - maxDelta;
         double maxHeight = edge.parentNode.getHeight() + maxDelta;

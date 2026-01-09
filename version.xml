@@ -1,7 +1,8 @@
 <package name="rephyner" version="0.0.1">
   <depends on='BEAST.base' atleast='2.7.2'/>
   <depends on='BEAST.app' atleast='2.7.2'/>
-  <depends on='CoalRe' atleast='2.6.3'/>
+  <depends on='CoalRe' atleast='1.0.0'/>
+  <depends on='TargetedBeast' atleast='1.0.0'/>
 
   <service type="beast.base.core.BEASTInterface">
     <provider classname="rephyner.distribution.UniformTree"/>
@@ -19,6 +20,7 @@
     <provider classname="rephyner.operators.DivertSingleSegmentOperator"/>
     <provider classname="rephyner.operators.localtreeoperators.LocalTreeSubtreeSlide"/>
     <provider classname="rephyner.operators.localtreeoperators.LocalTreeSPR"/>
+    <provider classname="rephyner.operators.localtreeoperators.LocalTreeSPRTargeted"/>
     <provider classname="rephyner.operators.localtreeoperators.LocalTreeWilsonBalding"/>
     <provider classname="rephyner.operators.localtreeoperators.LocalTreeWilsonBaldingTargeted"/>
     <provider classname="rephyner.operators.DivertSegmentOperator"/>

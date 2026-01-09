@@ -8,13 +8,19 @@ import rephyner.operators.localtreeoperators.LocalTreeSubtreeSlide;
 import rephyner.operators.localtreeoperators.LocalTreeWilsonBalding;
 import rephyner.util.Counter;
 import rephyner.util.DefaultHashMap;
+import targetedbeast.edgeweights.ParsimonyWeights2;
+import rephyner.operators.localtreeoperators.LocalTreeWilsonBaldingTargeted;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import beast.base.evolution.sitemodel.SiteModel;
+import beast.base.evolution.substitutionmodel.JukesCantor;
 import beast.base.evolution.tree.TraitSet;
 import beast.base.evolution.tree.Tree;
 import beast.base.inference.Distribution;
+import feast.simulation.SimulatedAlignment;
 import java.util.*;
+
 
 public class DetailedBalanceTest extends RephynerTestClass {
 
@@ -39,6 +45,10 @@ public class DetailedBalanceTest extends RephynerTestClass {
         testDetailedBalance(new LocalTreeWilsonBaldingFactory());
     }
 
+    @Test
+    public void testLTWBTargetedDetailedBalance() {
+        testDetailedBalance(new LocalTreeWilsonBaldingTargetedFactory());
+    }
 
     @Test
     public void testLTSPRDetailedBalance() {
@@ -156,6 +166,41 @@ public class DetailedBalanceTest extends RephynerTestClass {
                 "network", network,
                 "size", 2.0,
                 "weight", 1.0,
+                "pNewNode", 0.25,
+                "segmentTree", segmentTrees.get(0),
+                "segmentTree", segmentTrees.get(1)
+            );
+            operator._updateSegmentTrees = false;
+            return operator;
+        }
+    }
+
+    class LocalTreeWilsonBaldingTargetedFactory extends OperatorFactory {
+        
+        LocalTreeWilsonBaldingTargetedFactory() {}
+
+        @Override
+        public LocalTreeWilsonBaldingTargeted getOperator(ReducedNetwork network, List<Tree> segmentTrees) {
+            SiteModel siteModel = new SiteModel();
+            siteModel.initByName("substModel", new JukesCantor());
+            SimulatedAlignment data0 = new SimulatedAlignment();
+            data0.initByName("tree", segmentTrees.get(0), "siteModel", siteModel, "sequenceLength", 5);
+            SimulatedAlignment data1 = new SimulatedAlignment();
+            data1.initByName("tree", segmentTrees.get(1), "siteModel", siteModel, "sequenceLength", 5);
+
+            ParsimonyWeights2 weights0 = new ParsimonyWeights2();
+            ParsimonyWeights2 weights1 = new ParsimonyWeights2();
+            weights0.initByName("tree", segmentTrees.get(0), "data", data0);
+            weights1.initByName("tree", segmentTrees.get(1), "data", data1);
+
+            LocalTreeWilsonBaldingTargeted operator = new LocalTreeWilsonBaldingTargeted();
+            operator.initByName(
+                "network", network,
+                "size", 2.0,
+                "weight", 1.0,
+                "pNewNode", 0.25,
+                "edgeWeights", weights0,
+                "edgeWeights", weights1,
                 "segmentTree", segmentTrees.get(0),
                 "segmentTree", segmentTrees.get(1)
             );
