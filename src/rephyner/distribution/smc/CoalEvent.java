@@ -27,8 +27,6 @@ public class CoalEvent extends ParticleEvent {
     SegmentSet child1, child2, parent;
 
     public CoalEvent(double t, SegmentSet child1, SegmentSet child2) {
-        super();
-
         this.t = t;
         this.child1 = child1;
         this.child2 = child2;

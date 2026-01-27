@@ -22,10 +22,11 @@ package rephyner.distribution.smc;
 import java.util.BitSet;
 
 public class SegmentSet extends BitSet {
+    BitSet test = new BitSet();
 
     public boolean isSupersetOf(SegmentSet other) {
         if (intersects(other)) {
-            BitSet test = new BitSet();
+            test.clear();
             test.or(this);
             test.and(other);
             return test.equals(other);
@@ -40,12 +41,25 @@ public class SegmentSet extends BitSet {
 
     public boolean isCompatible(SegmentSet other) {
         if (intersects(other)) {
-            BitSet test = new BitSet();
+            test.clear();
             test.or(this);
             test.and(other);
             return test.equals(this) || test.equals(other);
         }
 
         return false;
+    }
+
+    String getBinaryRep(int totalSegs) {
+
+        StringBuilder sb = new StringBuilder();
+        for (int i=0; i<3; i++) {
+            if (get(i))
+                sb.append("1");
+            else
+                sb.append("0");
+        }
+
+        return sb.toString();
     }
 }

@@ -28,8 +28,6 @@ public class RecEvent extends ParticleEvent {
     SegmentSet child, parent1, parent2;
 
     public RecEvent(double t, SegmentSet child) {
-        super();
-
         this.t = t;
         this.child = child;
 

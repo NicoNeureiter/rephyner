@@ -27,8 +27,5 @@ import java.util.BitSet;
 public abstract class ParticleEvent {
     double t;
 
-    public ParticleEvent() {
-    }
-
     abstract void updateState(Multiset<SegmentSet> state);
 }

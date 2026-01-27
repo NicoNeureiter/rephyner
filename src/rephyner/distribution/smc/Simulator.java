@@ -19,17 +19,20 @@
 
 package rephyner.distribution.smc;
 
+import beast.base.inference.operator.kernel.Transform;
 import beast.base.util.Randomizer;
+import cern.jet.math.Mult;
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
 
-import java.util.ArrayList;
-import java.util.BitSet;
-import java.util.List;
+import javax.swing.text.Segment;
+import java.io.FileNotFoundException;
+import java.io.PrintStream;
+import java.util.*;
 
 public class Simulator {
 
-    public List<ParticleEvent> simulate(double theta, double rho, int nSegments, int nSamples) {
+    public List<ParticleEvent> simulate(double theta, double rho, int nSegments, int nSamples, List<Multiset<SegmentSet>> stateRecord) {
 
         Multiset<SegmentSet> state = HashMultiset.create();
         List<ParticleEvent> trajectory = new ArrayList<>();
@@ -90,28 +93,32 @@ public class Simulator {
 
             event.updateState(state);
             trajectory.add(event);
+
+            if (stateRecord != null) {
+                Multiset<SegmentSet> thisState = HashMultiset.create();
+                for (Multiset.Entry<SegmentSet> entry : state.entrySet())
+                    thisState.add(entry.getElement(), entry.getCount());
+                stateRecord.add(thisState);
+            }
         }
 
         return trajectory;
     }
 
-    public List<ParticleEvent> extractObservableEvents(List<ParticleEvent> trajectory) {
+    public List<ObsEvent> extractObservableEvents(List<ParticleEvent> trajectory) {
 
-        List<ParticleEvent> observableTraj = new ArrayList<>();
+        List<ObsEvent> observableTraj = new ArrayList<>();
 
         for (ParticleEvent event : trajectory) {
             if (event instanceof CoalEvent coalEvent) {
                 if (!coalEvent.child1.intersects(coalEvent.child2))
                     continue;
 
-                SegmentSet obsChild1 = new SegmentSet();
-                obsChild1.or(coalEvent.child1);
-                obsChild1.and(coalEvent.child2);
+                SegmentSet coalescingSegs = new SegmentSet();
+                coalescingSegs.or(coalEvent.child1);
+                coalescingSegs.and(coalEvent.child2);
 
-                SegmentSet obsChild2 = new SegmentSet();
-                obsChild2.or(obsChild1);
-
-                CoalEvent obsCoalEvent = new CoalEvent(coalEvent.t, obsChild1, obsChild2);
+                ObsCoalEvent obsCoalEvent = new ObsCoalEvent(coalEvent.t, coalescingSegs);
 
                 observableTraj.add(obsCoalEvent);
             }
@@ -123,11 +130,12 @@ public class Simulator {
 
     public static void main(String[] args) {
 
-        Randomizer.setSeed(1);
+        Randomizer.setSeed(2);
 
         Simulator simulator = new Simulator();
-        List<ParticleEvent> traj = simulator.simulate(1, 1, 3, 10);
-        List<ParticleEvent> obsTraj = simulator.extractObservableEvents(traj);
+        List<Multiset<SegmentSet>> stateRecord = new ArrayList<>();
+        List<ParticleEvent> traj = simulator.simulate(0.1, 1, 3, 100, stateRecord);
+        List<ObsEvent> obsTraj = simulator.extractObservableEvents(traj);
 
         System.out.println("Simulated trajectory:");
         for (ParticleEvent event : traj) {
@@ -136,7 +144,8 @@ public class Simulator {
         }
 
         System.out.println("\nObservable trajectory:");
-        for (ParticleEvent event : obsTraj)
+        for (ObsEvent event : obsTraj)
             System.out.println(event);
     }
+
 }

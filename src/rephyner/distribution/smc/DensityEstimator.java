@@ -28,7 +28,7 @@ public class DensityEstimator {
 
     }
 
-    public double calculateLogP(List<ParticleEvent> observableTraj, int nSegments,
+    public double calculateLogP(List<ObsEvent> observableTraj, int nSegments,
                                 int nSamples, int nParticles, double theta, double rho) {
         double logP = 0;
 
@@ -42,7 +42,7 @@ public class DensityEstimator {
         }
 
         for (int evIdx = 0; evIdx<observableTraj.size(); evIdx++) {
-            ParticleEvent event = observableTraj.get(evIdx);
+            ObsEvent event = observableTraj.get(evIdx);
 
             // Propagate particles
             double maxWeight = Double.NEGATIVE_INFINITY;

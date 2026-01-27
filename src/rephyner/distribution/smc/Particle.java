@@ -1,3 +1,22 @@
+/*
+ * Copyright (c) 2025 ETH Zürich
+ *
+ * This file is part of rephyner.
+ *
+ * rephyner is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or (at
+ * your option) any later version.
+ *
+ * rephyner is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with rephyner. If not, see <https://www.gnu.org/licenses/>.
+ */
+
 package rephyner.distribution.smc;
 
 import beast.base.util.Randomizer;
@@ -5,17 +24,16 @@ import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
 
 import java.util.Arrays;
-import java.util.BitSet;
 import java.util.List;
 
 public class Particle {
     public Multiset<SegmentSet> state;
     public double t, logWeight;
 
-    List<ParticleEvent> obsEvents;
+    List<ObsEvent> obsEvents;
     int[] compatibilityExcess;
 
-    public Particle(int nSegments, int nSamples, List<ParticleEvent> obsEvents) {
+    public Particle(int nSegments, int nSamples, List<ObsEvent> obsEvents) {
         state = HashMultiset.create();
         SegmentSet allSegs = new SegmentSet();
         allSegs.set(0,nSegments);
@@ -37,7 +55,7 @@ public class Particle {
 
     public double propagate(int nextObsEvIdx, double theta, double rho) {
 
-        ParticleEvent nextObsEvent = obsEvents.get(nextObsEvIdx);
+        ObsEvent nextObsEvent = obsEvents.get(nextObsEvIdx);
 
         while (true) {
 
@@ -62,8 +80,11 @@ public class Particle {
 
                     if (entry.getElement().intersects(entryPrime.getElement()))
                         a_forbidden += this_a;
-                    else
-                        a_0 += this_a;
+                    else {
+                        double s = getCoalRateScaler(entry.getElement(), entryPrime.getElement(), nextObsEvIdx);
+
+                        a_0 += s*this_a;
+                    }
                 }
             }
 
@@ -116,11 +137,10 @@ public class Particle {
 
         // Include weight for observed event:
 
-        if (nextObsEvent instanceof CoalEvent obsCoalEvent) {
+        if (nextObsEvent instanceof ObsCoalEvent obsCoalEvent) {
 
             double a_0 = 0.0;
 
-            SegmentSet intersection = new SegmentSet();
 
             for (Multiset.Entry<SegmentSet> entry : state.entrySet()) {
                 for (Multiset.Entry<SegmentSet> entryPrime : state.entrySet()) {
@@ -131,10 +151,7 @@ public class Particle {
                     if (entry.getElement() == entryPrime.getElement() && entry.getCount()<2)
                         continue;
 
-                    intersection.clear();
-                    intersection.or(entry.getElement());
-                    intersection.and(entryPrime.getElement());
-                    if (!intersection.equals(obsCoalEvent.child1))
+                    if (!obsCoalEvent.compatibleWith(entry.getElement(), entryPrime.getElement()))
                         continue;
 
                     if (entry.getElement() == entryPrime.getElement())
@@ -156,10 +173,7 @@ public class Particle {
                     if (entry.getElement() == entryPrime.getElement() && entry.getCount()<2)
                         continue;
 
-                    intersection.clear();
-                    intersection.or(entry.getElement());
-                    intersection.and(entryPrime.getElement());
-                    if (!intersection.equals(obsCoalEvent.child1))
+                    if (!obsCoalEvent.compatibleWith(entry.getElement(), entryPrime.getElement()))
                         continue;
 
                     u -= entry.getElement() == entryPrime.getElement()
@@ -184,9 +198,9 @@ public class Particle {
 
         double s = 1.0;
         for (int nextEvIdx=obsEvIdx+1; nextEvIdx<obsEvents.size(); nextEvIdx++) {
-            ParticleEvent nextEvent = obsEvents.get(nextEvIdx);
-            if (nextEvent instanceof CoalEvent nextCoalEvent) {
-                if (!nextCoalEvent.child1.intersects(segments))
+            ObsEvent nextEvent = obsEvents.get(nextEvIdx);
+            if (nextEvent instanceof ObsCoalEvent nextCoalEvent) {
+                if (!nextCoalEvent.coalescingSegs.intersects(segments))
                     continue;
             }
         }
@@ -209,10 +223,14 @@ public class Particle {
 
         for (Multiset.Entry<SegmentSet> entry : state.entrySet()) {
             for (Multiset.Entry<SegmentSet> entryPrime : state.entrySet()) {
-                if (entryPrime.getElement() == entry.getElement() && entry.getCount() > 1) {
-                    tmp.clear();
 
-                    for (int evIdx = nextEvIdx; evIdx < obsEvents.size(); evIdx++) {
+                for (int evIdx = nextEvIdx; evIdx < obsEvents.size(); evIdx++) {
+                    if (obsEvents.get(evIdx) instanceof ObsCoalEvent obsCoalEvent) {
+                        if (obsCoalEvent.compatibleWith(entry.getElement(), entryPrime.getElement())) {
+                            compatibilityExcess[evIdx] += entry.getElement() == entryPrime.getElement()
+                                    ? (entry.getCount()*(entry.getCount()-1))/2
+                                    : entry.getCount()*entryPrime.getCount();
+                        }
                     }
                 }
             }
