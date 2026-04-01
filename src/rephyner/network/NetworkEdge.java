@@ -150,4 +150,15 @@ public class NetworkEdge {
             return parentString + "-" + childString;
     }
 
+    @Override
+    public String toString() {
+        return String.format("%s@%s[%s--%s]  %s",
+            getClass().getSimpleName(),
+            Integer.toHexString(hashCode()),
+            parentNode == null ? "null" : Integer.toHexString(parentNode.hashCode()),
+            childNode == null ? "null" : Integer.toHexString(childNode.hashCode()),
+            hasSegments.toString()
+         );
+    }
+
 }
