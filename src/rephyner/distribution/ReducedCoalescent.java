@@ -1,9 +1,5 @@
 package rephyner.distribution;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Random;
-import java.util.Set;
 import beast.base.core.Description;
 import beast.base.core.Function;
 import beast.base.core.Input;
@@ -11,12 +7,6 @@ import beast.base.core.Input.Validate;
 import beast.base.evolution.tree.TraitSet;
 import beast.base.evolution.tree.coalescent.PopulationFunction;
 import beast.base.inference.CalculationNode;
-import beast.base.inference.State;
-import beast.base.inference.parameter.RealParameter;
-import beast.base.util.Binomial;
-import coalre.simulator.SimulatedCoalescentNetwork;
-import coalre.statistics.NetworkStatsLogger;
-import rephyner.network.NetworkNode;
 import rephyner.network.ReducedNetwork;
 
 /**
@@ -49,69 +39,19 @@ public class ReducedCoalescent extends NetworkDistribution {
             Validate.REQUIRED);
 
     public PopulationFunction populationFunction;
-    private Function reassortmentRate;
-    public PopulationFunction timeVaryingReassortmentRates;
-
     public NetworkIntervals intervals;
-
-    private boolean isTimeVarying = false;
-
-    public double redFactor;
-    double[][] logBinomval;
 
     @Override
     public void initAndValidate() {
         populationFunction = populationFunctionInput.get();
         intervals = networkIntervalsInput.get();
-        if (reassortmentRateInput.get() != null) {
-            reassortmentRate = reassortmentRateInput.get();
-        } else {
-            isTimeVarying = true;
-            timeVaryingReassortmentRates = timeVaryingReassortmentRatesInput.get();
-        }
-
-        initializeLogBinomCache(intervals.networkInput.get().getSegmentCount());
-
-        learnApproximator();
-    }
-
-    /**
-     * Initialize the cache for efficient log-binomial for the given number of segments.
-     * @param nSegments
-     */
-    void initializeLogBinomCache(int nSegments) {
-        double p = intervals.getBinomialProb();
-        logBinomval = new double[nSegments + 1][nSegments + 1];
-        for (int i = 0; i < nSegments + 1; i++) {
-            for (int j = 0; j <= i; j++) {
-                logBinomval[i][j] = Math.log(Math.pow(p, j) * Math.pow(1 - p, i - j)
-                        + Math.pow(p, i - j) * Math.pow(1 - p, j));
-            }
-        }
-    }
-
-    public void learnApproximator() {
-        SimulatedCoalescentNetwork simulator = new SimulatedCoalescentNetwork();
-        ReducedNetwork network = networkIntervalsInput.get().networkInput.get();
-        simulator.initByName(
-                "reassortmentRate", reassortmentRateInput.get(),
-                "timeVaryingReassortmentRates", timeVaryingReassortmentRatesInput.get(),
-                "binomialProb", new RealParameter("0.5"),
-                "populationModel", populationFunctionInput.get(),
-                "nSegments", network.getSegmentCount(),
-                "traitSet", traitSetInput.get(),
-                "enableSegmentTreeUpdate", false
-            );
-
-        System.out.println(":::" + simulator);
-        simulator.initAndValidate();
-        System.out.println(":::" + simulator);
     }
 
     public double calculateLogP() {
         ReducedNetwork network = networkIntervalsInput.get().networkInput.get();
 
         logP = 0;
+
         // Calculate tree intervals
         intervals.update();
 
@@ -147,50 +87,6 @@ public class ReducedCoalescent extends NetworkDistribution {
         return logP;
     }
 
-    private double reassortment(NetworkEvent event, double maxHeight) {
-        double logBinomval = 0.0;
-        // if (intervals.getBinomialProb() != 0.5) {
-        // logBinomval = Math.log(Math.pow(intervals.getBinomialProb(), event.segsSortedLeft)
-        // * Math.pow(1 - intervals.getBinomialProb(), event.segsToSort - event.segsSortedLeft)
-        // + Math.pow(intervals.getBinomialProb(), event.segsToSort - event.segsSortedLeft)
-        // * Math.pow(1 - intervals.getBinomialProb(), event.segsSortedLeft));
-        // } else {
-        // try {
-        // logBinomval = this.logBinomval[event.segsToSort][event.segsSortedLeft];
-        // } catch (ArrayIndexOutOfBoundsException e) {
-        // System.err.println(intervals.networkInput.get());
-        // System.err.println(event.segsToSort + " " + event.segsSortedLeft);
-        // for (NetworkNode n : intervals.networkInput.get().getNodes()) {
-        // if (n.getHeight() == event.time) {
-        // System.err.println(n.getChildCount());
-        // System.err.println(n.getParentCount());
-        // }
-        // }
-        // System.err.println("empty edge remaining, should not happen, event at time " + event.time);
-        // return Double.NEGATIVE_INFINITY;
-        // // logBinomval=1;
-        // }
-        // }
-
-        double reassortRate = getReassortmentRate(event.time, maxHeight);
-        return Math.log(reassortRate) + logBinomval;
-    }
-
-    private double getReassortmentRate(double height, double maxHeight) {
-        // Get constant or time-varying rate
-        double rate;
-        if (isTimeVarying)
-            rate = timeVaryingReassortmentRates.getPopSize(height);
-        else
-            rate = reassortmentRate.getArrayValue();
-
-        // Correct for maxHeight violation
-        if (height > maxHeight)
-            rate *= redFactor;
-
-        return rate;
-    }
-
     private double coalesce(NetworkEvent event) {
         return Math.log(1.0 / populationFunction.getPopSize(event.time));
     }
@@ -202,12 +98,6 @@ public class ReducedCoalescent extends NetworkDistribution {
         double oriLociMRCA
     ) {
         double logP = 0.0;
-
-        // Add a simple segemtn reassortment probability 
-        // logP -= Math.log(0.5) * intervals.networkInput.get().getSegmentCount();
-        
-        // double reassortmentObsProb = prevEvent.totalReassortmentObsProb;
-        // logP = -reassortmentObsProb * getReassortmentIntegral(prevEvent.time, nextEvent.time);
 
         double logLineagePairs = 0.5 * prevEvent.lineages * (prevEvent.lineages - 1);
         logP += -logLineagePairs * populationFunction.getIntegral(prevEvent.time, nextEvent.time);
@@ -221,22 +111,8 @@ public class ReducedCoalescent extends NetworkDistribution {
         return logP;
     }
 
-    private double getReassortmentIntegral(double tStart, double tEnd) {
-        if (isTimeVarying)
-            return timeVaryingReassortmentRates.getIntegral(tStart, tEnd);
-        else
-            return reassortmentRate.getArrayValue() * (tEnd - tStart);
-    }
-
     @Override
     protected boolean requiresRecalculation() {
-        if (isTimeVarying) {
-            if (((CalculationNode) timeVaryingReassortmentRates).isDirtyCalculation())
-                return true;
-        } else {
-            if (((CalculationNode) reassortmentRate).isDirtyCalculation())
-                return true;
-        }
         if (((CalculationNode) populationFunction).isDirtyCalculation())
             return true;
 
