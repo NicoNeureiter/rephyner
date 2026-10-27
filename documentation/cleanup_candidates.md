@@ -38,7 +38,7 @@ Collected 2026-10-20 while writing this documentation. Nothing has been deleted.
 | `examples/reducedCoalescent_20251217/`, `_20260109/`, `_20260113/`, `_20260203/`, `run1/`–`run4/`, `coalRePriorSim/` (740 MB), `felsensteinWeights/`, and the loose `examples/infB_*` / `h1n1sea_*` XMLs, `.trees`, `.log`, `.state` files | Ad-hoc runs from before the Snakemake workflows. `examples/infB_learnedRARGPrior.xml` is the only XML using `LearnedReducedNetworkPrior`; keep it if you want an example for that. |
 | `validation/inference/` | One ad-hoc simulate/infer pair. |
 | `validation/priorsampling/` (38 MB) | Early simulate-vs-MCMC workflow, replaced by `validation/calibration`. |
-| `validation/calibration/results_cliff/`, `results_hirho/`, `results_crplen/` and their configs (`config.cliff.yaml`, `config.hirho.yaml`, `config.crplen.yaml`, `config.cap.yaml`) | Exploratory calibration variants; keep the result tables if you want to cite them (5_status.md cites `results_crplen`). |
+| `validation/calibration/results_cliff/`, `results_hirho/`, `results_crplen/` and their configs (`config.cliff.yaml`, `config.hirho.yaml`, `config.crplen.yaml`, `config.cap.yaml`) | Exploratory calibration variants; keep the result tables if you want to cite them (the documentation cites them). |
 
 ## 3. Clutter in the repository root
 
