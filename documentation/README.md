@@ -1,16 +1,16 @@
 # rephyner
 
-rephyner is a BEAST 2 package for Bayesian inference of reduced ancestral reassortment graphs (rARGs). It is a fork of [CoalRe](https://github.com/nicfel/CoalRe) and uses it to simulate full ARGs. The Python code for the learned rARG prior is in `../phylophun/rephyner/` (separate repository). This document describes the state on 2026-10-20.
+rephyner is a BEAST 2 package for Bayesian inference of reduced ancestral recombination graphs (rARGs). It is a fork of [CoalRe](https://github.com/nicfel/CoalRe) and uses it to simulate full ARGs. The Python code for the learned rARG prior is in `../phylophun/rephyner/` (separate repository). This document describes the state on 2026-10-20.
 
 ## 1. Introduction
 
-An ancestral reassortment graph (ARG) describes the joint genealogy of segmented sequences (e.g. influenza). Backwards in time, lineages coalesce, or reassort (split into two parents, each inheriting a subset of the segments). Each segment $s$ has a local tree $T_s$, and the data of segment $s$ depend on the ARG only through $T_s$.
+An ancestral recombination graph (ARG) describes the joint genealogy of sequences that exchange genetic material by recombination. rephyner currently handles the segmented case (e.g. reassortment in influenza), where each recombination splits a lineage into two parents, each inheriting a subset of the segments. Each segment $s$ has a local tree $T_s$, and the data of segment $s$ depend on the ARG only through $T_s$.
 
-Bayesian ARG inference (CoalRe) samples the full ARG $G$ by MCMC. This is slow, partly because much of $G$ cannot be identified from the data: the timing of a reassortment, coalescences between lineages that share no segments, and reassortment "loops" leave all local trees unchanged. The sampler spends effort on these parts and has to change them together with the parts that matter.
+Bayesian ARG inference samples the full ARG $G$ by MCMC. This is slow, due to the large parameter space and rugged posterior distribution, but also because much of $G$ cannot be identified from the data. The timing of a recombination, coalescences between lineages that share no segments, and recombination "loops" leave all local trees unchanged. The sampler spends effort on these parts and has to change them together with the parts that matter.
 
-The idea of rephyner is to sample the reduced ARG $R = r(G)$ instead: only the nodes and edges that appear in at least one local tree. $R$ determines all local trees, so the likelihood is unchanged, but many ARGs collapse onto the same $R$. We hope this gives a smaller state space, a smoother posterior, and operators that work directly on local trees. The gain should grow with the number of segments and the amount of reassortment.
+The idea of rephyner is to sample the reduced ARG $R = r(G)$ instead. The reduced ARG contains only nodes and edges that appear in at least one local tree. $R$ fully determines the local trees, so the likelihood is unchanged, but many ARGs collapse onto the same $R$. We hope this gives a smaller state space, a smoother posterior, and operators that work directly on local trees. The gain should grow with the number of segments and the amount of recombination.
 
-The price is the prior: the prior on $R$ implied by the coalescent with reassortment is an integral over all ARGs that reduce to $R$, with no known closed form. The project therefore has two fronts: an approximation of this prior (Section 3) and MCMC operators for rARGs (Section 4). The first question is whether the rARG sampler mixes better than CoalRe at all, even with a simple stand-in prior; only then is a good prior approximation worth finishing.
+The price is the prior: the prior on $R$ implied by the full-ARG model (CoalRe's coalescent with reassortment) is an integral over all ARGs that reduce to $R$, with no known closed form. The project therefore has two fronts: an approximation of this prior (Section 3) and MCMC operators for rARGs (Section 4). The first question is whether the rARG sampler mixes better than CoalRe at all, even with a simple stand-in prior; only then is a good prior approximation worth finishing.
 
 ## 2. Reduced ARGs
 
@@ -20,7 +20,7 @@ Notation: $n$ taxa, $m$ segments $\mathcal{S}$, time measured backwards.
 
 $R = r(G)$ has as nodes all leaves of $G$ and every node of $G$ that is an internal node of at least one local tree. It has an edge $w \to u$ labelled with the segments $\{s : w \text{ is the parent of } u \text{ in } T_s\}$ whenever this set is not empty, and a root edge at each node that is the root of some local tree (a rARG can have several). Equivalently, $R$ is the union of all local trees, with parallel edges merged.
 
-Reassortment events are not nodes of $R$. They only show up as nodes with several parent edges; when they happened is not recorded. For an internal node $v$ with $c_v$ child edges and $p_v$ parent edges:
+Recombination events are not nodes of $R$. They only show up as nodes with several parent edges; when they happened is not recorded. For an internal node $v$ with $c_v$ child edges and $p_v$ parent edges:
 
 * every node is a coalescence: each segment leaving $v$ comes from exactly two child edges and leaves through exactly one parent edge;
 * the parent edges partition the segments leaving $v$ (this is where reticulation appears);
@@ -51,9 +51,9 @@ $$
 p(R \mid \theta) = \int \mathbf{1}\big[r(G) = R\big]\, p(G \mid \theta)\, dG ,
 $$
 
-an integral over the reassortment events and their times, invisible coalescences, invisible loops, and how the edges of $R$ map to lineages of $G$. This is hard because the hidden part has no bounded size, and because the edges of $R$ do not correspond one-to-one to lineages of $G$: the rate of the next event in $R$ depends on hidden lineages and hence on the whole history of $R$.
+an integral over the recombination events and their times, invisible coalescences, invisible loops, and how the edges of $R$ map to lineages of $G$. This is hard because the hidden part has no bounded size, and because the edges of $R$ do not correspond one-to-one to lineages of $G$: the rate of the next event in $R$ depends on hidden lineages and hence on the whole history of $R$.
 
-A usable replacement should be normalised (ideally with a simulator, so it can be validated), must not depend on reassortment times, must be cheap enough to evaluate at every MCMC step, and must be close to the true prior where the posterior has its mass.
+A usable replacement should be normalised (ideally with a simulator, so it can be validated), must not depend on recombination times, must be cheap enough to evaluate at every MCMC step, and must be close to the true prior where the posterior has its mass.
 
 ## 3. Approaches to the prior
 
@@ -74,9 +74,9 @@ $$
 \log p(R) = \sum_{i} -K_i \int_{\Delta_i} \frac{dt}{N_e(t)} + \sum_{v} (c_v - 1) \log \frac{1}{N_e(t_v)} + \sum_{v} \log q_\alpha(\pi_v) - \lambda \sum_v (p_v - 1).
 $$
 
-$K_i$ counts the pairs of edges in interval $i$ that share a segment (only these can coalesce visibly). $\pi_v$ is the split of $v$'s segments over its parent edges, with $q_\alpha$ a Chinese restaurant process probability (variants: `crpLength`, `uniformPartition`, `none`). $\lambda$ is an optional penalty on reticulation. With one segment this is Kingman's coalescent; $\alpha \to 0$ gives trees. There is deliberately no term that depends on reassortment times.
+$K_i$ counts the pairs of edges in interval $i$ that share a segment (only these can coalesce visibly). $\pi_v$ is the split of $v$'s segments over its parent edges, with $q_\alpha$ a Chinese restaurant process probability (variants: `crpLength`, `uniformPartition`, `none`). $\lambda$ is an optional penalty on reticulation. With one segment this is Kingman's coalescent; $\alpha \to 0$ gives trees. There is deliberately no term that depends on recombination times.
 
-Limitations: it is not normalised and has no simulator; its node-count distribution has two modes (tree and strongly reticulate network) between which $\alpha$ only shifts weight; and at high reassortment it cannot reach CoalRe's node counts or branch lengths (Section 5).
+Limitations: it is not normalised and has no simulator; its node-count distribution has two modes (tree and strongly reticulate network) between which $\alpha$ only shifts weight; and at high recombination rates it cannot reach CoalRe's node counts or branch lengths (Section 5).
 
 `UniformReducedNetworkPrior` is a simple prior with a matching simulator, used only to validate the sampler.
 
@@ -88,7 +88,7 @@ $$
 q_\phi(R) = \prod_i q^{\text{wt}}_\phi(\Delta t_i \mid \text{state}_i)\, q^{\text{top}}_\phi(C_i \mid \text{state}_i).
 $$
 
-Parent edges are not modelled explicitly; they follow from which later nodes pick up a node's segments, so reassortment is untimed by construction.
+Parent edges are not modelled explicitly; they follow from which later nodes pick up a node's segments, so recombination is untimed by construction.
 
 Implemented in `../phylophun/rephyner/prior_learning/` (JAX):
 
@@ -96,11 +96,11 @@ Implemented in `../phylophun/rephyner/prior_learning/` (JAX):
 * topology, pairwise urn (`topology_model.py`, current reference): decide which segments coalesce, then let each segment pick a pair of children with probability proportional to node weights that grow when earlier segments chose the same node (so linked segments tend to coalesce together);
 * topology, two-lineage model (`two_lineage_model.py`, newest): models the two hidden ARG lineages behind each coalescence explicitly; not yet compared with the urn.
 
-The Java class `LearnedReducedNetworkPrior` implements an older version and is on hold (`java_port_notes.md`). Open issues: the model is fitted for one reassortment rate, so it cannot be used to estimate $\rho$; samples at different times are not handled yet; and it is so far only checked against summary statistics, not against estimates of the true prior.
+The Java class `LearnedReducedNetworkPrior` implements an older version and is on hold (`java_port_notes.md`). Open issues: the model is fitted for one recombination rate, so it cannot be used to estimate $\rho$; samples at different times are not handled yet; and it is so far only checked against summary statistics, not against estimates of the true prior.
 
 ## 4. Inference
 
-The MCMC samples $R$ (`ReducedNetwork`) and the usual substitution and clock parameters. The local trees are derived from $R$. $N_e$ and the prior parameters are fixed in all current runs, and no rARG prior has a reassortment rate yet. All network operators extend `NetworkOperator`, which keeps the segment trees in sync and, with assertions on, checks every proposal with `isValid()`.
+The MCMC samples $R$ (`ReducedNetwork`) and the usual substitution and clock parameters. The local trees are derived from $R$. $N_e$ and the prior parameters are fixed in all current runs, and no rARG prior has a recombination rate yet. All network operators extend `NetworkOperator`, which keeps the segment trees in sync and, with assertions on, checks every proposal with `isValid()`.
 
 | Operators | Move |
 |---|---|
@@ -120,7 +120,7 @@ Working: rARG data structure, reduction, initialisation from simulated ARGs, `Re
 Results:
 
 * Validation of the uniform model (`validation/wcss`, 10 taxa, 2 segments, 100 replicates): coverage of the 95 % HPD intervals is 91–100 % for all statistics, so the sampler recovers a known model. The template uses a renamed operator and cannot be rerun as is.
-* Calibration of `ReducedCoalescent` against CoalRe (`validation/calibration`): mean node counts can mostly be matched, but not the distribution. The prior's networks are about 30 % too short, and at high reassortment no $\alpha$ reaches CoalRe's node count. The simulation study therefore compares the methods at matched posterior reticulation instead of matched priors.
+* Calibration of `ReducedCoalescent` against CoalRe (`validation/calibration`): mean node counts can mostly be matched, but not the distribution. The prior's networks are about 30 % too short, and at high recombination rates no $\alpha$ reaches CoalRe's node count. The simulation study therefore compares the methods at matched posterior reticulation instead of matched priors.
 * infB benchmark (8 segments, about 200 taxa, spring 2026, older prior): rephyner had about 180× lower posterior ESS per hour than CoalRe; neither run converged.
 * Simulation study pilot (`validation/simstudy`, 15 taxa, 8 segments, $\rho \in \{2, 4, 6\}$). The rule fixed in advance is Go if rephyner reaches at least 2× CoalRe's ESS per CPU-hour on both continuous statistics and local-tree topology. ESS ratios rephyner / CoalRe at matched reticulation:
 
@@ -137,7 +137,7 @@ Next steps:
 
 1. Find out why local-tree topology mixes poorly; fix or drop `NetworkEdgeRangeSlide`.
 2. Run the full simulation-study grid after the operators are improved.
-3. Settle the learned prior in Python, compare it with importance-sampling estimates of the true prior on small examples, then update the Java port. Make it depend on $\rho$ if reassortment rates are to be estimated.
+3. Settle the learned prior in Python, compare it with importance-sampling estimates of the true prior on small examples, then update the Java port. Make it depend on $\rho$ if recombination rates are to be estimated.
 4. Put `examples/` (infB and IE-CoR workflows) and the uncommitted work under version control.
 
 ## Related notes

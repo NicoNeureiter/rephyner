@@ -1,7 +1,7 @@
 Reduced phylogenetic network rephyner  
 ======
 
-rephyner is a BEAST 2 package for Bayesian inference of reduced ancestral reassortment graphs (rARGs): the part of an ARG that appears in at least one local tree. See [documentation/](documentation/README.md) for the idea, the model, the operators and the current state of the project.
+rephyner is a BEAST 2 package for Bayesian inference of reduced ancestral recombination graphs (rARGs): the part of an ARG that appears in at least one local tree. See [documentation/](documentation/README.md) for the idea, the model, the operators and the current state of the project.
 
 Building rephyner
 ---------------
