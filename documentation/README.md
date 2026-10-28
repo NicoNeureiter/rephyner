@@ -27,15 +27,7 @@ Recombination events are not nodes of $R$. They only affect $R$ by changing the 
 * $c_v$ can exceed 2, since different segments can coalesce different pairs of children at the same node;
 * nothing is redundant: every edge carries a segment and every node is used by some local tree.
 
-### Summary statistics
-
-To compare rARGs (and reduced CoalRe ARGs) we use their height, total branch length, node count and total reticulation
-
-$$
-\mathrm{ret}(R) = \sum_v (p_v - 1) = \#\text{edges} - \#\text{nodes},
-$$
-
-which is 0 for a tree and grows with the number of recombinations visible in $R$. All are logged by `ReducedNetworkStatsLogger`. The calibration and the simulation study (Section 5) use them as targets and as the basis for comparing rephyner with CoalRe.
+The total reticulation $\sum_v (p_v - 1)$ (= #edges − #nodes) measures how far $R$ is from a tree and is used to compare rephyner with CoalRe.
 
 ### Reduction
 
@@ -79,10 +71,10 @@ A usable replacement should be normalised (ideally with a simulator, so it can b
 A cheap density meant for testing the sampler, not an approximation of the integral:
 
 $$
-\log p(R) = \sum_{i} -K_i \int_{\Delta_i} \frac{dt}{N_e(t)} + \sum_{v} (c_v - 1) \log \frac{1}{N_e(t_v)} + \sum_{v} \log q_\alpha(\pi_v) - \lambda\, \mathrm{ret}(R).
+\log p(R) = \sum_{i} -K_i \int_{\Delta_i} \frac{dt}{N_e(t)} + \sum_{v} (c_v - 1) \log \frac{1}{N_e(t_v)} + \sum_{v} \log q_\alpha(\pi_v) - \lambda \sum_v (p_v - 1).
 $$
 
-$K_i$ counts the pairs of edges in interval $i$ that share a segment (only these can coalesce visibly). $\pi_v$ is the split of $v$'s segments over its parent edges, with $q_\alpha$ a Chinese restaurant process probability (variants: `crpLength`, `uniformPartition`, `none`). $\lambda$ is an optional penalty on the total reticulation (Section 2). With one segment this is Kingman's coalescent; $\alpha \to 0$ gives trees. There is deliberately no term that depends on recombination times.
+$K_i$ counts the pairs of edges in interval $i$ that share a segment (only these can coalesce visibly). $\pi_v$ is the split of $v$'s segments over its parent edges, with $q_\alpha$ a Chinese restaurant process probability (variants: `crpLength`, `uniformPartition`, `none`). $\lambda$ is an optional penalty on reticulation. With one segment this is Kingman's coalescent; $\alpha \to 0$ gives trees. There is deliberately no term that depends on recombination times.
 
 Limitations: it is not normalised and has no simulator; its node-count distribution has two modes (tree and strongly reticulate network) between which $\alpha$ only shifts weight; and at high recombination rates it cannot reach CoalRe's node counts or branch lengths (Section 5).
 
@@ -128,9 +120,9 @@ Working: rARG data structure, reduction, initialisation from simulated ARGs, `Re
 Results:
 
 * Validation of the uniform model (`validation/wcss`, 10 taxa, 2 segments, 100 replicates): coverage of the 95 % HPD intervals is 91–100 % for all statistics, so the sampler recovers a known model. The template uses a renamed operator and cannot be rerun as is.
-* Calibration of `ReducedCoalescent` against CoalRe (`validation/calibration`): mean node counts can mostly be matched, but not the distribution. The prior's networks are about 30 % too short, and at high recombination rates no $\alpha$ reaches CoalRe's node count. The simulation study therefore compares the methods at matched posterior $\mathrm{ret}(R)$ instead of matched priors.
+* Calibration of `ReducedCoalescent` against CoalRe (`validation/calibration`): mean node counts can mostly be matched, but not the distribution. The prior's networks are about 30 % too short, and at high recombination rates no $\alpha$ reaches CoalRe's node count. The simulation study therefore compares the methods at matched posterior reticulation instead of matched priors.
 * infB benchmark (8 segments, about 200 taxa, spring 2026, older prior): rephyner had about 180× lower posterior ESS per hour than CoalRe; neither run converged.
-* Simulation study pilot (`validation/simstudy`, 15 taxa, 8 segments, $\rho \in \{2, 4, 6\}$). The rule fixed in advance is Go if rephyner reaches at least 2× CoalRe's ESS per CPU-hour on both continuous statistics and local-tree topology. ESS ratios rephyner / CoalRe at matched posterior $\mathrm{ret}(R)$:
+* Simulation study pilot (`validation/simstudy`, 15 taxa, 8 segments, $\rho \in \{2, 4, 6\}$). The rule fixed in advance is Go if rephyner reaches at least 2× CoalRe's ESS per CPU-hour on both continuous statistics and local-tree topology. ESS ratios rephyner / CoalRe at matched reticulation:
 
   | true ρ | continuous | topology |
   |---|---|---|
