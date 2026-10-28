@@ -27,8 +27,6 @@ Recombination events are not nodes of $R$. They only affect $R$ by changing the 
 * $c_v$ can exceed 2, since different segments can coalesce different pairs of children at the same node;
 * nothing is redundant: every edge carries a segment and every node is used by some local tree.
 
-The total reticulation $\sum_v (p_v - 1)$ (= #edges − #nodes) measures how far $R$ is from a tree and is used to compare rephyner with CoalRe.
-
 ### Reduction
 
 `NetworkReducer.reduce()` computes $r(G)$ from a CoalRe `Network` in one pass from the tips to the root, keeping track of which segments of each $R$-node have not yet coalesced. A node of $G$ becomes a node of $R$ if at least one segment arrives on two of its incoming lineages. The reducer is recursive and needs a large JVM stack (`-Xss`) for big ARGs. It is used to initialise the MCMC from a simulated ARG, to log rARG statistics of CoalRe runs, and to generate training data for the learned prior.
@@ -74,7 +72,7 @@ $$
 \log p(R) = \sum_{i} -K_i \int_{\Delta_i} \frac{dt}{N_e(t)} + \sum_{v} (c_v - 1) \log \frac{1}{N_e(t_v)} + \sum_{v} \log q_\alpha(\pi_v) - \lambda \sum_v (p_v - 1).
 $$
 
-$K_i$ counts the pairs of edges in interval $i$ that share a segment (only these can coalesce visibly). $\pi_v$ is the split of $v$'s segments over its parent edges, with $q_\alpha$ a Chinese restaurant process probability (variants: `crpLength`, `uniformPartition`, `none`). $\lambda$ is an optional penalty on reticulation. With one segment this is Kingman's coalescent; $\alpha \to 0$ gives trees. There is deliberately no term that depends on recombination times.
+$K_i$ counts the pairs of edges in interval $i$ that share a segment (only these can coalesce visibly). $\pi_v$ is the split of $v$'s segments over its parent edges, with $q_\alpha$ a Chinese restaurant process probability (variants: `crpLength`, `uniformPartition`, `none`). $\lambda$ is an optional penalty on the total reticulation $\sum_v (p_v - 1)$ (= #edges − #nodes, 0 for a tree), which is also the measure of network complexity used to compare rephyner with CoalRe (Section 5). With one segment this is Kingman's coalescent; $\alpha \to 0$ gives trees. There is deliberately no term that depends on recombination times.
 
 Limitations: it is not normalised and has no simulator; its node-count distribution has two modes (tree and strongly reticulate network) between which $\alpha$ only shifts weight; and at high recombination rates it cannot reach CoalRe's node counts or branch lengths (Section 5).
 
