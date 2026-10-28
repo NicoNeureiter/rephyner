@@ -1,17 +1,23 @@
 # Cleanup candidates
 
-Collected 2026-10-20 while writing this documentation. Nothing has been deleted. "Refs" means references found by searching `src/`, `test/`, `version.xml` and the XML templates of the current workflows (`examples/infB/blocks/{rephyner,coalre}`, `examples/IECoR`, `validation/simstudy`, `validation/calibration`, `validation/wcss`, `validation/priorsampling`). Please double-check before deleting; items marked "check" have a dependency that has to go with them.
+Collected 2026-10-20 while writing this documentation. Section 1 was carried out on 2026-10-28; nothing from the other sections has been deleted yet. "Refs" means references found by searching `src/`, `test/`, `version.xml` and the XML templates of the current workflows (`examples/infB/blocks/{rephyner,coalre}`, `examples/IECoR`, `validation/simstudy`, `validation/calibration`, `validation/wcss`, `validation/priorsampling`). Please double-check before deleting; items marked "check" have a dependency that has to go with them.
 
 ## 1. Remnants of the CoalRe fork not used by rephyner
+
+Done (2026-10-28): everything in this table was removed, along with the matching `version.xml` entries (including the broken `CoalescentWithReassortment` and `emptyNetworkEdgesPrior`). Exceptions and follow-ups:
+
+* `test/rephyner/simulator/SimulatedCoalescentNetworkTest.java` was kept: despite its name it tests `SimulatedUniformReducedNetwork`.
+* `NetworkTest.parserTest` now parses with `coalre.network.Network` and reduces with `NetworkReducer`; `copyEdgeTest` (which only tested the `Network` copy) was removed.
+* The unused `NetworkEvent.segsToSort` and `childCandidateSegments` were removed together with `lineages` and `childCandidates`.
 
 | Path | Why it looks redundant |
 |---|---|
 | `src/rephyner/networkannotator/` (15 classes) | CoalRe post-processing tools (`ReassortmentAnnotator`, `NetworkCladeSystem`, …) working on the full-ARG `Network` copy. Not registered in `version.xml`, no refs. |
 | `src/rephyner/dynamics/` (15 classes) | CoalRe/skygrowth $N_e$ and reassortment-rate dynamics. No refs from rephyner code or templates; 11 are registered in `version.xml` (remove those entries too). `ReducedCoalescent` uses standard BEAST `PopulationFunction`s. |
-| `src/rephyner/network/Network.java`, `src/rephyner/network/parser/` (ANTLR grammar and generated parser) | Copy of CoalRe's full-ARG `Network` with its extended-Newick parser. All workflows use `coalre.network.Network` for full ARGs. Only used by other CoalRe remnants in this list, by `NetworkStatsLogger.getLociMRCA`, and by `SimulatedCoalescentNetworkTest`. Check: remove these together. |
+| `src/rephyner/network/Network.java`, `src/rephyner/network/parser/` (ANTLR grammar and generated parser) | Copy of CoalRe's full-ARG `Network` with its extended-Newick parser. All workflows use `coalre.network.Network` for full ARGs. Only used by other CoalRe remnants in this list (e.g. `InitFromTree`). Check: remove these together. |
 | `src/rephyner/simulator/SimulatedCoalescentNetwork.java` | Copy of CoalRe's simulator; every XML uses `coalre.simulator.SimulatedCoalescentNetwork` by its full name. Only tested by `test/rephyner/simulator/SimulatedCoalescentNetworkTest.java` (delete together). |
 | `src/rephyner/statistics/ReassortmentEventsLogger.java`, `ReassortmentStatsLogger.java` | CoalRe loggers for full ARGs; registered, no refs. |
-| `src/rephyner/statistics/NetworkStatsLogger.java`: keep, but | Still used (`validation/simstudy/templates/simulate.xml` logs the simulated rARG with it). Its static `getLociMRCA(Network)` is what ties it to the `Network` copy; drop or rewrite that method when removing `Network`. `infer_coalre.xml` imports both `coalre.statistics` and `rephyner.statistics`, so the short name `NetworkStatsLogger` is ambiguous there. |
+| `src/rephyner/statistics/NetworkStatsLogger.java` | Superseded by `ReducedNetworkStatsLogger`, which all current templates use. Only the outdated `examples/infB/blocks/{coalre,rephyner}_run_block.xml` reference it. Its static helpers are in `ReducedNetworkStatsLogger` (`getExcessCount` moved there, `SimulatedCoalescentNetworkTest` uses that). Remove the `version.xml` entry too. |
 | `src/rephyner/distribution/TipPrior.java`, `EmptyNetworkEdgesPrior.java` | CoalRe priors on the full `Network`; no refs. `version.xml` registers `emptyNetworkEdgesPrior` (wrong case, so the entry is broken anyway). |
 | `src/rephyner/util/InitFromTree.java`, `DateOffsetInitializer.java`, `SpikeSlabParameter.java`, `WeightedSumDistribution.java` | CoalRe utilities; registered, no refs. |
 | `src/rephyner/distribution/NetworkIntervals.java`: `binomialProb` input, `getBinomialProb()`; `NetworkEvent.lineages`, `childCandidates`; `NetworkEdge.getReassortmentObsProb()` | CoalRe leftovers inside classes that are otherwise in use. |
@@ -56,7 +62,7 @@ Collected 2026-10-20 while writing this documentation. Nothing has been deleted.
 
 ## 4. Things to fix rather than delete
 
-* `version.xml` registers classes that do not exist: `rephyner.distribution.CoalescentWithReassortment` and `rephyner.distribution.emptyNetworkEdgesPrior` (the class is `EmptyNetworkEdgesPrior`). Other registered classes are unused (see above, also `rephyner.util.DummyTreeDistribution`), while `NetworkExchange` and `DummyNetworkPrior` are not registered.
+* `version.xml` still registers unused classes (see section 2, also `rephyner.util.DummyTreeDistribution`), while `NetworkExchange` and `DummyNetworkPrior` are not registered. (The entries for missing classes were removed with section 1.)
 * `validation/wcss/templates/inference.xml` uses `LocalTreeSubtreeSPR`, which no longer exists (renamed to `LocalTreeSPR`), so the WCSS cannot be rerun as is.
 * `validation/simstudy/templates/infer_rephyner.xml` says in a comment that `ALPHA` and `POP_SIZE` come from the calibration table; the current design scans `alpha` instead.
 * `.gitignore` ignores `examples/` and `deps/` completely, so the infB and IE-CoR Snakemake workflows (Snakefile, templates, blocks, scripts, configs) are not under version control. Consider ignoring only `examples/**/results/` and the loose run outputs.

@@ -168,10 +168,7 @@ public class LearnedReducedNetworkPriorTest extends RephynerTestClass {
         ReducedNetwork network = getContempNetwork(nTaxa, nSegments, keepNodeProbability);
 
         NetworkIntervals intervals = new NetworkIntervals();
-        intervals.initByName(
-                "network", network,
-                "binomialProb", new RealParameter("0.5")
-        );
+        intervals.initByName("network", network);
 
         LearnedReducedNetworkPrior prior = new LearnedReducedNetworkPrior();
         prior.initByName(

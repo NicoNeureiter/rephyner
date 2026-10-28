@@ -9,12 +9,8 @@
     <provider classname="rephyner.distribution.ReducedCoalescent"/>
     <provider classname="rephyner.distribution.LearnedReducedNetworkPrior"/>
     <provider classname="rephyner.distribution.UniformReducedNetworkPrior"/>
-    <provider classname="rephyner.distribution.CoalescentWithReassortment"/>
-    <provider classname="rephyner.distribution.emptyNetworkEdgesPrior"/>
     <provider classname="rephyner.distribution.NetworkDistribution"/>
     <provider classname="rephyner.distribution.NetworkIntervals"/>
-    <provider classname="rephyner.distribution.TipPrior"/>
-    <provider classname="rephyner.network.Network"/>
     <provider classname="rephyner.network.SegmentTreeInitializer"/>
     <provider classname="rephyner.operators.SplitMergeNode"/>
     <provider classname="rephyner.operators.DivertSingleSegmentOperator"/>
@@ -28,26 +24,9 @@
     <provider classname="rephyner.operators.UniformNetworkNodeHeightOperator"/>
     <provider classname="rephyner.simulator.SimulatedReducedCoalescentNetwork"/>
     <provider classname="rephyner.simulator.SimulatedUniformReducedNetwork"/>
-    <provider classname="rephyner.statistics.NetworkStatsLogger"/>
     <provider classname="rephyner.statistics.ReducedNetworkLogger"/>
     <provider classname="rephyner.statistics.ReducedNetworkStatsLogger"/>
-    <provider classname="rephyner.statistics.ReassortmentEventsLogger"/>
-    <provider classname="rephyner.statistics.ReassortmentStatsLogger"/>
-    <provider classname="rephyner.util.DateOffsetInitializer"/>
     <provider classname="rephyner.util.DummyTreeDistribution"/>
-    <provider classname="rephyner.util.SpikeSlabParameter"/>
-    <provider classname="rephyner.util.WeightedSumDistribution"/>
-    <provider classname="rephyner.util.InitFromTree"/>
-    <provider classname="rephyner.dynamics.RecombinationDynamicsFromSpline"/>
-    <provider classname="rephyner.dynamics.Spline"/>
-    <provider classname="rephyner.dynamics.NeDynamicsFromSpline"/>
-    <provider classname="rephyner.dynamics.SplineTransmissionDifference"/>
-    <provider classname="rephyner.dynamics.PiecewiseConstantReassortmentRates"/>
-    <provider classname="rephyner.dynamics.PiecewiseConstantReassortmentRateScalers"/>
-    <provider classname="rephyner.dynamics.Difference"/>
-    <provider classname="rephyner.dynamics.LogDifference"/>
-    <provider classname="rephyner.dynamics.SkygrowthNeDynamics"/>
-    <provider classname="rephyner.dynamics.SkygrowthReassortmentRatesFromSkygrowthNe"/>
   </service>
 
 </package>

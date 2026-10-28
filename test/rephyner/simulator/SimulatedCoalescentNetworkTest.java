@@ -6,7 +6,7 @@ import beast.base.evolution.tree.Tree;
 import beast.base.evolution.tree.coalescent.ConstantPopulation;
 import beast.base.util.Randomizer;
 import rephyner.RephynerTestClass;
-import rephyner.statistics.NetworkStatsLogger;
+import rephyner.statistics.ReducedNetworkStatsLogger;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -49,9 +49,9 @@ public class SimulatedCoalescentNetworkTest extends RephynerTestClass {
                     "segmentTree", segmentTrees.get(7),
                     "enableSegmentTreeUpdate", false);
 
-            excessNodeCounts[i] = NetworkStatsLogger.getExcessCount(network);
-            networkHeights[i] = NetworkStatsLogger.getTotalHeight(network);
-            networkLengths[i] = NetworkStatsLogger.getTotalEdgeLength(network);
+            excessNodeCounts[i] = ReducedNetworkStatsLogger.getExcessCount(network);
+            networkHeights[i] = ReducedNetworkStatsLogger.getTotalHeight(network);
+            networkLengths[i] = ReducedNetworkStatsLogger.getTotalEdgeLength(network);
         }
 
         System.out.println(max(networkHeights));

@@ -97,6 +97,10 @@ public class ReducedNetworkStatsLogger extends BEASTObject implements Loggable {
         return network.getRootEdges().stream().map(e -> e.childNode.getHeight()).max(Double::compare).get();
     }
 
+    public static int getExcessCount(ReducedNetwork network) {
+        return network.getInternalNodes().size() - network.getLeafNodes().size() + 1;
+    }
+
     public static int getReassortmentCount(ReducedNetwork network, double[] rootHeights) {
         double maxHeight = 0.0;
         for (int i = 0; i < rootHeights.length; i++)
