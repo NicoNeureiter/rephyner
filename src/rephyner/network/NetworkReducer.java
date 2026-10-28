@@ -5,8 +5,6 @@ import java.util.Arrays;
 import java.util.BitSet;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 import coalre.network.Network;
 import rephyner.util.BitSetFun;
 
@@ -58,6 +56,7 @@ public class NetworkReducer {
 
         coalre.network.NetworkNode oldNode = oldEdge.childNode;
         NetworkNode newNode = new NetworkNode(oldNode.getHeight());
+        newNode.setTaxonLabel(oldNode.getTaxonLabel());
         newNode.setTaxonIndex(oldNode.getTaxonIndex());
         newNode.setTypeIndex(oldNode.getTypeIndex());
         newNode.setTypeLabel(oldNode.getTypeLabel());
@@ -103,6 +102,7 @@ public class NetworkReducer {
 
         for (coalre.network.NetworkNode leafNode : network.getLeafNodes()) {
             NetworkNode reducedLeafNode = reducedNodes.get(reducableNodes.get(leafNode));
+            reducedLeafNode.setTaxonLabel(leafNode.getTaxonLabel());
             reducedLeafNode.setTaxonIndex(leafNode.getTaxonIndex());
         }
 

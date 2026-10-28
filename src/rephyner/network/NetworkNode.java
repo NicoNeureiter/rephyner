@@ -169,6 +169,15 @@ public class NetworkNode {
         return false; // Only <= 1 child was found, the segment is not coalescing here
     }
 
+    public boolean hasSegment(int segmentIdx) {
+        if (isLeaf())
+            return true;
+        for (NetworkEdge childEdge : children)
+            if (childEdge.hasSegments.get(segmentIdx))
+                return true;
+        return false;
+    }
+
     public boolean isReassortment() {
         return getParentCount() > 1;
     }
@@ -207,7 +216,7 @@ public class NetworkNode {
     /**
      * Retrieve parent edge in the local tree of the given segment
      * 
-     * @return sister of given edge for segment
+     * @return parent edge
      */
     public NetworkEdge getParentEdge(int segment) {
         assert this.getActiveSegments().get(segment);
@@ -215,7 +224,6 @@ public class NetworkNode {
                 .filter(e -> e.hasSegments.get(segment))
                 .findFirst()
                 .get();
-        // .orElse(null); ...replaced by assert above
     }
 
     /**
@@ -465,5 +473,8 @@ public class NetworkNode {
 		return segmentIndices[segmentIdx];
 	}
 
+    public boolean hasSegmentIndices() {
+		return segmentIndices != null;
+	}
 
 }

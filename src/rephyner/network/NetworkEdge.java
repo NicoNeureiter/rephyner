@@ -25,14 +25,6 @@ public class NetworkEdge {
     }
 
 
-    public double getReassortmentObsProb(double p) {
-        // There are always two reassortment configurations that
-        // produce an unobserved reassortment: 1111 and 0000
-        // (assuming 4 segs on lineage)
-        return 1.0 - (Math.pow(p, hasSegments.cardinality())
-                + Math.pow(1.0 - p, hasSegments.cardinality()));
-    }
-
     public double getLength() {
         return parentNode.getHeight() - childNode.getHeight();
     }

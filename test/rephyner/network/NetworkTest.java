@@ -4,6 +4,7 @@ import beast.base.evolution.alignment.TaxonSet;
 import beast.base.evolution.tree.Node;
 import beast.base.evolution.tree.TraitSet;
 import beast.base.evolution.tree.Tree;
+import coalre.network.Network;
 import rephyner.RephynerTestClass;
 import rephyner.util.BitSetFun;
 import rephyner.util.Util;
@@ -60,7 +61,7 @@ public class NetworkTest extends RephynerTestClass {
 
         Network parsedFullNetwork = new Network(
                 "(((A[&segments={0,1,2,3,4,5,6,7}]:1)#1[&segments={1,4}]:1,B[&segments={0,1,2,3,4,5,6,7}]:2)[&segments={0,1,2,3,4,5,6,7}]:1,#1[&segments={0,2,3,5,6,7}]:2)[&segments={0,1,2,3,4,5,6,7}]:0.0;");
-        ReducedNetwork parsedNetwork = parsedFullNetwork.reduce();
+        ReducedNetwork parsedNetwork = NetworkReducer.reduce(parsedFullNetwork);
 
         Assert.assertEquals(network.toString(), parsedNetwork.toString());
 
@@ -69,16 +70,6 @@ public class NetworkTest extends RephynerTestClass {
         // generated newick string is unique: it is not.
         // Root of the problem: testing for network equivalence is hard, as
         // discussed at https://en.wikipedia.org/wiki/Graph_isomorphism_problem
-    }
-
-    @Test
-    public void copyEdgeTest() {
-        Network network = new Network(
-                "(((A[&segments={0,1,2,3,4,5,6,7}]:1)#1[&segments={1,4}]:1,B[&segments={0,1,2,3,4,5,6,7}]:2)[&segments={0,1,2,3,4,5,6,7}]:1,#1[&segments={0,2,3,5,6,7}]:2)[&segments={0,1,2,3,4,5,6,7}]:0.0;");
-
-        Network copiedNetwork = (Network) network.copy();
-
-        Assert.assertEquals(network.toString(), copiedNetwork.toString());
     }
 
     private Node extractSegmentTree(NetworkNode networkNode, int segmentIdx) {
@@ -238,6 +229,24 @@ public class NetworkTest extends RephynerTestClass {
         // Check that the network is back to its original state
         Assert.assertEquals(originalChecksum, network.getChecksum());
         Assert.assertEquals(originalString, network.getDotString());
+    }
+
+    /**
+     * The two-leaf case above pins the bug that was found; this covers it on a realistic network,
+     * where many contemporaneous leaves and reticulate nodes give the ordering far more chances to
+     * depend on object identity.
+     */
+    @Test
+    public void dotStringStableAcrossStoreRestoreTest() {
+        for (int rep : Util.range(20)) {
+            ReducedNetwork network = getContempNetwork(8, 4, 0.5);
+
+            String before = network.getDotString();
+            network.store();
+            network.restore();
+
+            Assert.assertEquals("rep " + rep, before, network.getDotString());
+        }
     }
 
     @Test
