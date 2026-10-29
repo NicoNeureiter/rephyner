@@ -1,0 +1,328 @@
+configfile: "config.yaml"
+
+import glob
+import os
+
+from snakemake.exceptions import WorkflowError
+
+
+REPO = os.path.abspath("../..")
+BEAST_HOME = config["java"]["beast_home"]
+# Workflow-local, so the repo's own build/ (owned by ant) is never touched.
+RESULTS = config.get("results_dir", "results")
+CLASSES = os.path.abspath(RESULTS + "/classes")
+JAVA = config["java"]["executable"]
+PACKAGE_DIR = config["java"]["package_dir"]
+PACKAGES = config["java"]["packages"]
+
+
+def classpath():
+    """Explicit classpath, most specific first: this working tree's classes, then the named
+    installed BEAST packages, then the jars vendored under deps/ as a fallback.
+
+    Two things this gets right that the `beast` launcher does not:
+      * rephyner resolves from THIS working tree, not from whatever version is installed;
+      * CoalRe resolves from the installed package (v2.9.0), not the older v1.0.4 vendored in
+        deps/. That matters: v1.0.4's GibbsOperatorAboveSegmentRoots takes
+        reassortmentRate/populationModel where the current one takes coalescentWithReassortment,
+        and the baseline arm has to be the CoalRe people actually use. The constant-rate
+        SimulatedCoalescentNetwork is identical between the two -- verified at 400 sims,
+        10 taxa / 4 segments / rho=0.2, agreeing to 3 decimals on node count, height and total
+        length -- so calibration targets do not depend on this choice.
+
+    Only the named packages are added, never the whole package directory: that directory also
+    contains an installed rephyner jar, and pulling it in would put a stale copy of the code under
+    test on the classpath.
+    """
+    entries = [CLASSES]
+    for package in PACKAGES:
+        found = sorted(glob.glob(os.path.join(os.path.expanduser(PACKAGE_DIR), package,
+                                              "lib", "*.jar")))
+        if not found:
+            raise WorkflowError(
+                f"package '{package}' not found under {PACKAGE_DIR}; "
+                f"install it or adjust java.packages in the config")
+        entries += [j for j in found if "sources" not in j]
+    entries += sorted(glob.glob(os.path.join(REPO, "deps", "*", "lib", "*.jar")))
+    entries += [j for j in sorted(glob.glob(os.path.join(REPO, "lib", "*.jar")))
+                if "sources" not in j]
+    entries += sorted(glob.glob(os.path.join(BEAST_HOME, "lib", "packages", "*.jar")))
+    entries += sorted(glob.glob(os.path.join(BEAST_HOME, "lib", "*.jar")))
+    return ":".join(entries)
+
+
+CLASSPATH = classpath()
+VERSION_FILE = os.path.join(REPO, "version.xml")
+# NetworkReducer.reduce and the network traversals recurse over nodes, so a large ARG
+# (16 segments at a high reassortment rate) overflows the default JVM stack with a bare
+# StackOverflowError partway through a run. 16m was enough in testing; 64m is headroom.
+STACK_SIZE = config["java"].get("stack_size", "64m")
+BEAST = (f'{JAVA} -Xss{STACK_SIZE} -cp "{CLASSPATH}" beastfx.app.beast.BeastMain'
+         f' -version_file "{VERSION_FILE}"')
+
+
+CELLS = [
+    {"n_taxa": n, "n_segments": s, "reassortment_rate": r}
+    for n in config["cells"]["n_taxa"]
+    for s in config["cells"]["n_segments"]
+    for r in config["cells"]["reassortment_rate"]
+]
+
+ALPHAS = config["alpha_ladder"]
+
+# Independent chains per ladder point, each from its own simulated starting network. Chains that
+# agree are trustworthy; chains that disagree mark a point the sampler cannot resolve -- the
+# diagnostic that separates "slow but unimodal" from "genuinely bimodal". They are therefore kept
+# separate and compared, never pooled blindly: averaging across chains stuck in different modes
+# estimates a mixture weighted by where each chain started, not by the prior.
+PRIOR_SEEDS = config.get("prior_seeds", [1])
+
+# Per-cell ladders, written by the fit when the global ladder steps over the target. The response
+# curve is steep and its steep region sits at a different alpha in every cell, so one global ladder
+# fine enough for all of them would be far more runs than refining the few cells that need it.
+ALPHAS_BY_CELL = config.get("alpha_ladder_by_cell", {})
+
+
+def alphas_for(prior_cell):
+    return ALPHAS_BY_CELL.get(prior_cell, ALPHAS)
+
+
+def cell_id(cell):
+    return "n{n_taxa}_s{n_segments}_r{reassortment_rate}".format(**cell)
+
+
+def prior_id(cell):
+    """Key for a prior run.
+
+    The prior has no reassortment rate -- only the init network does, and prior sampling was
+    verified to be init-independent (across rho inits at matched alpha, no sampled mean differed
+    by more than 5%). So one ladder per (taxa, segments) serves every rho, instead of an identical
+    ladder per cell. With three rates that is a 3x saving, paid again on every change to the rates.
+    """
+    return "n{n_taxa}_s{n_segments}".format(**cell)
+
+
+CELLS = [c for c in CELLS if cell_id(c) not in set(config.get('exclude_cells', []))]
+CELL_BY_ID = {cell_id(c): c for c in CELLS}
+CELL_IDS = sorted(CELL_BY_ID)
+
+PRIOR_BY_ID = {prior_id(c): c for c in CELLS}
+PRIOR_IDS = sorted(PRIOR_BY_ID)
+
+
+def taxa(cell):
+    return [f"t{i + 1}" for i in range(cell["n_taxa"])]
+
+
+def segments(cell):
+    return [str(i + 1) for i in range(cell["n_segments"])]
+
+
+def dates(cell):
+    # Contemporaneous sampling. Serial sampling is a separate axis of the main study.
+    return ",".join(f"{t}=0.0" for t in taxa(cell))
+
+
+wildcard_constraints:
+    cell="|".join(CELL_IDS),
+    pcell="|".join(PRIOR_IDS),
+    seed=r"\d+",
+    alpha=r"[0-9.]+",
+
+
+rule all:
+    input:
+        RESULTS + "/calibration.tsv",
+        RESULTS + "/response_curves.tsv",
+
+
+rule compile:
+    """Compile src/ into build/, so every run uses this working tree rather than the installed
+    rephyner package. Done here rather than via `ant` because the ant build additionally requires
+    JAVA_FX_HOME, which this workflow does not need."""
+    input:
+        sources=sorted(glob.glob(os.path.join(REPO, "src", "**", "*.java"), recursive=True)),
+    output:
+        marker=RESULTS + "/.compiled",
+    resources:
+        mem_mb=2000,
+        runtime=10,
+    shell:
+        """
+        rm -rf {CLASSES} && mkdir -p {CLASSES} \
+        && javac -nowarn -cp "{CLASSPATH}" -d {CLASSES} $(find {REPO}/src -name '*.java') \
+        && touch {output.marker}
+        """
+
+
+# --------------------------------------------------------------------------- target moments
+
+rule render_target:
+    input:
+        template="templates/target.xml",
+    output:
+        xml=RESULTS + "/target/{cell}/target.xml",
+    params:
+        taxa=lambda w: ",".join(taxa(CELL_BY_ID[w.cell])),
+        dates=lambda w: dates(CELL_BY_ID[w.cell]),
+        n_segments=lambda w: CELL_BY_ID[w.cell]["n_segments"],
+        reassortment_rate=lambda w: CELL_BY_ID[w.cell]["reassortment_rate"],
+        n_sims=config["target_sims"],
+    resources:
+        mem_mb=1000,
+        runtime=5,
+    shell:
+        """
+        TAXA='{params.taxa}' \
+        DATES='{params.dates}' \
+        N_SEGMENTS={params.n_segments} \
+        REASSORTMENT_RATE={params.reassortment_rate} \
+        N_SIMS={params.n_sims} \
+        OUT_LOG=$(basename {output.xml} .xml).log \
+        envsubst < {input.template} > {output.xml}
+        """
+
+
+rule run_target:
+    input:
+        xml=RESULTS + "/target/{cell}/target.xml",
+        marker=RESULTS + "/.compiled",
+    output:
+        log=RESULTS + "/target/{cell}/target.log",
+    log:
+        RESULTS + "/target/{cell}/beast.out",
+    resources:
+        mem_mb=4000,
+        runtime=30,
+    shell:
+        """
+        cd $(dirname {input.xml}) \
+        && {BEAST} -overwrite -seed 1 $(basename {input.xml}) \
+           > $(basename {log}) 2>&1
+        """
+
+
+rule summarize_target:
+    input:
+        log=RESULTS + "/target/{cell}/target.log",
+        script="scripts/summarize_moments.py",
+    output:
+        tsv=RESULTS + "/target/{cell}/moments.tsv",
+    params:
+        annotate=lambda w: " ".join(
+            f"{k}={CELL_BY_ID[w.cell][k]}" for k in
+            ("n_taxa", "n_segments", "reassortment_rate")),
+    resources:
+        mem_mb=1000,
+        runtime=5,
+    shell:
+        """
+        python3 {input.script} --log {input.log} --out {output.tsv} \
+            --burnin-percent 0 --annotate {params.annotate}
+        """
+
+
+# ------------------------------------------------------------------- prior response curve
+
+rule render_prior:
+    input:
+        template="templates/prior_mcmc.xml",
+    output:
+        xml=RESULTS + "/prior/{pcell}/alpha_{alpha}/seed{seed}/prior.xml",
+    params:
+        taxa=lambda w: ",".join(taxa(PRIOR_BY_ID[w.pcell])),
+        segments=lambda w: ",".join(segments(PRIOR_BY_ID[w.pcell])),
+        dates=lambda w: dates(PRIOR_BY_ID[w.pcell]),
+        n_segments=lambda w: PRIOR_BY_ID[w.pcell]["n_segments"],
+        # The init network is only a starting point; prior sampling is init-independent.
+        reassortment_rate=config.get("prior_init_reassortment_rate", 1.0),
+        chain_length=config["prior_mcmc"]["chain_length"],
+        log_interval=config["prior_mcmc"]["log_interval"],
+        screen_log_interval=config["prior_mcmc"]["chain_length"] // 10,
+        partition_model=config.get("partition_model", "crp"),
+    resources:
+        mem_mb=1000,
+        runtime=5,
+    shell:
+        """
+        TAXA='{params.taxa}' \
+        SEGMENTS='{params.segments}' \
+        DATES='{params.dates}' \
+        N_SEGMENTS={params.n_segments} \
+        REASSORTMENT_RATE={params.reassortment_rate} \
+        ALPHA={wildcards.alpha} \
+        PARTITION_MODEL={params.partition_model} \
+        CHAIN_LENGTH={params.chain_length} \
+        LOG_INTERVAL={params.log_interval} \
+        SCREEN_LOG_INTERVAL={params.screen_log_interval} \
+        OUT_LOG=$(basename {output.xml} .xml).log \
+        envsubst < {input.template} > {output.xml}
+        """
+
+
+rule run_prior:
+    input:
+        xml=RESULTS + "/prior/{pcell}/alpha_{alpha}/seed{seed}/prior.xml",
+        marker=RESULTS + "/.compiled",
+    output:
+        log=RESULTS + "/prior/{pcell}/alpha_{alpha}/seed{seed}/prior.log",
+    log:
+        RESULTS + "/prior/{pcell}/alpha_{alpha}/seed{seed}/beast.out",
+    resources:
+        mem_mb=4000,
+        runtime=240,
+    shell:
+        """
+        cd $(dirname {input.xml}) \
+        && {BEAST} -overwrite -seed {wildcards.seed} -statefile prior.xml.state \
+             $(basename {input.xml}) \
+           > $(basename {log}) 2>&1
+        """
+
+
+rule summarize_prior:
+    input:
+        log=RESULTS + "/prior/{pcell}/alpha_{alpha}/seed{seed}/prior.log",
+        script="scripts/summarize_moments.py",
+    output:
+        tsv=RESULTS + "/prior/{pcell}/alpha_{alpha}/seed{seed}/moments.tsv",
+    params:
+        annotate=lambda w: " ".join(
+            [f"{k}={PRIOR_BY_ID[w.pcell][k]}" for k in ("n_taxa", "n_segments")]
+            + [f"alpha={w.alpha}", f"seed={w.seed}"]),
+        burnin=config["prior_mcmc"]["burnin_percent"],
+    resources:
+        mem_mb=1000,
+        runtime=5,
+    shell:
+        """
+        python3 {input.script} --log {input.log} --out {output.tsv} \
+            --burnin-percent {params.burnin} --annotate {params.annotate}
+        """
+
+
+# ------------------------------------------------------------------------------- the fit
+
+rule fit:
+    input:
+        target=expand(RESULTS + "/target/{cell}/moments.tsv", cell=CELL_IDS),
+        prior=[RESULTS + f"/prior/{pcell}/alpha_{alpha}/seed{seed}/moments.tsv"
+               for pcell in PRIOR_IDS for alpha in alphas_for(pcell)
+               for seed in PRIOR_SEEDS],
+        script="scripts/fit_calibration.py",
+    output:
+        calibration=RESULTS + "/calibration.tsv",
+        curves=RESULTS + "/response_curves.tsv",
+        refinement=RESULTS + "/refinement.yaml",
+    resources:
+        mem_mb=1000,
+        runtime=5,
+    shell:
+        """
+        python3 {input.script} \
+            --target {input.target} \
+            --prior {input.prior} \
+            --out {output.calibration} \
+            --curves {output.curves} \
+            --emit-refinement {output.refinement}
+        """

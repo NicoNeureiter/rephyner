@@ -1,0 +1,67 @@
+# Simulation-based mixing evaluation: rephyner vs CoalRe.
+#
+# DESIGN: no prior calibration. Data are generated at a few reassortment rates; each arm is then
+# run across a RANGE of its own prior setting (alpha for rephyner, reassortment rate for CoalRe),
+# and the two are compared post hoc at matched POSTERIOR complexity rather than at matched priors.
+#
+# Why: what determines sampling difficulty is the complexity of the object being sampled, not
+# whether the two priors agree. Matching post hoc also sidesteps the fact that rephyner's prior
+# cannot be made to match CoalRe's in much of this space, and it turns prior sensitivity into a
+# measured result instead of an assumption.
+#
+# See ../../simulation_study_plan.md.
+
+# ---------------------------------------------------------------- data generating model (truth)
+cells:
+  n_taxa: [15]
+  n_segments: [8]
+  reassortment_rate: [2.0, 4.0, 6.0]
+
+sites_per_segment: [500]
+
+truth:
+  pop_size: 1.0
+  # Measured at these settings: segment-tree height ~2.5-3.2, median branch ~0.07-0.13, 10th
+  # percentile branch ~0.008. At clock 0.15 and 500 sites that is ~6 substitutions on a median
+  # branch and a root-to-tip divergence of 0.42 subs/site -- informative without saturating JC
+  # (tip-to-tip p-distance ~0.51 against the 0.75 asymptote). The shortest quarter of branches
+  # stay unresolved, which is deliberate: a fully resolved topology makes the RF trace constant
+  # and the topology pseudo-ESS degenerate.
+  clock_rate: 0.15
+
+datasets: 2         # independent simulated datasets per truth cell
+seeds: [1, 2]       # chains per (dataset, setting). Not ceremonial: a chain stuck in
+                    # one mode can report a healthy within-chain ESS, which is exactly
+                    # the failure seen during calibration. Independent starts catch it.
+
+# ------------------------------------------------------------------------- inference arms
+# Each arm scans its own prior setting. These are the x-axis of the study, not nuisance values.
+arms:
+  rephyner:
+    # CRP concentration. Spans tree-like through the reticulate plateau at these (taxa, segments).
+    settings: [0.5, 1.0, 2.0, 4.0, 8.0, 16.0]
+  coalre:
+    # Reassortment rate assumed by the prior; deliberately NOT fixed to the truth, so both arms
+    # are scanned over a range rather than one being given oracle knowledge.
+    settings: [1.0, 2.0, 4.0, 6.0, 8.0]
+
+# Both arms use the true population size; it is not a factor here.
+inference:
+  pop_size: 1.0
+
+mcmc:
+  chain_length: 60000000
+  log_every: 10000
+  store_every: 1000000
+  burnin_percent: 10
+
+# The rephyner arm initialises its network from a CoalRe draw; a starting point only.
+init_reassortment_rate: 2.0
+
+java:
+  executable: java
+  beast_home: "/Applications/BEAST 2.7.7"
+  package_dir: "~/Library/Application Support/BEAST/2.7"
+  packages: [CoalRe, TargetedBeast, feast]
+  # The network reducer recurses over nodes; large ARGs overflow the default stack.
+  stack_size: "64m"

@@ -1,0 +1,20 @@
+# Per-cell alpha ladders, capped and refocused.
+#
+# The fitted alpha is below 2 in every cell of this grid (measured: n20_s5 needs 0.1-0.25,
+# n20_s15 needs 0.5-1). The high end of the global ladder is therefore pure plateau -- and it is
+# also the expensive end, because a large alpha means a heavily reticulate network and a slow
+# chain. For n20_s15 the alpha>=8 points were projected to take 46-90 hours EACH while
+# contributing nothing a target will ever use.
+#
+# So the expensive cells get a ladder concentrated where their targets actually sit, plus enough
+# of the upper range to establish the ceiling for reachability.
+alpha_ladder_by_cell:
+  # alpha=2.0 dropped: at ~2 samples per minute it would not finish on any useful
+  # timescale, and it was only there to establish the ceiling for the reachability
+  # check -- which alpha=1.0 already does (84 nodes, vs targets 53.9-79.3).
+  n20_s15: [0.1, 0.25, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+  n20_s10: [0.1, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 1.0, 2.0, 4.0]
+  n10_s15: [0.1, 0.5, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 4.0]
+  n10_s10: [0.1, 0.25, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 2.0, 4.0]
+  n20_s5:  [0.1, 0.12, 0.14, 0.17, 0.2, 0.25, 0.5, 1.0, 2.0, 4.0]
+  n10_s5:  [0.1, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 1.0, 2.0, 4.0]

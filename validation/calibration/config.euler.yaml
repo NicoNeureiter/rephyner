@@ -1,0 +1,18 @@
+# Production overrides for EULER / SLURM. Merged on top of config.yaml.
+
+target_sims: 2000
+
+prior_mcmc:
+  chain_length: 10000000
+  log_interval: 5000
+  burnin_percent: 20
+
+java:
+  executable: java
+  # The network reducer recurses over nodes; large ARGs overflow the default
+  # stack. Raise this if a run dies with StackOverflowError.
+  stack_size: "64m"
+  # Adapt both to the cluster. See simstudy/config.euler.yaml.
+  beast_home: "/cluster/home/USER/beast"
+  package_dir: "/cluster/home/USER/.beast/2.7"
+  packages: [CoalRe, TargetedBeast, feast]

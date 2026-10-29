@@ -1,0 +1,334 @@
+configfile: "config.yaml"
+
+import glob
+import os
+
+from snakemake.exceptions import WorkflowError
+
+
+REPO = os.path.abspath("../..")
+BEAST_HOME = config["java"]["beast_home"]
+JAVA = config["java"]["executable"]
+PACKAGE_DIR = config["java"]["package_dir"]
+PACKAGES = config["java"]["packages"]
+# When set, a prebuilt rephyner jar is used instead of compiling src/ on the cluster.
+REPHYNER_JAR = config["java"].get("rephyner_jar")
+RESULTS = config.get("results_dir", "results")
+CLASSES = os.path.abspath(RESULTS + "/classes")
+
+
+def classpath():
+    """Explicit classpath, most specific first: this working tree's classes, then the named
+    installed BEAST packages, then the jars vendored under deps/ as a fallback.
+
+    Two things this gets right that the `beast` launcher does not:
+      * rephyner resolves from THIS working tree, not from whatever version is installed;
+      * CoalRe resolves from the installed package (v2.9.0), not the older v1.0.4 vendored in
+        deps/. That matters: v1.0.4's GibbsOperatorAboveSegmentRoots takes
+        reassortmentRate/populationModel where the current one takes coalescentWithReassortment,
+        and the baseline arm has to be the CoalRe people actually use. The constant-rate
+        SimulatedCoalescentNetwork is identical between the two -- verified at 400 sims,
+        10 taxa / 4 segments / rho=0.2, agreeing to 3 decimals on node count, height and total
+        length -- so calibration targets do not depend on this choice.
+
+    Only the named packages are added, never the whole package directory: that directory also
+    contains an installed rephyner jar, and pulling it in would put a stale copy of the code under
+    test on the classpath.
+    """
+    entries = [os.path.abspath(os.path.expanduser(REPHYNER_JAR)) if REPHYNER_JAR else CLASSES]
+    for package in PACKAGES:
+        found = sorted(glob.glob(os.path.join(os.path.expanduser(PACKAGE_DIR), package,
+                                              "lib", "*.jar")))
+        if not found:
+            raise WorkflowError(
+                f"package '{package}' not found under {PACKAGE_DIR}; "
+                f"install it or adjust java.packages in the config")
+        entries += [j for j in found if "sources" not in j]
+    entries += sorted(glob.glob(os.path.join(REPO, "deps", "*", "lib", "*.jar")))
+    entries += [j for j in sorted(glob.glob(os.path.join(REPO, "lib", "*.jar")))
+                if "sources" not in j]
+    entries += sorted(glob.glob(os.path.join(BEAST_HOME, "lib", "packages", "*.jar")))
+    entries += sorted(glob.glob(os.path.join(BEAST_HOME, "lib", "*.jar")))
+    return ":".join(entries)
+
+
+CLASSPATH = classpath()
+VERSION_FILE = os.path.join(REPO, "version.xml")
+# NetworkReducer.reduce and the network traversals recurse over nodes, so a large ARG
+# (16 segments at a high reassortment rate) overflows the default JVM stack with a bare
+# StackOverflowError partway through a run. 16m was enough in testing; 64m is headroom.
+STACK_SIZE = config["java"].get("stack_size", "64m")
+BEAST = (f'{JAVA} -Xss{STACK_SIZE} -cp "{CLASSPATH}" beastfx.app.beast.BeastMain'
+         f' -version_file "{VERSION_FILE}"')
+
+MODELS = ["coalre", "rephyner"]
+TEMPLATE = {"coalre": "templates/infer_coalre.xml", "rephyner": "templates/infer_rephyner.xml"}
+
+# Each arm scans its own prior setting: the CRP concentration for rephyner, the assumed
+# reassortment rate for CoalRe. These are a factor of the study, not nuisance values to be
+# calibrated away, and the comparison is made post hoc at matched posterior complexity.
+SETTINGS = {m: [str(x) for x in config["arms"][m]["settings"]] for m in MODELS}
+
+
+def settings_for(model):
+    return SETTINGS[model]
+
+DATASETS = list(range(config["datasets"]))
+SEEDS = config["seeds"]
+
+CELLS = [
+    {"n_taxa": n, "n_segments": s, "reassortment_rate": r, "sites": sites}
+    for n in config["cells"]["n_taxa"]
+    for s in config["cells"]["n_segments"]
+    for r in config["cells"]["reassortment_rate"]
+    for sites in config["sites_per_segment"]
+]
+
+
+
+
+
+def cell_id(cell):
+    return "n{n_taxa}_s{n_segments}_r{reassortment_rate}_L{sites}".format(**cell)
+
+
+CELL_BY_ID = {cell_id(c): c for c in CELLS}
+CELL_IDS = sorted(CELL_BY_ID)
+
+
+def taxa(cell):
+    return [f"t{i + 1}" for i in range(cell["n_taxa"])]
+
+
+def segments(cell):
+    return [str(i + 1) for i in range(cell["n_segments"])]
+
+
+def dates(cell):
+    # Contemporaneous sampling. Serial sampling is a separate sensitivity cell, not part of the grid.
+    return ",".join(f"{t}=0.0" for t in taxa(cell))
+
+
+wildcard_constraints:
+    cell="|".join(CELL_IDS) if CELL_IDS else "NONE",
+    model="|".join(MODELS),
+    setting=r"[0-9.]+",
+    dataset=r"\d+",
+    seed=r"\d+",
+
+
+rule all:
+    input:
+        RESULTS + "/summary/curves.tsv",
+        RESULTS + "/summary/runs.tsv",
+
+
+rule compile:
+    """Compile src/ into a workflow-local directory, so every run uses this working tree."""
+    input:
+        sources=sorted(glob.glob(os.path.join(REPO, "src", "**", "*.java"), recursive=True)),
+    output:
+        marker=RESULTS + "/.compiled",
+    resources:
+        mem_mb=2000,
+        runtime=10,
+    params:
+        jar=REPHYNER_JAR or "",
+    shell:
+        """
+        if [ -n "{params.jar}" ]; then
+            test -f "{params.jar}" || (echo "rephyner_jar not found: {params.jar}" >&2; exit 1)
+        else
+            rm -rf {CLASSES} && mkdir -p {CLASSES} \
+            && javac -nowarn -cp "{CLASSPATH}" -d {CLASSES} $(find {REPO}/src -name '*.java')
+        fi
+        mkdir -p $(dirname {output.marker}) && touch {output.marker}
+        """
+
+
+# --------------------------------------------------------------------------------- simulate truth
+
+rule render_simulate:
+    input:
+        template="templates/simulate.xml",
+        script="scripts/render_xml.py",
+    output:
+        xml=RESULTS + "/sim_xml/{cell}/ds{dataset}.xml",
+    params:
+        taxa=lambda w: ",".join(taxa(CELL_BY_ID[w.cell])),
+        segments=lambda w: ",".join(segments(CELL_BY_ID[w.cell])),
+        dates=lambda w: dates(CELL_BY_ID[w.cell]),
+        n_segments=lambda w: CELL_BY_ID[w.cell]["n_segments"],
+        reassortment_rate=lambda w: CELL_BY_ID[w.cell]["reassortment_rate"],
+        sites=lambda w: CELL_BY_ID[w.cell]["sites"],
+        pop_size=config["truth"]["pop_size"],
+        clock_rate=config["truth"]["clock_rate"],
+    resources:
+        mem_mb=1000,
+        runtime=5,
+    shell:
+        """
+        python3 {input.script} --template {input.template} --out {output.xml} --set \
+            TAXA='{params.taxa}' \
+            SEGMENTS='{params.segments}' \
+            DATES='{params.dates}' \
+            N_SEGMENTS={params.n_segments} \
+            REASSORTMENT_RATE={params.reassortment_rate} \
+            SITES_PER_SEGMENT={params.sites} \
+            POP_SIZE={params.pop_size} \
+            CLOCK_RATE={params.clock_rate}
+        """
+
+
+rule simulate:
+    """One dataset. The per-segment alignments and true trees cannot be listed as outputs, because
+    their number depends on the cell and Snakemake only allows functions in inputs -- so the whole
+    data directory is the tracked output and downstream rules reference files inside it."""
+    input:
+        xml=RESULTS + "/sim_xml/{cell}/ds{dataset}.xml",
+        marker=RESULTS + "/.compiled",
+    output:
+        data=directory(RESULTS + "/data/{cell}/ds{dataset}"),
+    params:
+        xml=lambda w, input: os.path.abspath(input.xml),
+    resources:
+        mem_mb=4000,
+        runtime=20,
+    shell:
+        """
+        mkdir -p {output.data} \
+        && cd {output.data} \
+        && {BEAST} -overwrite -seed 1{wildcards.dataset} {params.xml} > beast.out 2>&1
+        """
+
+
+# -------------------------------------------------------------------------------------- inference
+
+rule render_infer:
+    input:
+        template=lambda w: TEMPLATE[w.model],
+        script="scripts/render_xml.py",
+        data=RESULTS + "/data/{cell}/ds{dataset}",
+    output:
+        xml=RESULTS + "/runs/{cell}/{model}/set{setting}/ds{dataset}/seed{seed}/run.xml",
+    params:
+        taxa=lambda w: ",".join(taxa(CELL_BY_ID[w.cell])),
+        segments=lambda w: ",".join(segments(CELL_BY_ID[w.cell])),
+        dates=lambda w: dates(CELL_BY_ID[w.cell]),
+        n_segments=lambda w: CELL_BY_ID[w.cell]["n_segments"],
+        reassortment_rate=lambda w: CELL_BY_ID[w.cell]["reassortment_rate"],
+        pop_size=config["inference"]["pop_size"],
+        clock_rate=config["truth"]["clock_rate"],
+        init_rate=config["init_reassortment_rate"],
+        chain_length=config["mcmc"]["chain_length"],
+        log_every=config["mcmc"]["log_every"],
+        store_every=config["mcmc"]["store_every"],
+        screen_log_every=config["mcmc"]["chain_length"] // 20,
+        data_dir=lambda w: os.path.abspath(
+            RESULTS + f"/data/{w.cell}/ds{w.dataset}"),
+        setting=lambda w: w.setting,
+    resources:
+        mem_mb=1000,
+        runtime=5,
+    shell:
+        """
+        python3 {input.script} --template {input.template} --out {output.xml} --set \
+            TAXA='{params.taxa}' \
+            SEGMENTS='{params.segments}' \
+            DATES='{params.dates}' \
+            N_SEGMENTS={params.n_segments} \
+            REASSORTMENT_RATE={params.setting} \
+            ALPHA={params.setting} \
+            INIT_REASSORTMENT_RATE={params.init_rate} \
+            POP_SIZE={params.pop_size} \
+            CLOCK_RATE={params.clock_rate} \
+            CHAIN_LENGTH={params.chain_length} \
+            LOG_EVERY={params.log_every} \
+            STORE_EVERY={params.store_every} \
+            SCREEN_LOG_EVERY={params.screen_log_every} \
+            DATA_DIR='{params.data_dir}'
+        """
+
+
+rule infer:
+    input:
+        xml=RESULTS + "/runs/{cell}/{model}/set{setting}/ds{dataset}/seed{seed}/run.xml",
+        data=RESULTS + "/data/{cell}/ds{dataset}",
+        marker=RESULTS + "/.compiled",
+    output:
+        trace=RESULTS + "/runs/{cell}/{model}/set{setting}/ds{dataset}/seed{seed}/trace.log",
+        runtime=RESULTS + "/runs/{cell}/{model}/set{setting}/ds{dataset}/seed{seed}/runtime.txt",
+    resources:
+        mem_mb=4000,
+        runtime=1440,
+    shell:
+        """
+        cd $(dirname {input.xml}) \
+        && /usr/bin/time -p {BEAST} -overwrite -seed {wildcards.seed} \
+             -statefile run.xml.state run.xml > beast.out 2> runtime.txt \
+        || (cat runtime.txt >&2; exit 1)
+        """
+
+
+rule summarize_run:
+    input:
+        trace=RESULTS + "/runs/{cell}/{model}/set{setting}/ds{dataset}/seed{seed}/trace.log",
+        runtime=RESULTS + "/runs/{cell}/{model}/set{setting}/ds{dataset}/seed{seed}/runtime.txt",
+        data=RESULTS + "/data/{cell}/ds{dataset}",
+        script="scripts/summarize_run.py",
+    output:
+        tsv=RESULTS + "/runs/{cell}/{model}/set{setting}/ds{dataset}/seed{seed}/metrics.tsv",
+    params:
+        burnin=config["mcmc"]["burnin_percent"],
+        trees=lambda w: " ".join(
+            RESULTS + f"/runs/{w.cell}/{w.model}/set{w.setting}/ds{w.dataset}/seed{w.seed}/seg{seg}.trees"
+            for seg in segments(CELL_BY_ID[w.cell])),
+        truth_trees=lambda w: " ".join(
+            RESULTS + f"/data/{w.cell}/ds{w.dataset}/truth_seg{seg}.trees"
+            for seg in segments(CELL_BY_ID[w.cell])),
+        truth_log=lambda w: RESULTS + f"/data/{w.cell}/ds{w.dataset}/truth.log",
+        annotate=lambda w: " ".join([
+            f"n_taxa={CELL_BY_ID[w.cell]['n_taxa']}",
+            f"n_segments={CELL_BY_ID[w.cell]['n_segments']}",
+            f"reassortment_rate={CELL_BY_ID[w.cell]['reassortment_rate']}",
+            f"sites={CELL_BY_ID[w.cell]['sites']}",
+            f"model={w.model}",
+            f"setting={w.setting}",
+            f"dataset={w.dataset}",
+            f"seed={w.seed}",
+        ]),
+    resources:
+        mem_mb=2000,
+        runtime=20,
+    shell:
+        """
+        python3 {input.script} \
+            --trace {input.trace} --runtime {input.runtime} \
+            --trees {params.trees} --truth-trees {params.truth_trees} \
+            --truth-log {params.truth_log} \
+            --burnin-percent {params.burnin} \
+            --annotate {params.annotate} \
+            --out {output.tsv}
+        """
+
+
+# ------------------------------------------------------------------------------------- aggregate
+
+rule aggregate:
+    input:
+        metrics=[RESULTS + f"/runs/{cell}/{model}/set{setting}/ds{dataset}/seed{seed}/metrics.tsv"
+                 for cell in CELL_IDS for model in MODELS
+                 for setting in settings_for(model)
+                 for dataset in DATASETS for seed in SEEDS],
+        script="scripts/aggregate.py",
+    output:
+        curves=RESULTS + "/summary/curves.tsv",
+        runs=RESULTS + "/summary/runs.tsv",
+    resources:
+        mem_mb=4000,
+        runtime=20,
+    shell:
+        """
+        python3 {input.script} --metrics {input.metrics} \
+            --out-curves {output.curves} --out-runs {output.runs}
+        """

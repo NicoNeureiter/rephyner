@@ -1,0 +1,135 @@
+<!DOCTYPE note [
+  <!ENTITY taxa "${TAXA}">
+  <!ENTITY segments "${SEGMENTS}">
+]>
+<beast version="2.0"
+       namespace="beast.pkgmgmt:beast.base.core:beast.base.inference
+                 :beast.base.inference.util
+                 :beast.base.inference.parameter
+                 :beast.base.evolution.alignment
+                 :beast.base.evolution.tree
+                 :beast.base.evolution.tree.coalescent
+                 :beast.base.evolution.operator
+                 :beast.base.inference.distribution
+                 :rephyner.network
+                 :rephyner.statistics
+                 :rephyner.simulator
+                 :rephyner.distribution
+                 :rephyner.operators
+                 :rephyner.operators.localtreeoperators
+                 :rephyner.operators.networkedgeoperators">
+
+    <!-- Response curve: sample the rephyner prior at one concentration and log the reduced stats.
+         There is no direct simulator for this prior, so we sample it with MCMC and no likelihood.
+         Ne is fixed to 1; the fit recovers it afterwards as a pure time rescaling. -->
+
+    <taxonset id="taxonSet" spec="TaxonSet">
+        <plate var="tax" range="&taxa;">
+            <taxon spec="Taxon" id="$(tax)"/>
+        </plate>
+    </taxonset>
+
+    <traitSet spec="TraitSet" traitname="date-backward" id="traitSet" taxa="@taxonSet">
+        ${DATES}
+    </traitSet>
+
+    <run spec="MCMC" chainLength="${CHAIN_LENGTH}" storeEvery="100000">
+
+        <state storeEvery="100000">
+            <stateNode id="network" spec="ReducedFromFullNetwork" enableSegmentTreeUpdate="false">
+                <fullNetwork id="fullNetworkInit" spec="coalre.simulator.SimulatedCoalescentNetwork"
+                             nSegments="${N_SEGMENTS}" enableSegmentTreeUpdate="false" traitSet="@traitSet">
+                    <populationModel spec="ConstantPopulation" popSize="1.0"/>
+                    <parameter name="reassortmentRate">${REASSORTMENT_RATE}</parameter>
+                </fullNetwork>
+            </stateNode>
+            <plate var="seg" range="&segments;">
+                <stateNode id="seg$(seg)tree" spec="Tree" taxonset="@taxonSet" trait="@traitSet"/>
+            </plate>
+        </state>
+
+        <init spec="SegmentTreeInitializer" network="@network">
+            <plate var="seg" range="&segments;">
+                <segmentTree idref="seg$(seg)tree"/>
+            </plate>
+        </init>
+
+        <distribution id="posterior" spec="CompoundDistribution">
+            <distribution id="networkPrior" spec="ReducedCoalescent"
+                          traitSet="@traitSet"
+                          partitionModel="${PARTITION_MODEL}">
+                <concentration spec="RealParameter" value="${ALPHA}" estimate="false"/>
+                <networkIntervals spec="NetworkIntervals" network="@network"/>
+                <populationModel spec="ConstantPopulation" popSize="1.0"/>
+            </distribution>
+        </distribution>
+
+        <!-- Node heights -->
+
+        <operator id="uniformNetworkNodeHeight" spec="UniformNetworkNodeHeightOperator"
+                  network="@network" weight="30.0">
+            <plate var="seg" range="&segments;"><segmentTree idref="seg$(seg)tree"/></plate>
+        </operator>
+
+        <operator id="networkScale" spec="NetworkScaleOperator" scaleFactor="0.9"
+                  network="@network" weight="10.0">
+            <plate var="seg" range="&segments;"><segmentTree idref="seg$(seg)tree"/></plate>
+        </operator>
+
+        <operator id="networkScaleRootOnly" spec="NetworkScaleOperator" scaleFactor="0.92"
+                  network="@network" scaleRootOnly="true" weight="10.0">
+            <plate var="seg" range="&segments;"><segmentTree idref="seg$(seg)tree"/></plate>
+        </operator>
+
+        <!-- Topology. Untargeted variants only: there is no alignment to weight edges by. -->
+
+        <operator id="localSubtreeSlide" spec="LocalTreeSubtreeSlide" network="@network"
+                  size="2.0" pNewNode="0.2" optimise="false" weight="30.0">
+            <plate var="seg" range="&segments;"><segmentTree idref="seg$(seg)tree"/></plate>
+        </operator>
+
+        <operator id="localTreeSPR" spec="LocalTreeSPR" network="@network"
+                  pNewNode="0.2" maxHeightRatio="1.1" weight="30.0">
+            <plate var="seg" range="&segments;"><segmentTree idref="seg$(seg)tree"/></plate>
+        </operator>
+
+        <operator id="localTreeWilsonBalding" spec="LocalTreeWilsonBalding" network="@network"
+                  size="2.0" pNewNode="0.25" optimise="false" weight="30.0">
+            <plate var="seg" range="&segments;"><segmentTree idref="seg$(seg)tree"/></plate>
+        </operator>
+
+        <operator id="networkEdgeSlide" spec="NetworkEdgeSlide" network="@network"
+                  size="2.0" weight="15.0">
+            <plate var="seg" range="&segments;"><segmentTree idref="seg$(seg)tree"/></plate>
+        </operator>
+
+        <operator id="networkEdgeRangeSlide" spec="NetworkEdgeRangeSlide" network="@network"
+                  size="0.3" weight="15.0">
+            <plate var="seg" range="&segments;"><segmentTree idref="seg$(seg)tree"/></plate>
+        </operator>
+
+        <operator id="networkEdgeWilsonBalding" spec="NetworkEdgeWilsonBalding" network="@network"
+                  size="1.0" weight="15.0">
+            <plate var="seg" range="&segments;"><segmentTree idref="seg$(seg)tree"/></plate>
+        </operator>
+
+        <operator id="divertSingleSegment" spec="DivertSingleSegmentOperator" network="@network"
+                  weight="15.0">
+            <plate var="seg" range="&segments;"><segmentTree idref="seg$(seg)tree"/></plate>
+        </operator>
+
+        <!-- Loggers -->
+
+        <logger spec="Logger" logEvery="${LOG_INTERVAL}" fileName="${OUT_LOG}">
+            <log idref="posterior"/>
+            <log spec="ReducedNetworkStatsLogger" reducedNetwork="@network"/>
+        </logger>
+
+        <logger spec="Logger" logEvery="${SCREEN_LOG_INTERVAL}">
+            <log idref="posterior"/>
+            <log spec="ReducedNetworkStatsLogger" reducedNetwork="@network"/>
+            <log spec="ESS" arg="@posterior"/>
+        </logger>
+
+    </run>
+</beast>

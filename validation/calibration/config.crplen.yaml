@@ -1,0 +1,15 @@
+# Length-scaled concentration on the cells the fixed-concentration model failed, plus controls it
+# passed. Under crpLength the ladder is a RATE (per lineage per unit time), not a concentration,
+# so it spans a different range.
+results_dir: "results_crplen"
+partition_model: "crpLength"
+cells:
+  n_taxa: [5, 10, 20]
+  n_segments: [4, 8]
+  reassortment_rate: [0.2, 0.5]
+alpha_ladder: [0.1, 0.25, 0.5, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0]
+target_sims: 1000
+prior_mcmc:
+  chain_length: 2000000
+  log_interval: 2000
+  burnin_percent: 20

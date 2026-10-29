@@ -1,0 +1,16 @@
+# Tiny end-to-end check of the wiring. Not a result.
+results_dir: "results_smoke"
+cells:
+  n_taxa: [15]
+  n_segments: [2]
+  reassortment_rate: [4.0]
+sites_per_segment: [500]
+truth: {pop_size: 1.0, clock_rate: 0.15}
+datasets: 1
+seeds: [1]
+arms:
+  rephyner: {settings: [1.0, 8.0]}
+  coalre:   {settings: [4.0]}
+inference: {pop_size: 1.0}
+mcmc: {chain_length: 300000, log_every: 1000, store_every: 100000, burnin_percent: 10}
+init_reassortment_rate: 2.0

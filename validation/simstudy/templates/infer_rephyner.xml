@@ -1,0 +1,177 @@
+<!DOCTYPE note [
+  <!ENTITY taxa "${TAXA}">
+  <!ENTITY segments "${SEGMENTS}">
+]>
+<beast version="2.0"
+       namespace="beast.pkgmgmt:beast.base.core:beast.base.inference
+                 :beast.base.inference.util
+                 :beast.base.inference.parameter
+                 :beast.base.evolution.alignment
+                 :beast.base.evolution.likelihood
+                 :beast.base.evolution.tree
+                 :beast.base.evolution.tree.coalescent
+                 :beast.base.evolution.sitemodel
+                 :beast.base.evolution.substitutionmodel
+                 :beast.base.evolution.operator
+                 :beast.base.inference.distribution
+                 :feast.fileio
+                 :rephyner.network
+                 :rephyner.statistics
+                 :rephyner.simulator
+                 :rephyner.distribution
+                 :rephyner.operators
+                 :rephyner.operators.localtreeoperators
+                 :rephyner.operators.networkedgeoperators">
+
+    <!-- rARG arm. The prior is the calibrated stand-in: ALPHA and POP_SIZE come from
+         validation/calibration/results/calibration.tsv for this cell, not from the truth. The
+         clock is fixed to the same value as the baseline arm. -->
+
+    <plate var="seg" range="&segments;">
+        <alignment id="seg$(seg)align" spec="AlignmentFromNexus"
+                   fileName="${DATA_DIR}/seg$(seg).alignment.nexus"/>
+    </plate>
+
+    <taxonset id="taxonSet" spec="TaxonSet">
+        <plate var="tax" range="&taxa;">
+            <taxon spec="Taxon" id="$(tax)"/>
+        </plate>
+    </taxonset>
+
+    <traitSet spec="TraitSet" traitname="date-backward" id="traitSet" taxa="@taxonSet">
+        ${DATES}
+    </traitSet>
+
+    <run spec="MCMC" chainLength="${CHAIN_LENGTH}" storeEvery="${STORE_EVERY}">
+
+        <state storeEvery="${STORE_EVERY}">
+            <stateNode id="network" spec="ReducedFromFullNetwork"
+                       enableSegmentTreeUpdate="false">
+                <fullNetwork id="fullNetworkInit" spec="coalre.simulator.SimulatedCoalescentNetwork"
+                             nSegments="${N_SEGMENTS}" enableSegmentTreeUpdate="false"
+                             traitSet="@traitSet">
+                    <populationModel spec="ConstantPopulation" popSize="${POP_SIZE}"/>
+                    <parameter name="reassortmentRate">${INIT_REASSORTMENT_RATE}</parameter>
+                </fullNetwork>
+            </stateNode>
+            <plate var="seg" range="&segments;">
+                <stateNode id="seg$(seg)tree" spec="Tree" taxonset="@taxonSet" trait="@traitSet"/>
+            </plate>
+        </state>
+
+        <init spec="SegmentTreeInitializer" network="@network">
+            <plate var="seg" range="&segments;">
+                <segmentTree idref="seg$(seg)tree"/>
+            </plate>
+        </init>
+
+        <distribution id="posterior" spec="CompoundDistribution">
+
+            <distribution id="likelihood" spec="CompoundDistribution">
+                <plate var="seg" range="&segments;">
+                    <distribution spec="TreeLikelihood">
+                        <data idref="seg$(seg)align"/>
+                        <tree idref="seg$(seg)tree"/>
+                        <siteModel spec="SiteModel">
+                            <mutationRate spec="RealParameter" value="${CLOCK_RATE}"
+                                          estimate="false"/>
+                            <substModel spec="JukesCantor"/>
+                        </siteModel>
+                    </distribution>
+                </plate>
+            </distribution>
+
+            <distribution id="prior" spec="CompoundDistribution">
+                <distribution id="networkPrior" spec="ReducedCoalescent"
+                              traitSet="@traitSet" partitionModel="crp">
+                    <concentration spec="RealParameter" value="${ALPHA}" estimate="false"/>
+                    <!-- Conservative post-hoc reticulation regularizer, fixed across the alpha
+                         scan (see doc/new_network_prior.md sec 2 and the sanity sweep that
+                         picked lambda=3: it partially closes the gap to CoalRe's reticulation
+                         without the ESS collapse seen at lambda>=4). -->
+                    <reticulationPenalty spec="RealParameter" value="3.0" estimate="false"/>
+                    <networkIntervals spec="NetworkIntervals" network="@network"/>
+                    <populationModel spec="ConstantPopulation" popSize="${POP_SIZE}"/>
+                </distribution>
+            </distribution>
+
+        </distribution>
+
+        <!-- Node heights -->
+
+        <operator id="uniformNetworkNodeHeight" spec="UniformNetworkNodeHeightOperator"
+                  network="@network" weight="30.0">
+            <plate var="seg" range="&segments;"><segmentTree idref="seg$(seg)tree"/></plate>
+        </operator>
+
+        <operator id="networkScale" spec="NetworkScaleOperator" scaleFactor="0.9"
+                  network="@network" weight="10.0">
+            <plate var="seg" range="&segments;"><segmentTree idref="seg$(seg)tree"/></plate>
+        </operator>
+
+        <operator id="networkScaleRootOnly" spec="NetworkScaleOperator" scaleFactor="0.92"
+                  network="@network" scaleRootOnly="true" weight="10.0">
+            <plate var="seg" range="&segments;"><segmentTree idref="seg$(seg)tree"/></plate>
+        </operator>
+
+        <!-- Topology -->
+
+        <operator id="localSubtreeSlide" spec="LocalTreeSubtreeSlide" network="@network"
+                  size="2.0" pNewNode="0.2" optimise="false" weight="30.0">
+            <plate var="seg" range="&segments;"><segmentTree idref="seg$(seg)tree"/></plate>
+        </operator>
+
+        <operator id="localTreeSPR" spec="LocalTreeSPR" network="@network"
+                  pNewNode="0.2" maxHeightRatio="1.1" weight="30.0">
+            <plate var="seg" range="&segments;"><segmentTree idref="seg$(seg)tree"/></plate>
+        </operator>
+
+        <operator id="localTreeWilsonBalding" spec="LocalTreeWilsonBalding" network="@network"
+                  size="2.0" pNewNode="0.25" optimise="false" weight="30.0">
+            <plate var="seg" range="&segments;"><segmentTree idref="seg$(seg)tree"/></plate>
+        </operator>
+
+        <operator id="networkEdgeSlide" spec="NetworkEdgeSlide" network="@network"
+                  size="2.0" weight="15.0">
+            <plate var="seg" range="&segments;"><segmentTree idref="seg$(seg)tree"/></plate>
+        </operator>
+
+        <operator id="networkEdgeRangeSlide" spec="NetworkEdgeRangeSlide" network="@network"
+                  size="0.3" weight="15.0">
+            <plate var="seg" range="&segments;"><segmentTree idref="seg$(seg)tree"/></plate>
+        </operator>
+
+        <operator id="networkEdgeWilsonBalding" spec="NetworkEdgeWilsonBalding" network="@network"
+                  size="1.0" weight="15.0">
+            <plate var="seg" range="&segments;"><segmentTree idref="seg$(seg)tree"/></plate>
+        </operator>
+
+        <operator id="divertSingleSegment" spec="DivertSingleSegmentOperator" network="@network"
+                  weight="15.0">
+            <plate var="seg" range="&segments;"><segmentTree idref="seg$(seg)tree"/></plate>
+        </operator>
+
+        <!-- Loggers. Identical statistics to the baseline arm. -->
+
+        <logger spec="Logger" logEvery="${LOG_EVERY}" fileName="trace.log">
+            <log idref="posterior"/>
+            <log idref="likelihood"/>
+            <log spec="ReducedNetworkStatsLogger" reducedNetwork="@network"/>
+            <plate var="seg" range="&segments;">
+                <log spec="TreeStatLogger" tree="@seg$(seg)tree"/>
+            </plate>
+        </logger>
+
+        <plate var="seg" range="&segments;">
+            <logger spec="Logger" logEvery="${LOG_EVERY}" mode="tree" fileName="seg$(seg).trees"
+                    log="@seg$(seg)tree"/>
+        </plate>
+
+        <logger spec="Logger" logEvery="${SCREEN_LOG_EVERY}">
+            <log idref="posterior"/>
+            <log idref="likelihood"/>
+            <log spec="ESS" arg="@posterior"/>
+        </logger>
+
+    </run>
+</beast>

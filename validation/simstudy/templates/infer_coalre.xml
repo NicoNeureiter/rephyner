@@ -1,0 +1,160 @@
+<!DOCTYPE note [
+  <!ENTITY taxa "${TAXA}">
+  <!ENTITY segments "${SEGMENTS}">
+]>
+<beast version="2.0"
+       namespace="beast.pkgmgmt:beast.base.core:beast.base.inference
+                 :beast.base.inference.util
+                 :beast.base.inference.parameter
+                 :beast.base.evolution.alignment
+                 :beast.base.evolution.likelihood
+                 :beast.base.evolution.tree
+                 :beast.base.evolution.tree.coalescent
+                 :beast.base.evolution.sitemodel
+                 :beast.base.evolution.substitutionmodel
+                 :beast.base.evolution.operator
+                 :beast.base.inference.distribution
+                 :feast.fileio
+                 :coalre.network
+                 :coalre.distribution
+                 :coalre.operators
+                 :coalre.simulator
+                 :coalre.statistics
+                 :rephyner.statistics">
+
+    <!-- Baseline arm. The reassortment rate and population size are FIXED to the values that
+         generated the data, and the clock is fixed: the only thing being compared between arms is
+         the ARG/rARG machinery. -->
+
+    <plate var="seg" range="&segments;">
+        <alignment id="seg$(seg)align" spec="AlignmentFromNexus"
+                   fileName="${DATA_DIR}/seg$(seg).alignment.nexus"/>
+    </plate>
+
+    <taxonset id="taxonSet" spec="TaxonSet">
+        <plate var="tax" range="&taxa;">
+            <taxon spec="Taxon" id="$(tax)"/>
+        </plate>
+    </taxonset>
+
+    <traitSet spec="TraitSet" traitname="date-backward" id="traitSet" taxa="@taxonSet">
+        ${DATES}
+    </traitSet>
+
+    <run spec="MCMC" chainLength="${CHAIN_LENGTH}" storeEvery="${STORE_EVERY}">
+
+        <state storeEvery="${STORE_EVERY}">
+            <!-- No segmentTree list here: SimulatedCoalescentNetwork CLEARS that input during
+                 initAndValidate (it uses it only to name segments), so the trees would never be
+                 filled. They are initialised by CoalRe's StateNodeInitialiser below instead. -->
+            <stateNode id="network" spec="SimulatedCoalescentNetwork"
+                       nSegments="${N_SEGMENTS}" enableSegmentTreeUpdate="false"
+                       traitSet="@traitSet">
+                <populationModel spec="ConstantPopulation" popSize="${POP_SIZE}"/>
+                <parameter name="reassortmentRate">${REASSORTMENT_RATE}</parameter>
+            </stateNode>
+            <plate var="seg" range="&segments;">
+                <stateNode id="seg$(seg)tree" spec="Tree" taxonset="@taxonSet" trait="@traitSet"/>
+            </plate>
+        </state>
+
+        <init spec="coalre.network.SegmentTreeInitializer" network="@network">
+            <plate var="seg" range="&segments;">
+                <segmentTree idref="seg$(seg)tree"/>
+            </plate>
+        </init>
+
+        <distribution id="posterior" spec="CompoundDistribution">
+
+            <distribution id="likelihood" spec="CompoundDistribution">
+                <plate var="seg" range="&segments;">
+                    <distribution spec="TreeLikelihood">
+                        <data idref="seg$(seg)align"/>
+                        <tree idref="seg$(seg)tree"/>
+                        <siteModel spec="SiteModel">
+                            <mutationRate spec="RealParameter" value="${CLOCK_RATE}"
+                                          estimate="false"/>
+                            <substModel spec="JukesCantor"/>
+                        </siteModel>
+                    </distribution>
+                </plate>
+            </distribution>
+
+            <distribution id="prior" spec="CompoundDistribution">
+                <distribution id="networkPrior" spec="CoalescentWithReassortment">
+                    <networkIntervals spec="coalre.distribution.NetworkIntervals" network="@network"/>
+                    <populationModel spec="ConstantPopulation" popSize="${POP_SIZE}"/>
+                    <reassortmentRate spec="RealParameter" value="${REASSORTMENT_RATE}"
+                                      estimate="false"/>
+                </distribution>
+            </distribution>
+
+        </distribution>
+
+        <!-- Operators -->
+
+        <operator spec="AddRemoveReassortment" network="@network" alpha="1.0" weight="100.0">
+            <plate var="seg" range="&segments;"><segmentTree idref="seg$(seg)tree"/></plate>
+        </operator>
+
+        <operator spec="DivertSegmentOperator" network="@network" weight="5.0">
+            <plate var="seg" range="&segments;"><segmentTree idref="seg$(seg)tree"/></plate>
+        </operator>
+
+        <operator spec="UniformNetworkNodeHeightOperator" network="@network" weight="5.0">
+            <plate var="seg" range="&segments;"><segmentTree idref="seg$(seg)tree"/></plate>
+        </operator>
+
+        <operator id="NetworkScale" spec="coalre.operators.NetworkScaleOperator" network="@network"
+                  weight="3.0" scaleFactor="0.95">
+            <plate var="seg" range="&segments;"><segmentTree idref="seg$(seg)tree"/></plate>
+        </operator>
+
+        <operator id="NetworkScaleRootOnly" spec="coalre.operators.NetworkScaleOperator"
+                  network="@network" scaleRootOnly="true" weight="3.0" scaleFactor="0.95">
+            <plate var="seg" range="&segments;"><segmentTree idref="seg$(seg)tree"/></plate>
+        </operator>
+
+        <operator spec="NetworkExchange" network="@network" isNarrow="false" weight="10.0">
+            <plate var="seg" range="&segments;"><segmentTree idref="seg$(seg)tree"/></plate>
+        </operator>
+
+        <operator spec="NetworkExchange" network="@network" isNarrow="true" weight="10.0">
+            <plate var="seg" range="&segments;"><segmentTree idref="seg$(seg)tree"/></plate>
+        </operator>
+
+        <operator spec="SubNetworkSlide" network="@network" weight="30.0">
+            <plate var="seg" range="&segments;"><segmentTree idref="seg$(seg)tree"/></plate>
+        </operator>
+
+        <operator id="GibbsOperatorAboveSegmentRoots" spec="GibbsOperatorAboveSegmentRoots"
+                  network="@network" coalescentWithReassortment="@networkPrior" weight="3.0">
+            <plate var="seg" range="&segments;"><segmentTree idref="seg$(seg)tree"/></plate>
+        </operator>
+
+        <!-- Loggers. The reduced-network statistics come from rephyner's reducer applied to this
+             arm's full ARG, so both arms report the identical quantity rather than CoalRe's
+             separately defined "observable" statistics. -->
+
+        <logger spec="Logger" logEvery="${LOG_EVERY}" fileName="trace.log">
+            <log idref="posterior"/>
+            <log idref="likelihood"/>
+            <log spec="ReducedNetworkStatsLogger" fullNetwork="@network"/>
+            <plate var="seg" range="&segments;">
+                <log spec="TreeStatLogger" tree="@seg$(seg)tree"/>
+            </plate>
+        </logger>
+
+        <plate var="seg" range="&segments;">
+            <logger spec="Logger" logEvery="${LOG_EVERY}" mode="tree" fileName="seg$(seg).trees"
+                    log="@seg$(seg)tree"/>
+        </plate>
+
+        <logger spec="Logger" logEvery="${SCREEN_LOG_EVERY}">
+            <log idref="posterior"/>
+            <log idref="likelihood"/>
+            <log spec="ESS" arg="@posterior"/>
+        </logger>
+
+    </run>
+</beast>

@@ -1,0 +1,82 @@
+<!DOCTYPE note [
+  <!ENTITY taxa "${TAXA}">
+  <!ENTITY segments "${SEGMENTS}">
+]>
+<beast version="2.0"
+       namespace="beast.pkgmgmt:beast.base.core:beast.base.inference
+                 :beast.base.inference.util
+                 :beast.base.inference.parameter
+                 :beast.base.evolution.alignment
+                 :beast.base.evolution.tree
+                 :beast.base.evolution.tree.coalescent
+                 :beast.base.evolution.sitemodel
+                 :beast.base.evolution.substitutionmodel
+                 :feast.simulation
+                 :rephyner.network
+                 :rephyner.statistics
+                 :rephyner.simulator
+                 :rephyner.distribution">
+
+    <!-- Truth for one dataset: a full ARG under CoalRe, its local trees, and an alignment per
+         local tree. Both arms are then fitted to these alignments, so neither model generated the
+         data in a way that favours it. -->
+
+    <taxonset id="taxonSet" spec="TaxonSet">
+        <plate var="tax" range="&taxa;">
+            <taxon spec="Taxon" id="$(tax)"/>
+        </plate>
+    </taxonset>
+
+    <traitSet spec="TraitSet" traitname="date-backward" id="traitSet" taxa="@taxonSet">
+        ${DATES}
+    </traitSet>
+
+    <run spec="GPSimulator" nSims="1">
+
+        <!-- Note: coalre.simulator.SimulatedCoalescentNetwork CLEARS its segmentTree input
+             during initAndValidate (it uses the list only to name segments), so it cannot fill
+             the trees we need for the alignments. rephyner's wrapper reduces that same ARG and
+             does populate them. The local trees are identical either way (reduction preserves
+             them by construction), so this changes nothing about the generating model. -->
+        <simulationObject id="network" spec="ReducedFromFullNetwork"
+                          enableSegmentTreeUpdate="true" fileName="truth.network">
+            <fullNetwork id="fullNetwork" spec="coalre.simulator.SimulatedCoalescentNetwork"
+                         nSegments="${N_SEGMENTS}" enableSegmentTreeUpdate="false"
+                         traitSet="@traitSet">
+                <populationModel spec="ConstantPopulation" popSize="${POP_SIZE}"/>
+                <parameter name="reassortmentRate">${REASSORTMENT_RATE}</parameter>
+            </fullNetwork>
+            <plate var="seg" range="&segments;">
+                <segmentTree id="seg$(seg)tree" spec="Tree" taxonset="@taxonSet" trait="@traitSet"/>
+            </plate>
+        </simulationObject>
+
+        <plate var="seg" range="&segments;">
+            <simulationObject id="seg$(seg)align" spec="feast.simulation.SimulatedAlignment"
+                              outputFileName="seg$(seg).alignment.nexus"
+                              sequenceLength="${SITES_PER_SEGMENT}" tree="@seg$(seg)tree">
+                <siteModel spec="SiteModel">
+                    <mutationRate spec="RealParameter" value="${CLOCK_RATE}"/>
+                    <substModel spec="JukesCantor"/>
+                </siteModel>
+            </simulationObject>
+        </plate>
+
+        <!-- True local trees: the topological accuracy target and the RF reference. -->
+        <plate var="seg" range="&segments;">
+            <logger spec="Logger" logEvery="1" mode="tree" fileName="truth_seg$(seg).trees">
+                <log idref="seg$(seg)tree"/>
+            </logger>
+        </plate>
+
+        <!-- True reduced-network statistics, on exactly the definitions the inference logs. -->
+        <logger spec="Logger" logEvery="1" fileName="truth.log">
+            <log spec="ReducedNetworkStatsLogger" reducedNetwork="@network"/>
+            <plate var="seg" range="&segments;">
+                <log spec="TreeStatLogger" tree="@seg$(seg)tree"/>
+            </plate>
+        </logger>
+
+    </run>
+
+</beast>

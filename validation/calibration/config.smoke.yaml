@@ -1,0 +1,14 @@
+# Separate output root, so a smoke run can never be mistaken for the real grid.
+results_dir: "results_smoke"
+
+# Tiny config for verifying the workflow wiring end to end. Not for real calibration.
+cells:
+  n_taxa: [5]
+  n_segments: [4]
+  reassortment_rate: [0.2]
+alpha_ladder: [0.2, 0.8]
+target_sims: 50
+prior_mcmc:
+  chain_length: 100000
+  log_interval: 500
+  burnin_percent: 20

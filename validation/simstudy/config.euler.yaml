@@ -1,0 +1,23 @@
+# Production overrides for EULER / SLURM. Merged on top of config.yaml, so only the keys that
+# differ appear here.
+
+datasets: 2
+seeds: [1, 2]
+
+mcmc:
+  chain_length: 60000000
+  log_every: 10000
+  store_every: 1000000
+  burnin_percent: 10
+
+java:
+  executable: java
+  # Cluster paths. A prebuilt jar replaces compiling src/ here, so only a JDK to RUN is needed.
+  beast_home: "/cluster/home/nneureiter/beast"
+  package_dir: "/cluster/home/nneureiter/.beast/2.7"
+  packages: [CoalRe, TargetedBeast, feast]
+  # Prebuilt jar, transferred from the local machine. Takes the place of compiling src/ here, and
+  # goes FIRST on the classpath so it shadows any installed rephyner package.
+  rephyner_jar: "/cluster/home/nneureiter/rephyner/rephyner.jar"
+  # The network reducer recurses over nodes; large ARGs overflow the default stack.
+  stack_size: "64m"

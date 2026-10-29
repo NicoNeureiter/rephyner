@@ -1,0 +1,43 @@
+<!DOCTYPE note [
+  <!ENTITY taxa "${TAXA}">
+]>
+<beast version="2.0"
+       namespace="beast.pkgmgmt:beast.base.core:beast.base.inference
+                 :beast.base.inference.util
+                 :beast.base.inference.parameter
+                 :beast.base.evolution.tree
+                 :beast.base.evolution.tree.coalescent
+                 :beast.base.evolution.alignment
+                 :feast.simulation
+                 :rephyner.network
+                 :rephyner.statistics
+                 :rephyner.simulator
+                 :rephyner.distribution">
+
+    <!-- Target moments: simulate full ARGs under CoalRe, reduce each one, log the reduced stats. -->
+
+    <taxonset id="taxonSet" spec="TaxonSet">
+        <plate var="tax" range="&taxa;">
+            <taxon spec="Taxon" id="$(tax)"/>
+        </plate>
+    </taxonset>
+
+    <traitSet spec="TraitSet" traitname="date-backward" id="traitSet" taxa="@taxonSet">
+        ${DATES}
+    </traitSet>
+
+    <run spec="GPSimulator" nSims="${N_SIMS}">
+
+        <simulationObject id="fullNetwork" spec="coalre.simulator.SimulatedCoalescentNetwork"
+                          nSegments="${N_SEGMENTS}" enableSegmentTreeUpdate="false" traitSet="@traitSet">
+            <populationModel spec="ConstantPopulation" popSize="1.0"/>
+            <parameter name="reassortmentRate">${REASSORTMENT_RATE}</parameter>
+        </simulationObject>
+
+        <logger spec="Logger" logEvery="1" fileName="${OUT_LOG}">
+            <log spec="ReducedNetworkStatsLogger" fullNetwork="@fullNetwork"/>
+        </logger>
+
+    </run>
+
+</beast>

@@ -1,0 +1,63 @@
+# Calibration of the dummy rARG prior against reduced CoalRe networks.
+#
+# For each grid cell we (a) simulate CoalRe ARGs, reduce them, and record the target moments,
+# and (b) sample the rephyner prior at a ladder of concentrations and record the same moments.
+# The fit then inverts the response curve. See doc/new_network_prior.md and
+# dummy_rarg_prior_plan.md for the model and the acceptance criteria.
+
+# Grid cells. Ne is fixed to 1 throughout: the coalescent is scale invariant in (Ne, time), so
+# the reassortment rate below is already relative to the coalescent rate, and Ne is recovered
+# afterwards as a pure time rescaling (see scripts/fit_calibration.py).
+cells:
+  n_taxa: [10, 20]
+  n_segments: [5, 10, 15]
+  reassortment_rate: [2.0, 4.0, 6.0]
+
+# Concentrations at which to sample the rephyner prior. Log spaced; the fit interpolates in
+# log(alpha), so the ladder should bracket the target node count in every cell.
+# Higher reassortment needs a higher concentration: the s8 cells at rho=5 fitted
+# around alpha 2.9-3.5, so the old ladder topping out at 6.4 leaves no headroom.
+# n20_s15 is dropped: its prior is bimodal with modes at 39 and 91-95 nodes while its targets are
+# 53.9-79.3, i.e. squarely in the gap, and its chains are the most expensive in the grid (tens of
+# hours each). No alpha can serve it, so paying for it is pointless.
+exclude_cells: [n20_s15_r2.0, n20_s15_r4.0, n20_s15_r6.0]
+
+alpha_ladder: [0.1, 0.25, 0.5, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0]
+
+# Partition model for the rephyner prior. 'crp' uses a fixed concentration; 'crpLength' scales it
+# by each node's mean parent-edge length, so splitting follows branch length as reassortment does
+# in CoalRe. Under 'crpLength' the alpha ladder is a rate, not a bare concentration.
+partition_model: "crp"
+
+# Draws from the CoalRe simulator per cell.
+target_sims: 1000
+
+# Independent chains per ladder point. Their agreement is the convergence diagnostic; where they
+# disagree the point is flagged rather than averaged, since chains stuck in different modes would
+# otherwise produce a mixture weighted by their starting points.
+prior_seeds: [1]
+
+# Prior MCMC per (cell, alpha).
+prior_mcmc:
+  chain_length: 2000000
+  log_interval: 2000
+  burnin_percent: 20
+
+# The workflow deliberately does NOT use the `beast` launcher: that resolves packages from the
+# user's installed package directory, so it would silently run whatever version of rephyner
+# happens to be installed rather than this working tree. Instead it compiles src/ into build/ and
+# invokes BeastMain with an explicit classpath.
+java:
+  executable: java
+  # The network reducer recurses over nodes; large ARGs overflow the default
+  # stack. Raise this if a run dies with StackOverflowError.
+  stack_size: "64m"
+  # Only needed for BEAST.base / BEAST.app and their bundled libraries.
+  beast_home: "/Applications/BEAST 2.7.7"
+  # Installed BEAST packages. Takes precedence over the jars vendored in deps/,
+  # so the baseline arm uses the current CoalRe rather than the older vendored one.
+  package_dir: "~/Library/Application Support/BEAST/2.7"
+  # Only these are put on the classpath. Never the whole directory: it also holds
+  # an installed rephyner jar, which would shadow the code under test.
+  packages: [CoalRe, TargetedBeast, feast]
+  # The jars vendored under deps/ remain on the classpath after these, as a fallback only.

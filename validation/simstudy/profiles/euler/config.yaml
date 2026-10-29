@@ -1,0 +1,43 @@
+# SLURM profile for EULER.
+#
+# BEAST is single threaded here, so every job asks for exactly one CPU. Asking for more would
+# inflate the CPU-time denominator behind ESS per hour without making anything faster.
+executor: slurm
+jobs: 100
+local-cores: 1
+printshellcmds: true
+keep-going: true
+rerun-incomplete: true
+latency-wait: 120
+restart-times: 1
+max-jobs-per-second: 2
+max-status-checks-per-second: 10
+
+default-resources:
+  - mem_mb_per_cpu=2000
+  - runtime=60
+
+set-resources:
+  infer:
+    mem_mb_per_cpu: 16000
+    runtime: "24h"
+    cpus_per_task: 1
+  simulate:
+    mem_mb_per_cpu: 4000
+    runtime: 30
+    cpus_per_task: 1
+  render_simulate:
+    mem_mb_per_cpu: 2000
+    runtime: 20
+  render_infer:
+    mem_mb_per_cpu: 2000
+    runtime: 20
+  summarize_run:
+    mem_mb_per_cpu: 4000
+    runtime: 30
+  aggregate:
+    mem_mb_per_cpu: 8000
+    runtime: 60
+  compile:
+    mem_mb_per_cpu: 4000
+    runtime: 20
