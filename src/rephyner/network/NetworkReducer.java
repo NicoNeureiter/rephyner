@@ -10,38 +10,6 @@ import rephyner.util.BitSetFun;
 
 public class NetworkReducer {
 
-    // private static NetworkNode castNode(coalre.network.NetworkNode coalreNode) {
-    // NetworkNode node = new NetworkNode();
-    // node.height = coalreNode.getHeight();
-    // // node.children = coalreNode.getChildEdges().stream()
-    // // .map(e -> castEdge(e))
-    // // .collect(Collectors.toList());
-
-    // // for (NetworkEdge e : node.children)
-    // // e.parentNode = node;
-
-    // return node;
-    // }
-
-    // private static NetworkEdge castEdge(coalre.network.NetworkEdge coalreEdge) {
-    // NetworkEdge edge = new NetworkEdge(
-    // null,
-    // castNode(coalreEdge.childNode),
-    // coalreEdge.hasSegments);
-    // return edge;
-    // }
-
-    // public static Set<NetworkNode> getRephynerNodes(Network network) {
-    // return network.getNodes().stream()
-    // .map(n -> castNode(n))
-    // .collect(Collectors.toSet());
-    // }
-
-    // public static Set<NetworkEdge> getRephynerEdges(Network network) {
-    // return network.getEdges().stream()
-    // .map(n -> castEdge(n))
-    // .collect(Collectors.toSet());
-    // }
     public static NetworkEdge castRecursively(
             coalre.network.NetworkEdge oldEdge,
             HashMap<coalre.network.NetworkNode, NetworkNode> nodeMap,
@@ -92,9 +60,6 @@ public class NetworkReducer {
             reducedNetwork.rootEdges.add(newRootEdge);
         }
 
-        // assert reducedNetwork.rootEdge.hasSegments.equals(rootEdge.hasSegments);
-        // assert reducedNetwork.rootEdge == reducedNodes.get(rootEdge.childNode).getParentEdges().get(0);
-
         if (network.segmentNames != null) {
             reducedNetwork.segmentNames = network.segmentNames.clone();
         }
@@ -106,10 +71,6 @@ public class NetworkReducer {
             reducedLeafNode.setTaxonIndex(leafNode.getTaxonIndex());
         }
 
-        // if (!reducedNetwork.isValid()){
-        // System.err.println(false);
-        // }
-        
         assert reducedNetwork.isValid();
 
         return reducedNetwork;

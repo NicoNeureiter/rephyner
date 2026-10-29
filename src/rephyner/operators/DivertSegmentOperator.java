@@ -39,7 +39,6 @@ public class DivertSegmentOperator extends NetworkOperator {
 
         NetworkEdge sourceEdge = sourceCandidates.get(Randomizer.nextInt(sourceCandidates.size()));
         logP += Math.log(1.0 / sourceCandidates.size());
-        System.out.println(sourceEdge.hasSegments);
 
         // Choose destination edge
         List<NetworkEdge> destCandidates = getSpouseEdges(sourceEdge, true);
@@ -71,7 +70,6 @@ public class DivertSegmentOperator extends NetworkOperator {
         assert network.getEdges().contains(sourceEdge);
 
         assert !destEdge.isRootEdge();
-        System.out.println(segsToDivert + " ⊆ " + sourceEdge.hasSegments);
         logP += detachEdgeSegments(sourceEdge, segsToDivert, true);
         logPBack += attachSegmentsLogProb(segsToDivert, height);
         if (destEdge.isRootEdge())
@@ -81,14 +79,11 @@ public class DivertSegmentOperator extends NetworkOperator {
         if (logP == Double.NEGATIVE_INFINITY || logPBack == Double.NEGATIVE_INFINITY)
             return Double.NEGATIVE_INFINITY;
 
-        System.out.println(logP + "    ----      " + logPBack);
-
         // TODO: Check why source edge is ALWAYS removed <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
         // If sourceEdge was removed in the process, the operator has to be rejected
         // (since it wouldn't be in the support of a possible reverse move)
         if (!(network.getEdges().contains(sourceEdge))) {
-            System.out.println(".");
             return Double.NEGATIVE_INFINITY;
         }
 
