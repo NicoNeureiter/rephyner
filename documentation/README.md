@@ -138,13 +138,3 @@ Next steps:
 1. Find out why local-tree topology mixes poorly; fix or drop `NetworkEdgeRangeSlide`.
 2. Run the full simulation-study grid after the operators are improved.
 3. Settle the learned prior in Python, compare it with importance-sampling estimates of the true prior on small examples, then update the Java port. Make it depend on $\rho$ if recombination rates are to be estimated.
-
-## Related notes
-
-* `doc/claude/new_network_prior.md`: derivation of `ReducedCoalescent`.
-* `dummy_rarg_prior_plan.md`, `validation/calibration/README.md`: calibration plan and results.
-* `simulation_study_plan.md`, `validation/simstudy/README.md`: design and decision rule of the simulation study.
-* `evaluation_plan.md`: empirical benchmarks.
-* `.github/local-tree-operators-review.md`: review of the local-tree operators.
-* `../phylophun/rephyner/learning_network_prior_plan.md`, `java_port_notes.md`: learned prior and its Java port.
-* [cleanup_candidates.md](cleanup_candidates.md): redundant files and code to check and delete.

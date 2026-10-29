@@ -58,3 +58,6 @@ validation/simstudy/slurm-logs/
 validation/simstudy/slurm/manifest_*.tsv
 validation/wcss/prior_mcmc/
 __pycache__/
+
+# Local working notes
+documentation/cleanup_candidates.md
