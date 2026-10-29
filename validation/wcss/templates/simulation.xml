@@ -23,40 +23,44 @@
                  :rephyner.operators">
 
     <run spec="GPSimulator" nSims="1">
-        <simulationObject id="network_truth" spec="SimulatedReducedCoalescentNetwork" fileName="prior/network.tree" maxHeight="3.0" >
-            <coalescenceRate spec="RealParameter" value="1.0"/>
+        <simulationObject id="network" spec="SimulatedUniformReducedNetwork" fileName="prior/network_${SIMULATION_ID}.tree" maxHeight="3.0" >
             <taxonSet spec="TaxonSet" id="taxonSet">
                 <plate var="tax" range="&taxa;">
                     <taxon spec="Taxon" id="$(tax)"/>
                 </plate>
             </taxonSet>
 
-            <traitSet spec="TraitSet" traitname="date-backward" id="traitSet">
+            <traitSet spec="TraitSet" traitname="date-backward" id="traitSet" taxa="@taxonSet">
                 ${DATES}
-                <taxa idref="taxonSet"/>
             </traitSet>
 
             <plate var="seg" range="&segments;">
-                <segmentTree id="seg$(seg)tree_truth" spec="Tree" taxonset="@taxonSet" trait="@traitSet"/>
+                <segmentTree id="seg$(seg)tree" spec="Tree" taxonset="@taxonSet" trait="@traitSet"/>
             </plate>
         </simulationObject>
 
-        
         <plate var="seg" range="&segments;">
-            <simulationObject id="seg$(seg)align" spec="SimulatedAlignment" outputFileName="simulated_data/seg$(seg).alignment.nexus"
-                    sequenceLength="20" tree="@seg$(seg)tree_truth">
+            <simulationObject id="seg$(seg)align" spec="SimulatedAlignment" outputFileName="simulated_data/seg$(seg)_${SIMULATION_ID}.alignment.nexus"
+                    sequenceLength="${SITES_PER_SEGMENT}" tree="@seg$(seg)tree">
                 <siteModel spec="SiteModel">
-                    <mutationRate spec="RealParameter" value="0.15"/>
+                    <mutationRate spec="RealParameter" value="${CLOCK_RATE}"/>
                     <substModel spec="JukesCantor"/>
                 </siteModel>
             </simulationObject>
         </plate>
 
         <plate var="seg" range="&segments;">
-            <logger spec="Logger" fileName="prior/seg$(seg).tree" logEvery="1">
-                <log idref="seg$(seg)tree_truth"/>
+            <logger spec="Logger" fileName="prior/seg$(seg)_${SIMULATION_ID}.tree" logEvery="1">
+                <log idref="seg$(seg)tree"/>
             </logger>
         </plate>
+
+        <logger spec="Logger" logEvery="1" fileName="prior/simulation_${SIMULATION_ID}.log">
+            <log spec="ReducedNetworkStatsLogger" reducedNetwork="@network"/>
+            <plate var="seg" range="&segments;">
+                <log spec="TreeStatLogger" tree="@seg$(seg)tree"/>
+            </plate>
+        </logger>
 
     </run>
 

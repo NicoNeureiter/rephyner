@@ -1,9 +1,12 @@
 # GENERAL
-n_sims: 1
+n_sims: 100
 
 # MODEL
-n_segments: 2 
-n_taxa: 11
+n_segments: 2
+n_taxa: 10
+clock_rate: 0.1
+sites_per_segment: 5000
 
 # INFERENCE
-chain_length: 100_000
+chain_length: 4_000_000
+log_interval: 4_000

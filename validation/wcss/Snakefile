@@ -1,29 +1,34 @@
 configfile: "config.yaml"
 
 
-simulation_ids = list(range(config["n_sims"]))
+java_path = "/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/bin/java"
+base_dir = "../../.."
+java_classpath = f"{base_dir}/rephyner/build-beast:{base_dir}/rephyner/build-beastfx:{base_dir}/CoalRe/build:{base_dir}/rephyner/build:{base_dir}/beast2/lib/beagle.jar:{base_dir}/beast2/lib/commons-math3-3.6.1.jar"
+
+sims = list(range(1, 1 + config["n_sims"]))
 segments = [f"{i+1}" for i in range(config["n_segments"])]
-taxon_names = [f"t{i+1}" for i in range(config["n_taxa"])]
-dates = [f"{n}={i/10:.1f}" for i, n in enumerate(taxon_names)]
+taxa = [f"t{i+1}" for i in range(config["n_taxa"])]
+# dates = [f"{n}={i/10:.1f}" for i, n in enumerate(taxa)]
+dates = [f"{n}={0:.1f}" for i, n in enumerate(taxa)]
 
 
-rule clean:
-    shell:
-        """
-        rm -f prior/simulation.xml
-        rm -f prior/*.tree
-        rm -f simulated_data/*.alignment.nexus
-        rm -f posterior/inference.xml
-        rm -f posterior/inference.log
-        rm -f posterior/*.trees
-        """
+config["segments"] = ",".join(segments)
+config["taxa"] = ",".join(taxa)
+config["dates"] = ",".join(dates)
+config["n_segments"] = len(segments)
+
 
 rule all:
     input:
-        expand("prior/simulation_{id}.xml", id=simulation_ids),
-        expand("prior/sim_{id}_network.tree", id=simulation_ids),
-        expand("prior/sim_{id}_seg{seg}.tree", id=simulation_ids, seg=segments),
-        expand("simulated_data/sim_{id}_seg{seg}.alignment.nexus", id=simulation_ids, seg=segments)
+        expand("prior/simulation_{id}.xml", id=sims),
+        expand("prior/network_{id}.tree", id=sims),
+        expand("prior/seg{seg}_{id}.tree", id=sims, seg=segments),
+        expand("simulated_data/seg{seg}_{id}.alignment.nexus", id=sims, seg=segments),
+        expand("posterior/network_{id}.trees", id=sims),
+        expand("posterior/seg{seg}_{id}.trees", id=sims, seg=segments),
+        expand("posterior/trace_summary.txt", id=sims),
+        "prior/all_simulation.log",
+
 
 rule generate_simulation_xml:
     input:
@@ -31,15 +36,19 @@ rule generate_simulation_xml:
     output:
         xml="prior/simulation_{id}.xml",
     params:
-        n_sims=config["n_sims"],
         segments=",".join(segments),
-        taxon_names=",".join(taxon_names),
+        taxa=",".join(taxa),
         dates=",".join(dates),
+        clock_rate=config["clock_rate"],
+        sites_per_segment=config["sites_per_segment"],
     shell:
         """
-        TAXA={params.taxon_names} \
+        SIMULATION_ID={wildcards.id} \
+        TAXA={params.taxa} \
         DATES={params.dates} \
+        CLOCK_RATE={params.clock_rate} \
         SEGMENTS={params.segments} \
+        SITES_PER_SEGMENT={params.sites_per_segment} \
         envsubst < {input.template} > {output.xml}
         """
 
@@ -48,48 +57,164 @@ rule generate_inference_xml:
     input:
         template="templates/inference.xml",
     output:
-        xml="posterior/inference.xml",
+        xml="posterior/inference_{id}.xml",
     params:
         segments=",".join(segments),
-        taxon_names=",".join(taxon_names),
+        taxa=",".join(taxa),
         dates=",".join(dates),
         chain_length=config["chain_length"],
+        log_interval=config["log_interval"],
+        n_segments=len(segments),
+        clock_rate=config["clock_rate"],
     shell:
         """
-        TAXA={params.taxon_names} \
+        SIMULATION_ID={wildcards.id} \
+        TAXA={params.taxa} \
         DATES={params.dates} \
+        CLOCK_RATE={params.clock_rate} \
+        N_SEGMENTS={params.n_segments} \
         SEGMENTS={params.segments} \
         CHAIN_LENGTH={params.chain_length} \
+        LOG_INTERVAL={params.log_interval} \
         envsubst < {input.template} > {output.xml}
         """
 
 
 rule run_simulation:
     input:
-        xml="prior/simulation.xml",
+        xml="prior/simulation_{id}.xml",
     output:
-        network="prior/network.tree",
-        trees=expand("prior/seg{seg}.tree", seg=segments),
-        alignments=expand("simulated_data/seg{seg}.alignment.nexus", seg=segments),
-    params:
-        JAVA="/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/bin/java",
-        JAVA_CLASSPATH="../../../rephyner/build-beast:../../../rephyner/build-beastfx:../../../CoalRe/build:../../../rephyner/build:../../../beast2/lib/beagle.jar",
+        simulated="prior/simulation_{id}.log",
+        network="prior/network_{id}.tree",
+        trees=expand("prior/seg{seg}_{{id}}.tree", seg=segments),
+        alignments=expand(
+            "simulated_data/seg{seg}_{{id}}.alignment.nexus", seg=segments
+        ),
     shell:
-        "{params.JAVA} -classpath {params.JAVA_CLASSPATH} beastfx.app.beast.BeastMain -overwrite -version_file /Users/nneureiter/Projects/BEAST/rephyner/version.xml -seed 123 {input.xml}"
+        """
+        {java_path} -classpath {java_classpath} \
+        beastfx.app.beast.BeastMain -overwrite -seed {wildcards.id} \
+        -version_file {base_dir}/rephyner/version.xml \
+        {input.xml} &> prior/screenlog/{wildcards.id}.txt
+        """
+
+
+rule direct_run_simulation:
+    input:
+        network=expand("prior/simulation_{id}.log", id=sims),
+        logfile=expand("prior/network_{id}.tree", id=sims),
+        trees=expand("prior/seg{seg}_{id}.tree", id=sims, seg=segments),
 
 
 rule run_inference:
-    input:  # TODO
-        xml="posterior/inference.xml",
-        alignments=expand("simulated_data/seg{seg}.alignment.nexus", seg=segments),
+    input:
+        xml="posterior/inference_{id}.xml",
+        alignments=expand(
+            "simulated_data/seg{seg}_{{id}}.alignment.nexus", seg=segments
+        ),
     output:
-        network="posterior/network.trees",
-        trees=expand("posterior/seg{seg}.trees", seg=segments),
-    params:
-        JAVA="/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/bin/java",
-        JAVA_CLASSPATH="../../../rephyner/build-beast:../../../rephyner/build-beastfx:../../../CoalRe/build:../../../rephyner/build:../../../beast2/lib/beagle.jar",
+        network="posterior/network_{id}.trees",
+        trees=expand("posterior/seg{seg}_{{id}}.trees", seg=segments),
+        logfile="posterior/trace_{id}.log",
     shell:
-        "{params.JAVA} -classpath {params.JAVA_CLASSPATH} beastfx.app.beast.BeastMain -overwrite -version_file /Users/nneureiter/Projects/BEAST/rephyner/version.xml -seed 123 {input.xml}"
+        """
+        {java_path} -classpath {java_classpath} \
+        beastfx.app.beast.BeastMain -overwrite -seed {wildcards.id} \
+        -version_file {base_dir}/rephyner/version.xml \
+        -statefile posterior/state/{wildcards.id}.xml.state \
+        {input.xml} &> posterior/screenlog/{wildcards.id}.txt
+        """
 
 
-# rule analyse_results:
+rule direct_run_inference:
+    input:
+        network=expand("posterior/network_{id}.trees", id=sims),
+        trees=expand("posterior/seg{seg}_{id}.trees", id=sims, seg=segments),
+        logfile=expand("posterior/trace_{id}.log", id=sims),
+
+
+rule combine_simulation:
+    input:
+        expand("prior/simulation_{id}.log", id=sims),
+    output:
+        "prior/all_simulation.log",
+    shell:
+        "logcombiner -renumber -log {input}  -o {output}"
+
+
+rule analyse_results:
+    input:
+        expand("posterior/trace_{id}.log", id=sims),
+    output:
+        "posterior/trace_summary.txt",
+    shell:
+        """
+        loganalyser -oneline -burnin 10 {input} > {output}
+        """
+
+
+rule coverage_calculator:
+    input:
+        simulated="prior/all_simulation.log",
+        logan="posterior/trace_summary.txt",
+    output:
+        "summary/coverage.html",
+    shell:
+        """
+        applauncher CoverageCalculator -skip 0 \
+        -log {input.simulated} -logAnalyser {input.logan} -out summary 
+        """
+
+
+rule generate_prior_mcmc_xml:
+    input:
+        template="templates/inference_prior.xml",
+    output:
+        xml="prior_mcmc/inference_prior.xml",
+    params:
+        segments=",".join(segments),
+        taxa=",".join(taxa),
+        dates=",".join(dates),
+        chain_length=config["chain_length"],
+        log_interval=config["log_interval"],
+        n_segments=len(segments),
+    shell:
+        """
+        TAXA={params.taxa} \
+        DATES={params.dates} \
+        N_SEGMENTS={params.n_segments} \
+        SEGMENTS={params.segments} \
+        CHAIN_LENGTH={params.chain_length} \
+        LOG_INTERVAL={params.log_interval} \
+        envsubst < {input.template} > {output.xml}
+        """
+
+
+rule run_prior_mcmc:
+    input:
+        xml="prior_mcmc/inference_prior.xml",
+    output:
+        network="prior_mcmc/network.trees",
+        trees=expand("prior_mcmc/seg{seg}.trees", seg=segments),
+        logfile="prior_mcmc/trace.log",
+    shell:
+        """
+        {java_path} -classpath {java_classpath} \
+        beastfx.app.beast.BeastMain -overwrite \
+        -version_file {base_dir}/rephyner/version.xml \
+        -statefile prior_mcmc/inference_prior.xml.state \
+        prior_mcmc/inference_prior.xml &> prior_mcmc/screenlog.txt
+        """
+
+
+rule clean:
+    shell:
+        """
+        rm -rf prior/*
+        mkdir prior/screenlog
+        rm -rf posterior/*
+        mkdir posterior/screenlog
+        mkdir posterior/state
+        rm -f simulated_data/*
+        rm -f summary/*
+        """

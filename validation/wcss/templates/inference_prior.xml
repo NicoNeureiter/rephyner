@@ -1,0 +1,175 @@
+<!DOCTYPE note [
+  <!ENTITY taxa "${TAXA}">
+  <!ENTITY segments "${SEGMENTS}">
+]>
+<beast version="2.0"
+       namespace="beast.pkgmgmt:beast.base.core:beast.base.inference
+                 :beast.base.inference.util
+                 :beast.base.inference.parameter
+                 :beast.base.evolution.alignment
+                 :beast.base.evolution.likelihood
+                 :beast.base.evolution.tree
+                 :beast.base.evolution.tree.coalescent
+                 :beast.base.evolution.sitemodel
+                 :beast.base.evolution.substitutionmodel
+                 :beast.base.evolution.operator
+                 :beast.base.evolution.operator
+                 :beast.base.inference.distribution
+                 :beast.base.inference.distribution.Prior
+                 :feast.simulation
+                 :feast.fileio
+                 :rephyner.network
+                 :rephyner.statistics
+                 :rephyner.simulator
+                 :rephyner.distribution
+                 :rephyner.operators
+                 :rephyner.operators.localtreeoperators
+                 ">
+
+    <taxonset id="taxonSet" spec="TaxonSet">
+        <plate var="tax" range="&taxa;">
+            <taxon spec="Taxon" id="$(tax)"/>
+        </plate>
+    </taxonset>
+
+    <traitSet spec="TraitSet" traitname="date-backward" id="traitSet">
+        ${DATES}
+        <taxa idref="taxonSet"/>
+    </traitSet>
+
+    <run spec="MCMC" chainLength="${CHAIN_LENGTH}" storeEvery="10000">
+
+        <state>
+            <stateNode id="reassortmentRate" spec="RealParameter" value="1.0"/>
+            <stateNode id="coalescenceRate" spec="RealParameter" value="1.0"/>
+            <stateNode id="maxHeight" spec="RealParameter" value="3.0"/>
+            <stateNode id="network" spec="SimulatedUniformReducedNetwork" 
+                nSegments="${N_SEGMENTS}" 
+                enableSegmentTreeUpdate="false" 
+                maxHeight="@maxHeight"
+                traitSet="@traitSet"
+            />
+            <plate var="seg" range="&segments;">
+                <stateNode id="seg$(seg)tree" spec="Tree" taxonset="@taxonSet" trait="@traitSet"/>
+            </plate>
+        </state>
+
+        <init spec="SegmentTreeInitializer" network="@network">
+            <plate var="seg" range="&segments;">
+                <segmentTree idref="seg$(seg)tree"/>
+            </plate>
+        </init>
+
+        <distribution id="posterior" spec="CompoundDistribution">
+
+            <distribution id="prior" spec="CompoundDistribution">
+                <!-- DUMMY PRIOR ==>> REMOVE -->
+
+                <!-- 
+                <plate var="seg" range="&segments;">
+                    <distribution id="UnifTreePrior$(seg)" spec="UniformTree" tree="@seg$(seg)tree" maxHeight="@maxHeight" network="@network"/>
+                </plate>
+                -->
+
+                <distribution id="networkPrior" spec="UniformReducedNetworkPrior" 
+                    maxHeight="@maxHeight"
+                    network="@network"/>
+
+                <!-- 
+                <distribution id="parametersPrior" spec="CompoundDistribution">
+                    <distribution spec="Prior" x="@clockRate">
+                        <!- distr spec="beast.base.inference.distribution.Uniform" lower="0.0" upper="1.0"/ ->
+                        <distr spec="beast.base.inference.distribution.OneOnX"/>
+                    </distribution>
+                </distribution> 
+                -->
+            </distribution>
+
+        </distribution>
+
+        <!-- Parameter Operators -->
+
+<!-- 
+        <operator spec="ScaleOperator" parameter="@reassortmentRate" scaleFactor="0.5" weight="1.0"/>
+        <operator spec="ScaleOperator" parameter="@clockRate" scaleFactor="0.5" weight="1.0"/>
+ -->
+
+<!-- 
+        <operator id="upDownOperator" spec="NetworkScaleOperator" scaleFactor="0.9"
+                  network="@network" weight="1.0">
+            <plate var="seg" range="&segments;">
+                <segmentTree idref="seg$(seg)tree"/>
+            </plate>
+            <downParameter idref="clockRate"/>
+        </operator>
+-->
+
+
+        <!-- Network Operators -->
+
+        <operator id="localSubtreeSlide" spec="LocalTreeSubtreeSlide" network="@network" size="0.05" weight="1.0">
+            <plate var="seg" range="&segments;">
+                <segmentTree idref="seg$(seg)tree"/>
+            </plate>
+        </operator>
+
+<!--    
+        <operator id="divertSegmentOperator" spec="DivertSingleSegmentOperator" network="@network" weight="1.0">
+            <plate var="seg" range="&segments;">
+                <segmentTree idref="seg$(seg)tree"/>
+            </plate>
+        </operator>
+
+
+        <operator spec="UniformNetworkNodeHeightOperator" network="@network" weight="1.0">
+            <plate var="seg" range="&segments;">
+                <segmentTree idref="seg$(seg)tree"/>
+            </plate>
+        </operator>
+   
+        <operator id="NetworkScale" spec="NetworkScaleOperator" scaleFactor="0.9"
+                  network="@network" weight="1.0">
+            <plate var="seg" range="&segments;">
+                <segmentTree idref="seg$(seg)tree"/>
+            </plate>
+        </operator>
+    
+        <operator id="NetworkScaleRootOnly" spec="NetworkScaleOperator" scaleFactor="0.9"
+                  network="@network" scaleRootOnly="true" weight="1.0">
+            <plate var="seg" range="&segments;">
+                <segmentTree idref="seg$(seg)tree"/>
+            </plate>
+        </operator>
+   -->
+        
+
+        <!-- Loggers -->
+
+        <logger spec="Logger" logEvery="${LOG_INTERVAL}" mode="tree" fileName="prior_mcmc/network.trees">
+            <log idref="network"/>
+        </logger>
+
+
+        <plate var="seg" range="&segments;">
+            <logger spec="Logger" logEvery="${LOG_INTERVAL}" mode="tree" fileName="prior_mcmc/seg$(seg).trees" log="@seg$(seg)tree"/>
+        </plate>
+
+        <logger spec="Logger" logEvery="${LOG_INTERVAL}" fileName="prior_mcmc/trace.log">
+            <log idref="posterior"/>
+            <!-- <log idref="networkPrior"/> -->
+            <log spec="ReducedNetworkStatsLogger" reducedNetwork="@network"/>
+            <plate var="seg" range="&segments;">
+                <log spec="TreeStatLogger" tree="@seg$(seg)tree"/>
+            </plate>
+            <log idref="coalescenceRate"/>
+        </logger>
+
+        <logger spec="Logger" logEvery="10000">
+            <log idref="posterior"/>
+            <!-- <log idref="networkPrior"/> -->
+            <log spec="ReducedNetworkStatsLogger" reducedNetwork="@network"/>
+            <log spec="ESS" arg="@posterior"/>
+        </logger>
+
+    </run>
+</beast>
