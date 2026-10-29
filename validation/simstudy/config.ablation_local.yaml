@@ -1,14 +1,14 @@
 # Reduced local operator ablation, for directional results only. Merged on top of config.yaml:
-#   snakemake --configfile config.yaml config.ablation_local.yaml --cores N ablation
-# 3 variants x 2 alpha x 2 datasets x 1 seed = 12 runs at 10M steps, ~75 CPU-min each.
+#   snakemake ablation --configfile config.yaml config.ablation_local.yaml --cores N
+# 3 variants x 2 alpha x 2 datasets x 2 seeds = 24 runs at 20M steps, ~2.5 CPU-h each.
 # Writes to its own directory, so it never touches the cluster results in results/.
 results_dir: "results_ablation_local"
 cells:
   reassortment_rate: [6.0]
 datasets: 2
-seeds: [1]
+seeds: [1, 2]
 mcmc:
-  chain_length: 10000000
+  chain_length: 20000000
   log_every: 5000
   store_every: 1000000
   burnin_percent: 10

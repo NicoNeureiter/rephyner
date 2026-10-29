@@ -87,6 +87,7 @@ public class LearnedReducedNetworkPrior extends NetworkDistribution {
 
     // Placeholder paths for Python scripts - update these to actual locations
     private static final String PYTHON_SCRIPT_DIR = "/path/to/rephyner/prior_learning/";
+    private static final String PARSE_EVENTS_SCRIPT = PYTHON_SCRIPT_DIR + "../parse_rarg_events.py";
     private static final String CHILD_CRP_SCRIPT = PYTHON_SCRIPT_DIR + "child_crp.py";
     private static final String WT_GAMMA_SCRIPT = PYTHON_SCRIPT_DIR + "wt_gamma.py";
     private static final int N_TRAINING_SAMPLES = 10000;
@@ -149,26 +150,34 @@ public class LearnedReducedNetworkPrior extends NetworkDistribution {
      * Run the child_crp.py script to fit topology parameters. Outputs topology.json with alpha, beta, p_all
      * coefficients.
      */
-    void runChildCrpScript(String treesFilePath, String outputDir) {
-        runPythonScript(CHILD_CRP_SCRIPT, treesFilePath, outputDir);
+    void runPreprocessingScripts(String treesFilePath, String outputDir) {
+        runPythonScript(PARSE_EVENTS_SCRIPT, treesFilePath, outputDir);
+    }
+
+    /**
+     * Run the child_crp.py script to fit topology parameters. Outputs topology.json with alpha, beta, p_all
+     * coefficients.
+     */
+    void runChildCrpScript(String eventsFilePath, String outputDir) {
+        runPythonScript(CHILD_CRP_SCRIPT, eventsFilePath, outputDir);
     }
 
     /**
      * Run the wt_gamma.py script to fit waiting time parameters. Outputs waiting_time.json with shape/scale parameters
      * per k.
      */
-    void runWtGammaScript(String treesFilePath, String outputDir) {
-        runPythonScript(WT_GAMMA_SCRIPT, treesFilePath, outputDir);
+    void runWtGammaScript(String eventsFilePath, String outputDir) {
+        runPythonScript(WT_GAMMA_SCRIPT, eventsFilePath, outputDir);
     }
 
     /**
      * Run a Python script with the given arguments.
      */
-    void runPythonScript(String scriptPath, String treesFilePath, String outputDir) {
+    void runPythonScript(String scriptPath, String inputPath, String outputDir) {
         try {
             ProcessBuilder processBuilder = new ProcessBuilder(
                     "python", scriptPath,
-                    "--input", treesFilePath,
+                    "--input", inputPath,
                     "--output", outputDir);
             processBuilder.redirectErrorStream(true);
             processBuilder.inheritIO(); // Show output in console for debugging
