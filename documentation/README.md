@@ -1,6 +1,6 @@
 # rephyner
 
-rephyner is a BEAST 2 package for Bayesian inference of reduced ancestral recombination graphs (rARGs). It is a fork of [CoalRe](https://github.com/nicfel/CoalRe) and uses it to simulate full ARGs. The Python code for the learned rARG prior is in `../phylophun/rephyner/` (separate repository). This document describes the state on 2026-10-20.
+rephyner is a BEAST 2 package for Bayesian inference of reduced ancestral recombination graphs (rARGs). It is a fork of [CoalRe](https://github.com/nicfel/CoalRe) and uses it to simulate full ARGs. The Python code for the learned rARG prior is in `prior_learning/`. This document describes the state on 2026-10-20.
 
 ## 1. Introduction
 
@@ -92,11 +92,11 @@ $$
 
 Parent edges are not modelled explicitly; they follow from which later nodes pick up a node's segments, so recombination is untimed by construction.
 
-Implemented in Python (`../phylophun/rephyner/prior_learning/`):
+Implemented in Python (`../prior_learning/`, details and results in its README):
 
-* waiting times: exponential or gamma per number of open nodes, or a rate based on the number of node pairs sharing a segment;
-* topology, pairwise urn (current reference): decide which segments coalesce, then let each segment pick a pair of children with probability proportional to node weights that grow when earlier segments chose the same node (so linked segments tend to coalesce together);
-* topology, two-lineage model (newest): models the two hidden ARG lineages behind each coalescence explicitly; not yet compared with the urn.
+* waiting times: exponential with a log-linear rate in the per-segment lineage counts (gamma per number of open nodes as baseline);
+* topology, pairwise urn (v4): decide which segments coalesce, then let each segment pick a pair of children with probability proportional to node weights that grow when earlier segments chose the same node (so linked segments tend to coalesce together);
+* topology, two-lineage model (v5, best): models the two hidden ARG lineages behind each coalescence explicitly.
 
 The Java class `LearnedReducedNetworkPrior` implements an older version and is on hold. Open issues: the model is fitted for one recombination rate, so it cannot be used to estimate $\rho$; samples at different times are not handled yet; and it is so far only checked against summary statistics, not against estimates of the true prior.
 
