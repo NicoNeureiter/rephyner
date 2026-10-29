@@ -74,7 +74,7 @@ A cheap density meant for testing the sampler, not an approximation of the integ
 
 2. Partition term: each node $v$ adds $\log q_\alpha(\pi_v)$, where $\pi_v$ is the split of $v$'s segments over its parent edges and $q_\alpha$ a Chinese restaurant process probability. This is where reticulation gets a probability: $\alpha$ controls how often segments are split, and $\alpha \to 0$ gives trees.
 
-3. Reticulation penalty: optionally subtract $\lambda \sum_v (p_v - 1)$. The total reticulation $\sum_v (p_v - 1)$ (= #edges − #nodes, 0 for a tree) is also the measure of network complexity used to compare rephyner with CoalRe (Section 5). The penalty is ad hoc and only used to pull rephyner's reticulation toward CoalRe's.
+3. Reticulation penalty: optionally subtract $\lambda \sum_v (p_v - 1)$. The total reticulation $\sum_v (p_v - 1)$ (= #edges − #nodes, 0 for a tree) grows with the node count for a fixed number of taxa. The penalty is ad hoc and only used to pull rephyner's reticulation toward CoalRe's.
 
 There is deliberately no term that depends on recombination times.
 
@@ -120,21 +120,23 @@ Working: rARG data structure, reduction, initialisation from simulated ARGs, `Re
 Results:
 
 * Validation of the uniform model (`validation/wcss`, 10 taxa, 2 segments, 100 replicates): coverage of the 95 % HPD intervals is 91–100 % for all statistics, so the sampler recovers a known model.
-* Calibration of `ReducedCoalescent` against CoalRe (`validation/calibration`): mean node counts can mostly be matched, but not the distribution. The prior's networks are about 30 % too short, and at high recombination rates no $\alpha$ reaches CoalRe's node count. The simulation study therefore compares the methods at matched posterior reticulation instead of matched priors.
+* Calibration of `ReducedCoalescent` against CoalRe (`validation/calibration`): mean node counts can mostly be matched, but not the distribution. The prior's networks are about 30 % too short, and at high recombination rates no $\alpha$ reaches CoalRe's node count. The simulation study therefore compares the methods at matched posterior complexity instead of matched priors.
 * infB benchmark (8 segments, about 200 taxa, spring 2026, with an older prior: a plain Kingman coalescent on the rARG nodes, without the shared-segment count and the partition term): rephyner had about 180× lower posterior ESS per hour than CoalRe; neither run converged.
-* Simulation study pilot (`validation/simstudy`, 15 taxa, 8 segments, $\rho \in \{2, 4, 6\}$). The rule fixed in advance is Go if rephyner reaches at least 2× CoalRe's ESS per CPU-hour on both continuous statistics and local-tree topology. ESS ratios rephyner / CoalRe at matched reticulation:
+* Simulation study pilot (`validation/simstudy`): data simulated under CoalRe (15 taxa, 8 segments, true $\rho \in \{2, 4, 6\}$, 4 runs per setting) and analysed with both methods over a range of prior settings (rephyner: $\alpha$; CoalRe: assumed recombination rate). Since the stand-in prior does not match CoalRe's, the prior setting largely determines how complex the posterior networks are, so we compare efficiency (ESS per CPU-hour) as a function of the posterior node count rather than per true $\rho$. Main findings:
+  * At low complexity CoalRe is more efficient, by about 3× on local-tree topology.
+  * rephyner scales much better to complex networks. Its runtime barely changes with network size, and its ESS per CPU-hour increases, whereas CoalRe's runtime grows steeply and its ESS per CPU-hour collapses. Above about 50 posterior nodes rephyner is the more efficient method on both continuous statistics and topology.
+  * Few runs reach more than 50 posterior nodes (CoalRe none above 54), so the rule fixed in advance (Go if rephyner reaches at least 2× CoalRe's ESS per CPU-hour on both measures over a contiguous range) cannot be assessed properly yet. That needs runs with both methods at higher complexity.
 
-  | true ρ | continuous | topology |
-  |---|---|---|
-  | 2 | 0.96× | 0.37× |
-  | 4 | 0.97× | 0.25× |
-  | 6 | 2.0× | 0.15× |
+  Mean over all runs in each node-count range (CoalRe / rephyner; – = no runs):
 
-  rephyner is competitive on continuous statistics and its cost barely depends on the prior setting, but CoalRe mixes local-tree topologies 3–7× better at every setting tried. The pilot is a no-go, and the bottleneck appears to be the local-tree operators rather than the prior.
+  | posterior node count | topology ESS / CPU-h | continuous ESS / CPU-h | CPU hours |
+  |---|---|---|---|
+  | < 40 | – / 329 | – / 696 | – / 2.5 |
+  | 40–45 | 1899 / 544 | 1403 / 1280 | 1.1 / 2.6 |
+  | 45–50 | 1494 / 615 | 840 / 1194 | 1.7 / 2.8 |
+  | > 50 | 376 / 759 | 196 / 1194 | 7.3 / 3.3 |
+
+  ![Topology ESS per CPU-hour against posterior node count](figures/node_count_vs_ess.png)
+
+  Local-tree topology ESS per CPU-hour against posterior node count in the pilot, one point per prior setting and true recombination rate, with a trend line per method.
 * Unit tests: all pass except the detailed-balance test of `NetworkEdgeRangeSlide` (probably a wrong Hastings ratio) and three piggyback cases of `HastingsRatioReversibilityTest`. The criterion of the latter (mean log Hastings ratio ≈ 0) is questionable, since it should be ≤ 0 by Jensen's inequality.
-
-Next steps:
-
-1. Find out why local-tree topology mixes poorly; fix or drop `NetworkEdgeRangeSlide`.
-2. Run the full simulation-study grid after the operators are improved.
-3. Settle the learned prior in Python, compare it with importance-sampling estimates of the true prior on small examples, then update the Java port. Make it depend on $\rho$ if recombination rates are to be estimated.
