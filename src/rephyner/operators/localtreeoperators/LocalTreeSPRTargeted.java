@@ -2,6 +2,7 @@ package rephyner.operators.localtreeoperators;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 import beast.base.core.Input;
 import rephyner.network.NetworkEdge;
 import rephyner.network.NetworkNode;
@@ -35,31 +36,43 @@ public class LocalTreeSPRTargeted extends LocalTreeOperatorTargeted {
         
         List<NetworkEdge> toEdgeCandidates = getDestinationEdgeCandidates(movingEdge, segment);
         if (toEdgeCandidates.isEmpty()) {
-            throw new DirectRejectException();
+            throw new DirectRejectException("noToEdgeCandidates");
         }
 
         List<Double> destinationLengths = getDestinationEdgeLengths(toEdgeCandidates, minHeight);
         List<Double> p = new ArrayList<>(destinationLengths);
 
+        assert Double.isFinite(p.get(0));
+
         // Choose a new edge to attache to
         if (!edgeWeights.isEmpty()){
             List<Double> w = getDestinationEdgeWeights(movingEdge, toEdgeCandidates, segment);
-            for (int i = 0; i < w.size(); i++)
-                p.set(i, p.get(i) * w.get(i));
+            assert Double.isFinite(w.get(0));
+            for (int i = 0; i < w.size(); i++){
+                assert Double.isFinite(p.get(i));
+                p.set(i, p.get(i) * w.get(i) + 1E-10);
+                assert Double.isFinite(p.get(i));
+            }
         }
+
 
         // Normalize p and sample categorical
         p = Util.normalize(p);
+        assert Double.isFinite(p.get(0));
         int idxDestEdge = RandomUtil.sampleCategorical(p);
 
         // Update target edge and logp
         target.edge = toEdgeCandidates.get(idxDestEdge);
         target.logP += Math.log(p.get(idxDestEdge));
 
+        assert Double.isFinite(target.logP);
+
         // Choose height within the valid range
         double nodeMinHeight = Math.max(minHeight, target.edge.getChildHeight());
         double nodeMaxHeight = Math.min(getMaxHeight(), target.edge.getParentHeight());
         double newHeight = RandomUtil.uniform(nodeMinHeight, nodeMaxHeight);
+
+        assert nodeMaxHeight > nodeMinHeight;
 
         target.node = new NetworkNode(newHeight);
         target.logP += Math.log(1.0 / destinationLengths.get(idxDestEdge));
@@ -77,7 +90,7 @@ public class LocalTreeSPRTargeted extends LocalTreeOperatorTargeted {
                 
         // If the old position is outside the backward accessible region, reject
         if (toHeight > getMaxHeight())
-            throw new DirectRejectException();
+            throw new DirectRejectException("h>maxHeight");
 
         List<NetworkEdge> toEdgeCandidates = getDestinationEdgeCandidates(movingEdge, segment);
         assert !toEdgeCandidates.isEmpty();
@@ -115,6 +128,8 @@ public class LocalTreeSPRTargeted extends LocalTreeOperatorTargeted {
             double lower = Math.max(minHeight, e.getChildHeight());
             double upper = Math.min(getMaxHeight(), e.getParentHeight());
             destinationLengths.add(upper - lower);
+            assert upper - lower > 0;
+            assert Double.isFinite(upper - lower);
         }
         return destinationLengths;
     }
@@ -128,10 +143,10 @@ public class LocalTreeSPRTargeted extends LocalTreeOperatorTargeted {
                 .toList();
     }
 
-    protected List<NetworkEdge> getDestinationEdgeCandidatesAtHeight(NetworkEdge edge, int segment, double height) {
+    protected ArrayList<NetworkEdge> getDestinationEdgeCandidatesAtHeight(NetworkEdge edge, int segment, double height) {
         return network.getEdgesAtHeight(height, segment).stream()
                 .filter(e -> e != edge)
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     @Override

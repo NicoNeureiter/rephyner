@@ -2,7 +2,6 @@ package rephyner.operators.localtreeoperators;
 
 import java.text.DecimalFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import beast.base.core.Input;
@@ -48,12 +47,14 @@ public class LocalTreeSubtreeSlide extends LocalTreeOperator {
     }
 
     @Override
-    protected List<NetworkEdge> getDestinationEdgeCandidatesAtHeight(NetworkEdge movingEdge, int segment, double newHeight) {
+    protected ArrayList<NetworkEdge> getDestinationEdgeCandidatesAtHeight(NetworkEdge movingEdge, int segment, double newHeight) {
         assert movingEdge.childNode.getHeight() < newHeight : "Edge would become negative";
         if (newHeight > movingEdge.parentNode.getHeight()) { // Slide the subtree up
-            return Arrays.asList(getAncestorAtHeight(movingEdge, segment, newHeight));
+            ArrayList<NetworkEdge> candidates = new ArrayList<>(1);
+            candidates.add(getAncestorAtHeight(movingEdge, segment, newHeight));
+            return candidates;
         } else { // Slide the subtree down
-            return getDescendantsAtHeight(movingEdge.getSisterEdge(segment), segment, newHeight);
+            return new ArrayList<>(getDescendantsAtHeight(movingEdge.getSisterEdge(segment), segment, newHeight));
         }
     }
 
@@ -81,7 +82,10 @@ public class LocalTreeSubtreeSlide extends LocalTreeOperator {
     @Override
     protected List<NetworkNode> getDestinationNodeCandidates(NetworkEdge edge, int segment) {
         double maxDelta = size / 2.0;
-        double minHeight = edge.parentNode.getHeight() - maxDelta;
+        double minHeight = Math.max(
+            edge.parentNode.getHeight() - maxDelta,
+            edge.childNode.getHeight()
+        );
         double maxHeight = edge.parentNode.getHeight() + maxDelta;
         List<NetworkNode> destinationNodeCandidates = network.getInternalNodeStream()
                 .filter(n -> minHeight < n.getHeight() && n.getHeight() < maxHeight) // in height range

@@ -8,6 +8,10 @@ public class Counter<T> extends HashMap<T, Integer> {
         this.put(key, this.getOrDefault(key, 0) + 1);
     }
 
+    public void incrementBy(T key, int i) {
+        this.put(key, this.getOrDefault(key, 0) + i);
+    }
+
     public int getCount(T key) {
         return this.getOrDefault(key, 0);
     }

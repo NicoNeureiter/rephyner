@@ -48,6 +48,12 @@ public class DetailedBalanceTest extends RephynerTestClass {
     }
 
     @Test
+    public void testLTSSPiggybackDetailedBalance() {
+        LocalTreeSubtreeSlideWithPiggybackFactory opFactory = new LocalTreeSubtreeSlideWithPiggybackFactory();
+        testDetailedBalance(opFactory);
+    }
+
+    @Test
     public void testLTWBDetailedBalance() {
         LocalTreeWilsonBaldingFactory opFactory = new LocalTreeWilsonBaldingFactory();
         testDetailedBalance(opFactory);
@@ -273,6 +279,7 @@ public class DetailedBalanceTest extends RephynerTestClass {
                 "network", network,
                 "size", 2.0,
                 "weight", 1.0,
+                "doPiggyback", false,
                 "segmentTree", segmentTrees.get(0),
                 "segmentTree", segmentTrees.get(1)
             );
@@ -280,6 +287,25 @@ public class DetailedBalanceTest extends RephynerTestClass {
             return operator;
         }
     }
+
+    class LocalTreeSubtreeSlideWithPiggybackFactory extends OperatorFactory {
+
+        @Override
+        public LocalTreeSubtreeSlide getOperator(ReducedNetwork network, List<Tree> segmentTrees) {
+            LocalTreeSubtreeSlide operator = new LocalTreeSubtreeSlide();
+            operator.initByName(
+                "network", network,
+                "size", 2.0,
+                "weight", 1.0,
+                "doPiggyback", true,
+                "segmentTree", segmentTrees.get(0),
+                "segmentTree", segmentTrees.get(1)
+            );
+            operator._updateSegmentTrees = false;
+            return operator;
+        }
+    }
+
 
     class LocalTreeWilsonBaldingFactory extends OperatorFactory {
 
@@ -291,6 +317,7 @@ public class DetailedBalanceTest extends RephynerTestClass {
                 "size", 2.0,
                 "weight", 1.0,
                 "pNewNode", 0.25,
+                "doPiggyback", false,
                 "segmentTree", segmentTrees.get(0),
                 "segmentTree", segmentTrees.get(1)
             );

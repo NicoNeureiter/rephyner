@@ -1,7 +1,9 @@
 package rephyner.operators.localtreeoperators;
 
 import java.text.DecimalFormat;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 import beast.base.core.Input;
 import beast.base.util.Randomizer;
 import rephyner.network.NetworkEdge;
@@ -10,7 +12,6 @@ import rephyner.network.ReducedNetwork;
 
 
 public class LocalTreeWilsonBalding extends LocalTreeOperator {
-
 
     final public Input<Double> sizeInput = new Input<>(
             "size",
@@ -47,10 +48,10 @@ public class LocalTreeWilsonBalding extends LocalTreeOperator {
                 .toList();
     }
 
-    protected List<NetworkEdge> getDestinationEdgeCandidatesAtHeight(NetworkEdge edge, int segment, double height) {
+    protected ArrayList<NetworkEdge> getDestinationEdgeCandidatesAtHeight(NetworkEdge edge, int segment, double height) {
         return network.getEdgesAtHeight(height, segment).stream()
                 .filter(e -> e != edge)
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     /**
@@ -69,7 +70,7 @@ public class LocalTreeWilsonBalding extends LocalTreeOperator {
     protected double getNewHeight(NetworkEdge edge, int segment) {
         double h = edge.parentNode.getHeight() + getDelta();
         if (h < edge.getChildHeight())
-            throw new DirectRejectException();
+            throw new DirectRejectException("h<childHeight");
         else
             return h;
     }

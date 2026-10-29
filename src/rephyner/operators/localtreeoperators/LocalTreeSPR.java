@@ -2,6 +2,7 @@ package rephyner.operators.localtreeoperators;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 import beast.base.core.Input;
 import rephyner.network.NetworkEdge;
 import rephyner.network.NetworkNode;
@@ -35,7 +36,7 @@ public class LocalTreeSPR extends LocalTreeOperator {
         
         List<NetworkEdge> destinationCandidates = getDestinationEdgeCandidates(edge, segment);
         if (destinationCandidates.isEmpty()) {
-            throw new DirectRejectException();
+            throw new DirectRejectException("noToEdgeCandidates");
         }
 
         List<Double> destinationLengths = getDestinationEdgeLengths(destinationCandidates, minHeight);
@@ -65,7 +66,7 @@ public class LocalTreeSPR extends LocalTreeOperator {
                 
         // If the old position is outside the backward accessible region, reject
         if (toHeight > getMaxHeight())
-            throw new DirectRejectException();
+            throw new DirectRejectException("h>maxHeight");
 
         List<NetworkEdge> destinationCandidates = getDestinationEdgeCandidates(movingEdge, segment);
         assert !destinationCandidates.isEmpty();
@@ -104,10 +105,10 @@ public class LocalTreeSPR extends LocalTreeOperator {
                 .toList();
     }
 
-    protected List<NetworkEdge> getDestinationEdgeCandidatesAtHeight(NetworkEdge edge, int segment, double height) {
+    protected ArrayList<NetworkEdge> getDestinationEdgeCandidatesAtHeight(NetworkEdge edge, int segment, double height) {
         return network.getEdgesAtHeight(height, segment).stream()
                 .filter(e -> e != edge)
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     @Override
