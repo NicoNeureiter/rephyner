@@ -19,6 +19,10 @@
     <provider classname="rephyner.operators.localtreeoperators.LocalTreeSPRTargeted"/>
     <provider classname="rephyner.operators.localtreeoperators.LocalTreeWilsonBalding"/>
     <provider classname="rephyner.operators.localtreeoperators.LocalTreeWilsonBaldingTargeted"/>
+    <provider classname="rephyner.operators.networkedgeoperators.NetworkEdgeSlide"/>
+    <provider classname="rephyner.operators.networkedgeoperators.NetworkEdgeRangeSlide"/>
+    <provider classname="rephyner.operators.networkedgeoperators.NetworkEdgeWilsonBalding"/>
+    <provider classname="rephyner.operators.networkedgeoperators.NetworkEdgeWilsonBaldingTargeted"/>
     <provider classname="rephyner.operators.DivertSegmentOperator"/>
     <provider classname="rephyner.operators.NetworkScaleOperator"/>
     <provider classname="rephyner.operators.UniformNetworkNodeHeightOperator"/>
