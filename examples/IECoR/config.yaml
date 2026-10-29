@@ -1,0 +1,30 @@
+# Benchmark configuration for rephyner vs CoalRe on InfB.
+
+models:
+  rephyner:
+    block_dir: blocks/rephyner
+    namespace: ":rephyner.network:rephyner.statistics:rephyner.simulator:rephyner.distribution:rephyner.operators:rephyner.operators.localtreeoperators:rephyner.operators.networkedgeoperators:targetedbeast.edgeweights:orc.consoperators:feast.expressions"
+    seed_base: 1000
+  coalre:
+    block_dir: blocks/coalre
+    namespace: ":coalre.network:coalre.distribution:coalre.operators:coalre.simulator:coalre.statistics:orc.consoperators:feast.expressions"
+    seed_base: 2000
+
+template:
+  xml: templates/IECoR_template.xml
+
+replicates: [0, 1]
+
+mcmc:
+  chain_length: 2000000
+  store_every: 100000
+  log_every: 50000
+  screen_log_every: 10000
+  pop_size: 2.0
+
+loganalyser:
+  burnin_percent: 10
+
+commands:
+  beast: beast
+  loganalyser: "applauncher LogAnalyser"

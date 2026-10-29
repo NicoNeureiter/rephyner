@@ -1,0 +1,71 @@
+    <operator id="ReassortmentRateScaler" spec="ScaleOperator" parameter="@reassortmentRate" scaleFactor="0.5" weight="3.0"/>
+    <!-- <operator id="NeScaler" spec="ScaleOperator" parameter="@popSize.t" scaleFactor="0.5" weight="3.0"/> -->
+    <operator id="ucldMeanScaler" spec="ScaleOperator" parameter="@ucldMean" weight="3.0"/>
+    <operator id="ucldStdevScaler" spec="ScaleOperator" parameter="@ucldStdev" weight="3.0"/>
+    <plate var="concept" range="&concepts;">
+        <operator id="ORCAdaptableOperatorSampler_sigma.$(concept)" spec="AdaptableOperatorSampler" weight="1.5">
+            <parameter idref="ucldStdev"/>
+            <operator id="ORCucldStdevScaler.$(concept)" spec="orc.consoperators.UcldScalerOperator" distr="@ORCLogNormalDistributionModel.$(concept)" rates="@ORCRates.$(concept)" scaleFactor="0.5" stdev="@ucldStdev" weight="1.0"/>
+            <operator id="ORCUcldStdevRandomWalk.$(concept)" spec="operator.kernel.BactrianRandomWalkOperator" parameter="@ucldStdev" scaleFactor="0.1" weight="1.0"/>
+            <operator id="ORCUcldStdevScale.$(concept)" spec="kernel.BactrianScaleOperator" parameter="@ucldStdev" scaleFactor="0.5" upper="10.0" weight="1.0"/>
+        </operator>
+    </plate>
+    <operator id="bcovAlphaScaler" spec="ScaleOperator" parameter="@bcov_alpha" weight="0.2"/>
+    <operator id="bcovSwitchParamScaler" spec="ScaleOperator" parameter="@bcov_s" weight="0.2"/>
+    <operator id="frequenciesDelta" spec="DeltaExchangeOperator" delta="0.01" weight="0.5" parameter="@frequencies"/>
+    <operator id="FixMeanMutationRatesOperator" spec="operator.kernel.BactrianDeltaExchangeOperator" delta="0.75" weight="2.0">
+        <parameter idref="mutationRate"/>
+        <parameter idref="mutationRate.s:full"/>
+        <parameter idref="mutationRate.s:ant"/>
+        <parameter idref="mutationRate.s:burn"/>
+        <parameter idref="mutationRate.s:big"/>
+        <parameter idref="mutationRate.s:hide"/>
+        <parameter idref="mutationRate.s:push"/>
+        <weightvector id="weightparameter" spec="parameter.IntegerParameter" dimension="7" estimate="false" lower="0" upper="0">42 289 684 681 493 164 64</weightvector>
+    </operator>
+
+    <operator spec="AddRemoveReassortment" network="@network" alpha="1.0" weight="60.0">
+        <plate var="concept" range="&concepts;">
+            <segmentTree idref="$(concept).tree"/>
+        </plate>
+    </operator>
+    <operator spec="DivertSegmentOperator" network="@network" weight="6.0">
+        <plate var="concept" range="&concepts;">
+            <segmentTree idref="$(concept).tree"/>
+        </plate>
+    </operator>
+    <operator spec="UniformNetworkNodeHeightOperator" network="@network" weight="6.0">
+        <plate var="concept" range="&concepts;">
+            <segmentTree idref="$(concept).tree"/>
+        </plate>
+    </operator>
+    <operator id="NetworkScale" spec="NetworkScaleOperator" network="@network" weight="4.0" scaleFactor="0.95">
+        <plate var="concept" range="&concepts;">
+            <segmentTree idref="$(concept).tree"/>
+        </plate>
+    </operator>
+    <operator id="NetworkScaleRootOnly" spec="NetworkScaleOperator" network="@network" scaleRootOnly="true" weight="1.0" scaleFactor="0.95">
+        <plate var="concept" range="&concepts;">
+            <segmentTree idref="$(concept).tree"/>
+        </plate>
+    </operator>
+    <operator spec="NetworkExchange" network="@network" isNarrow="false" weight="10.0">
+        <plate var="concept" range="&concepts;">
+            <segmentTree idref="$(concept).tree"/>
+        </plate>
+    </operator>
+    <operator spec="NetworkExchange" network="@network" isNarrow="true" weight="10.0">
+        <plate var="concept" range="&concepts;">
+            <segmentTree idref="$(concept).tree"/>
+        </plate>
+    </operator>
+    <operator spec="SubNetworkSlide" network="@network" weight="30.0">
+        <plate var="concept" range="&concepts;">
+            <segmentTree idref="$(concept).tree"/>
+        </plate>
+    </operator>
+    <operator id="GibbsOperatorAboveSegmentRoots" spec="GibbsOperatorAboveSegmentRoots" network="@network" coalescentWithReassortment="@networkPrior" weight="5.0">
+        <plate var="concept" range="&concepts;">
+            <segmentTree idref="$(concept).tree"/>
+        </plate>
+    </operator>

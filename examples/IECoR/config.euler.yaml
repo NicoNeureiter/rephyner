@@ -1,0 +1,18 @@
+# Production-scale overrides for EULER / SLURM runs.
+
+replicates: [0, 1, 2, 3]
+
+mcmc:
+  chain_length: 50000000
+  store_every: 1000000
+  log_every: 50000
+  screen_log_every: 200000
+  pop_size: 2.0
+
+commands:
+  beast: $HOME/beast/bin/beast
+  loganalyser: "$HOME/beast/bin/applauncher LogAnalyser"
+  env_setup: |
+    if [ -f "./scripts/euler_env.sh" ]; then
+      source "./scripts/euler_env.sh"
+    fi

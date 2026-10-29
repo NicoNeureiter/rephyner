@@ -1,0 +1,11 @@
+                <distribution id="networkPrior" spec="CoalescentWithReassortment">
+                    <networkIntervals spec="NetworkIntervals" network="@network"/>
+                    <populationModel spec="ConstantPopulation">
+                        <popSize idref="popSize.t"/>
+                    </populationModel>
+                    <reassortmentRate idref="reassortmentRate"/>
+                </distribution>
+
+                <prior id="ReassortmentRatePrior" name="distribution" x="@reassortmentRate">
+                    <LogNormal id="LogNormalDistributionModel.reassortmentRate" meanInRealSpace="true" name="distr" M="0.1" S="4"/>
+                </prior>

@@ -1,0 +1,102 @@
+		<operator id="ReassortmentRateScaler" spec="ScaleOperator" parameter="@reassortmentRate" scaleFactor="0.5" weight="3"/>
+        <operator id="clockRatescaler" spec="ScaleOperator" parameter="@clockRate.c" scaleFactor="0.75" weight="3"/>
+
+		<plate var="seg" range="&segments;">
+            <operator id="KappaScaler.s:$(seg)_1" spec="ScaleOperator" parameter="@kappa.s:$(seg)_1" scaleFactor="0.5" weight="0.1"/>
+            <operator id="KappaScaler.s:$(seg)_3" spec="ScaleOperator" parameter="@kappa.s:$(seg)_3" scaleFactor="0.5" weight="0.1"/>
+            <operator id="FrequenciesExchanger.s:$(seg)_1" spec="DeltaExchangeOperator" delta="0.01" weight="0.1" parameter="@freqParameter.s:$(seg)_1"/>
+            <operator id="FrequenciesExchanger.s:$(seg)_3" spec="DeltaExchangeOperator" delta="0.01" weight="0.1" parameter="@freqParameter.s:$(seg)_3"/>
+            <operator id="alpha_scaler_1.$(seg)" spec="ScaleOperator" parameter="@gammaShape.s:$(seg)_1" scaleFactor="0.75" weight="0.1"/>
+            <operator id="alpha_scaler_3.$(seg)" spec="ScaleOperator" parameter="@gammaShape.s:$(seg)_3" scaleFactor="0.75" weight="0.1"/>
+        </plate>
+
+        <operator id="FixMeanMutationRatesOperator" spec="DeltaExchangeOperator" delta="0.75" weight="3.0">
+            <parameter idref="mutationRate.s:HA_1"/>
+            <parameter idref="mutationRate.s:HA_3"/>
+			<parameter idref="mutationRate.s:MP_1"/>
+			<parameter idref="mutationRate.s:MP_3"/>
+			<parameter idref="mutationRate.s:NA_1"/>
+			<parameter idref="mutationRate.s:NA_3"/>
+			<parameter idref="mutationRate.s:NP_1"/>
+			<parameter idref="mutationRate.s:NP_3"/>
+			<parameter idref="mutationRate.s:NS1_1"/>
+			<parameter idref="mutationRate.s:NS1_3"/>
+			<parameter idref="mutationRate.s:PA_1"/>
+			<parameter idref="mutationRate.s:PA_3"/>
+			<parameter idref="mutationRate.s:PB1_1"/>
+			<parameter idref="mutationRate.s:PB1_3"/>
+			<parameter idref="mutationRate.s:PB2_1"/>
+			<parameter idref="mutationRate.s:PB2_3"/>
+          <weightvector id="weightparameter" spec="parameter.IntegerParameter" dimension="4" estimate="false">
+1237 619 781 390 1014 507 1193 597 709 354 1523 761 1567 783 1587 794           </weightvector>
+        </operator>
+
+        <operator id="upDownOperator" spec="NetworkScaleOperator" network="@network" weight="5.0" scaleFactor="0.95">
+			<plate var="seg" range="&segments;">
+				<segmentTree idref="$(seg).tree"/>
+			</plate>
+            <!-- <upParameter idref="popSize.t"/> -->
+            <downParameter idref="clockRate.c"/>
+            <downParameter idref="reassortmentRate"/>
+        </operator>
+
+        <operator spec="AddRemoveReassortment" network="@network" alpha="1.0" weight="100.0">
+			<plate var="seg" range="&segments;">
+				<segmentTree idref="$(seg).tree"/>
+			</plate>
+        </operator>
+
+      	<operator spec="DivertSegmentOperator" network="@network" weight="5.0">
+			<plate var="seg" range="&segments;">
+				<segmentTree idref="$(seg).tree"/>
+			</plate>
+        </operator>
+
+      	<operator spec="UniformNetworkNodeHeightOperator" network="@network" weight="5.0">
+			<plate var="seg" range="&segments;">
+				<segmentTree idref="$(seg).tree"/>
+			</plate>
+        </operator>
+
+        <operator id="NetworkScale" spec="NetworkScaleOperator" network="@network" weight="3.0" scaleFactor="0.95">
+			<plate var="seg" range="&segments;">
+				<segmentTree idref="$(seg).tree"/>
+			</plate>
+        </operator>
+
+		<operator id="NetworkScaleIndep" spec="NetworkScaleOperator" network="@network" weight="3.0" scaleFactor="0.95">
+			<plate var="seg" range="&segments;">
+				<segmentTree idref="$(seg).tree"/>
+			</plate>
+        </operator>
+
+        <operator id="NetworkScaleRootOnly" spec="NetworkScaleOperator" network="@network" scaleRootOnly="true" weight="3.0" scaleFactor="0.95">
+			<plate var="seg" range="&segments;">
+				<segmentTree idref="$(seg).tree"/>
+			</plate>
+        </operator>
+
+      	<operator spec="NetworkExchange" network="@network" isNarrow="false" weight="10.0">
+			<plate var="seg" range="&segments;">
+				<segmentTree idref="$(seg).tree"/>
+			</plate>
+        </operator>
+
+      	<operator spec="NetworkExchange" network="@network" isNarrow="true" weight="10.0">
+			<plate var="seg" range="&segments;">
+				<segmentTree idref="$(seg).tree"/>
+			</plate>
+        </operator>
+
+      	<operator spec="SubNetworkSlide" network="@network" weight="30.0">
+			<plate var="seg" range="&segments;">
+				<segmentTree idref="$(seg).tree"/>
+			</plate>
+        </operator>
+
+        <operator id="GibbsOperatorAboveSegmentRoots" spec="GibbsOperatorAboveSegmentRoots" network="@network"
+				 	coalescentWithReassortment="@networkPrior" weight="3.0">
+			<plate var="seg" range="&segments;">
+				<segmentTree idref="$(seg).tree"/>
+			</plate>
+        </operator>

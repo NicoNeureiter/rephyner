@@ -1,0 +1,70 @@
+                <distribution id="networkPrior" spec="ReducedCoalescent" traitSet="@traitSet">
+                    <networkIntervals spec="NetworkIntervals" network="@network"/>
+                    <populationModel spec="ConstantPopulation" popSize="@popSize.t"/>
+                </distribution>
+
+                <plate var="concept" range="&concepts;">
+                    <distribution id="$(concept).weights" spec="targetedbeast.edgeweights.PCAWeightsBrownian" tree="@$(concept).tree" dimension="3" maxWeight="20" data="@orgdata.$(concept)"/>
+<!-- 
+                    <distribution id="$(concept).weights" spec="targetedbeast.edgeweights.LearnedWeights"
+                                tree="@$(concept).tree"
+                                data="@orgdata.$(concept)"
+                                likelihood="@treeLikelihood.$(concept)"
+                                dimension="10"
+                                nTrainingTrees="50000"
+                                maxIterations="400000"
+                                trainingTreeBurninPercentage="5"
+                                trainingTreeThinInterval="1"
+                                pcaRegularizationWeight="1e-3"
+                                slopeRegularizationWeight="1e-3"
+                                miniBatchSize="300"
+                                useLogSlopeParameterization="true"
+                                learningRate="0.04">
+                        <trainingTreeFile>IECOR_pca.trees</trainingTreeFile>
+                        <trainingLogFile>IECOR_pca.log</trainingLogFile>
+                    </distribution> -->
+                </plate>
+
+                <prior id="ClockPrior" name="distribution">
+                    <x id="lossrate" spec="feast.expressions.ExpCalculator"><arg idref="ucldMean"/><arg idref="frequencies"/>
+                        ucldMean / (2 * frequencies[1])
+                    </x>
+                    <LogNormal name="distr" spec="distribution.LogNormalDistributionModel">
+                        <parameter id="lossratePrior.M" spec="parameter.RealParameter" estimate="false" name="M">-7.4524824544238095</parameter>
+                        <parameter id="lossratePrior.S" spec="parameter.RealParameter" estimate="false" lower="0.0" name="S" upper="5.0">0.566676206191776</parameter>
+                    </LogNormal>
+                </prior>
+
+                <prior id="ucldStdevPrior" name="distribution" x="@ucldStdev">
+                    <Gamma id="Gamma.ucldStdev" name="distr">
+                        <parameter id="ucldStdev.alpha" spec="parameter.RealParameter" estimate="false" name="alpha">0.5396</parameter>
+                        <parameter id="ucldStdev.beta" spec="parameter.RealParameter" estimate="false" name="beta">0.3819</parameter>
+                    </Gamma>
+                </prior>
+
+                <plate var="concept" range="&concepts;">
+                    <prior id="ORCRatePriorDistribution.$(concept)" name="distribution" x="@ORCRates.$(concept)">
+                        <LogNormal id="ORCRateLogNormalDistributionModel.$(concept)" S="@ucldStdev" meanInRealSpace="true" name="distr">
+                            <parameter id="ORCRateM.$(concept)" spec="parameter.RealParameter" estimate="false" lower="0.0" name="M" upper="1.0">1.0</parameter>
+                        </LogNormal>
+                    </prior>
+                </plate>
+
+                <prior id="PopSizePrior" name="distribution" x="@popSize.t">
+                    <LogNormal id="LogNormalDistributionModel.PopSize" name="distr" M="0" S="2"/>
+                </prior>
+
+                <prior id="ReassortmentRatePrior" name="distribution" x="@reassortmentRate">
+                    <Exponential id="ExponentialDistribution.reassortmentRate" name="distr" mean="0.1"/>
+                </prior>
+
+                <prior id="bcov_alpha_prior" name="distribution" x="@bcov_alpha">
+                    <Uniform id="Uniform.1" name="distr" upper="Infinity"/>
+                </prior>
+
+                <prior id="bcov_s_prior" name="distribution" x="@bcov_s">
+                    <Gamma id="Gamma.0" name="distr">
+                        <alpha id="Function$Constant.0" spec="Function$Constant" value="0.05"/>
+                        <beta id="Function$Constant.1" spec="Function$Constant" value="10.0"/>
+                    </Gamma>
+                </prior>

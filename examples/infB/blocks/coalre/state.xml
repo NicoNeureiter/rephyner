@@ -1,0 +1,6 @@
+            <stateNode id="network" spec="SimulatedCoalescentNetwork"
+                       nSegments="8" enableSegmentTreeUpdate="false" traitSet="@traitSet">
+                <populationModel id="popModel" spec="ConstantPopulation" popSize="{{POP_SIZE}}"/>
+                <parameter id="reassortmentRate.init" name="reassortmentRate">0.1</parameter>
+            </stateNode>
+            <parameter id="reassortmentRate" name="stateNode">0.1</parameter>

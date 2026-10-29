@@ -1,0 +1,137 @@
+
+        <!-- Non-network parameter operators -->
+        
+        <operator id="ucldMeanScaler" spec="ScaleOperator" parameter="@ucldMean" weight="3.0"/>
+        <operator id="ucldStdevScaler" spec="ScaleOperator" parameter="@ucldStdev" weight="3.0"/>
+
+        <plate var="concept" range="&concepts;">
+            <operator id="ORCAdaptableOperatorSampler_sigma.$(concept)" spec="AdaptableOperatorSampler" weight="1.5">
+                <parameter idref="ucldStdev"/>
+                <operator id="ORCucldStdevScaler.$(concept)" spec="orc.consoperators.UcldScalerOperator" distr="@ORCLogNormalDistributionModel.$(concept)" rates="@ORCRates.$(concept)" scaleFactor="0.5" stdev="@ucldStdev" weight="1.0"/>
+                <operator id="ORCUcldStdevRandomWalk.$(concept)" spec="operator.kernel.BactrianRandomWalkOperator" parameter="@ucldStdev" scaleFactor="0.1" weight="1.0"/>
+                <operator id="ORCUcldStdevScale.$(concept)" spec="kernel.BactrianScaleOperator" parameter="@ucldStdev" scaleFactor="0.5" upper="10.0" weight="1.0"/>
+            </operator>
+        </plate>
+        <operator id="bcovAlphaScaler" spec="ScaleOperator" parameter="@bcov_alpha" weight="0.2"/>
+        <operator id="bcovSwitchParamScaler" spec="ScaleOperator" parameter="@bcov_s" weight="0.2"/>
+        <operator id="frequenciesDelta" spec="DeltaExchangeOperator" delta="0.01" weight="0.5" parameter="@frequencies"/>
+        <operator id="FixMeanMutationRatesOperator" spec="operator.kernel.BactrianDeltaExchangeOperator" delta="0.75" weight="2.0">
+            <parameter idref="mutationRate"/>
+            <parameter idref="mutationRate.s:full"/>
+            <parameter idref="mutationRate.s:ant"/>
+            <parameter idref="mutationRate.s:burn"/>
+            <parameter idref="mutationRate.s:big"/>
+            <parameter idref="mutationRate.s:hide"/>
+            <parameter idref="mutationRate.s:push"/>
+            <weightvector id="weightparameter" spec="parameter.IntegerParameter" dimension="7" estimate="false" lower="0" upper="0">42 289 684 681 493 164 64</weightvector>
+        </operator>
+
+
+        <!-- Node height operators (no topology changes) -->
+
+        <operator id="NetworkScale" spec="NetworkScaleOperator" scaleFactor="0.9" 
+                    network="@network" weight="20.0">
+            <plate var="concept" range="&concepts;"><segmentTree idref="$(concept).tree"/></plate>
+        </operator>
+
+        <operator id="NetworkScaleUpDown" spec="NetworkScaleOperator" scaleFactor="0.9" 
+                    network="@network" weight="20.0">
+            <plate var="seg" range="&concepts;"><segmentTree idref="$(seg).tree"/></plate>
+            <downParameter idref="ucldMean"/>
+        </operator>
+
+        <operator id="NetworkScaleRootOnly" spec="NetworkScaleOperator" scaleFactor="0.92"
+                    network="@network" scaleRootOnly="true" weight="20.0">
+            <plate var="concept" range="&concepts;"><segmentTree idref="$(concept).tree"/></plate>
+        </operator>
+
+        <operator id="uniformNetworkNodeHeight" spec="UniformNetworkNodeHeightOperator" network="@network" weight="40.0">
+            <plate var="concept" range="&concepts;"><segmentTree idref="$(concept).tree"/></plate>
+        </operator>
+
+
+        <!-- Network topology operators -->
+
+
+        <operator id="AOS_local" spec="AdaptableOperatorSampler" weight="100">
+            <parameter idref="likelihood"/>
+
+            <!-- == LOCAL SUBTREE SLIDES ==================== -->
+            <operator id="localSubtreeSlide_2_0.2_1.0" spec="LocalTreeSubtreeSlide" network="@network" optimise="false" weight="1"
+                    size="2.0" pNewNode="0.2" doPiggyback="true" piggybackAlpha="1.0">
+                <plate var="concept" range="&concepts;"><segmentTree idref="$(concept).tree"/></plate>
+            </operator>
+            <operator id="localSubtreeSlide_2_0.2_0.2" spec="LocalTreeSubtreeSlide" network="@network" optimise="false" weight="1"
+                    size="2.0" pNewNode="0.2" doPiggyback="true" piggybackAlpha="0.2">
+                <plate var="concept" range="&concepts;"><segmentTree idref="$(concept).tree"/></plate>
+            </operator>
+
+            <!-- == NETWORK EDGE SLIDE ==========================-->
+            <operator id="NetworkEdgeSlide_2.0" spec="NetworkEdgeSlide" network="@network" size="2.0" weight="1">
+                <plate var="concept" range="&concepts;"><segmentTree idref="$(concept).tree"/></plate>
+            </operator>
+
+            <!-- == NETWORK EDGE RANGE SLIDE ==================== -->
+            <operator id="NetworkEdgeRangeSlide_2.0" spec="NetworkEdgeRangeSlide" network="@network" size="0.3" weight="1">
+                <plate var="concept" range="&concepts;"><segmentTree idref="$(concept).tree"/></plate>
+            </operator>
+        </operator>
+
+
+        <operator id="AOS_global" spec="AdaptableOperatorSampler" weight="50">
+            <parameter idref="likelihood"/>
+
+            <!-- == LOCALTREE WILSON BALDING ==================== -->
+            <operator id="targetedLWB_2_0.25_0.8" spec="LocalTreeWilsonBaldingTargeted" network="@network" weight="1" optimise="false"
+                    size="2.0" pNewNode="0.25" doPiggyback="true" piggybackAlpha="0.8">
+                <plate var="concept" range="&concepts;"><segmentTree idref="$(concept).tree"/></plate>
+                <plate var="concept" range="&concepts;"><edgeWeights idref="$(concept).weights"/></plate>
+            </operator>
+            <operator id="targetedLWB_2_0.25_0.1" spec="LocalTreeWilsonBaldingTargeted" network="@network" weight="1" optimise="false"
+                    size="2.0" pNewNode="0.25" doPiggyback="true" piggybackAlpha="0.1">
+                <plate var="concept" range="&concepts;"><segmentTree idref="$(concept).tree"/></plate>
+                <plate var="concept" range="&concepts;"><edgeWeights idref="$(concept).weights"/></plate>
+            </operator>
+
+            <!-- == LOCALTREE SPR ==================== -->
+            <operator id="targetedSPR_0.2_0.1" spec="LocalTreeSPRTargeted" network="@network" weight="1" maxHeightRatio="1.1"
+                    pNewNode="0.2" doPiggyback="true" piggybackAlpha="0.1">
+                <plate var="concept" range="&concepts;"><segmentTree idref="$(concept).tree"/></plate>
+                <plate var="concept" range="&concepts;"><edgeWeights idref="$(concept).weights"/></plate>
+            </operator>
+
+            <!-- == NETWORK EDGE WILSON BALDING ==================== -->
+            <operator id="NetworkEdgeWilsonBalding_0.2" spec="NetworkEdgeWilsonBaldingTargeted" network="@network" size="0.2" weight="1">
+                <plate var="concept" range="&concepts;"><segmentTree idref="$(concept).tree"/></plate>
+                <plate var="concept" range="&concepts;"><edgeWeights idref="$(concept).weights"/></plate>
+            </operator>
+            <operator id="NetworkEdgeWilsonBalding_1.0" spec="NetworkEdgeWilsonBaldingTargeted" network="@network" size="1.0" weight="1">
+                <plate var="concept" range="&concepts;"><segmentTree idref="$(concept).tree"/></plate>
+                <plate var="concept" range="&concepts;"><edgeWeights idref="$(concept).weights"/></plate>
+            </operator>
+        </operator>
+
+
+        <operator id="AOS_singleseg" spec="AdaptableOperatorSampler" weight="50">
+            <parameter idref="likelihood"/>
+
+            <operator id="localSubtreeSlide_1_0.1_singleSegment" spec="LocalTreeSubtreeSlide" network="@network" optimise="false" weight="1"
+                    size="1.0" pNewNode="0.1" doPiggyback="false">
+                <plate var="concept" range="&concepts;"><segmentTree idref="$(concept).tree"/></plate>
+            </operator>
+            <operator id="targetedLWB_5_0.05_singleSegment" spec="LocalTreeWilsonBaldingTargeted" network="@network" weight="1"
+                    size="5.0" pNewNode="0.05" doPiggyback="false">
+                <plate var="concept" range="&concepts;"><segmentTree idref="$(concept).tree"/></plate>
+                <plate var="concept" range="&concepts;"><edgeWeights idref="$(concept).weights"/></plate>
+            </operator>
+            <operator id="targetedLWB_10_0.0_singleSegment" spec="LocalTreeWilsonBaldingTargeted" network="@network" weight="1"
+                    size="10.0" pNewNode="0.0" doPiggyback="false">
+                <plate var="concept" range="&concepts;"><segmentTree idref="$(concept).tree"/></plate>
+                <plate var="concept" range="&concepts;"><edgeWeights idref="$(concept).weights"/></plate>
+            </operator>
+            <operator id="targetedSPR_0.2_singleSegment" spec="LocalTreeSPRTargeted" network="@network" weight="1"
+                    pNewNode="0.2" maxHeightRatio="1.1" doPiggyback="false">
+                <plate var="concept" range="&concepts;"><segmentTree idref="$(concept).tree"/></plate>
+                <plate var="concept" range="&concepts;"><edgeWeights idref="$(concept).weights"/></plate>
+            </operator>
+        </operator>

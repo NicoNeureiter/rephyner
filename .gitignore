@@ -47,8 +47,15 @@ validation/priorsampling/simulator/
 **/.snakemake/
 .github/
 
-examples/
 deps/
+
+# Examples: track only the infB and IE-CoR workflows, not their outputs
+examples/*
+!examples/infB/
+!examples/IECoR/
+examples/*/results/
+examples/*/.claude/
+examples/*/*.err
 
 # Workflow outputs
 validation/calibration/results*/

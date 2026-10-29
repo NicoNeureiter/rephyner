@@ -1,0 +1,187 @@
+import os
+from pathlib import Path
+
+
+configfile: "config.yaml"
+
+
+WORKFLOW_ROOT = Path(workflow.basedir).resolve()
+COMMANDS = config.get("commands", {})
+
+MODELS = sorted(config["models"].keys())
+REPLICATES = [int(r) for r in config["replicates"]]
+
+localrules: render_xml, summarize
+
+
+def resolve_path(path_str):
+    path = Path(path_str)
+    if path.is_absolute():
+        return str(path)
+    return str((WORKFLOW_ROOT / path).resolve())
+
+
+def command_setting(name, default=""):
+    return COMMANDS.get(name, default)
+
+
+def run_dir(model, rep):
+    return f"results/runs/{model}/rep{rep}"
+
+
+def seed_for(model, rep):
+    return int(config["models"][model]["seed_base"]) + int(rep)
+
+
+rule all:
+    input:
+        "results/summary/benchmark_summary.tsv",
+        "results/summary/convergence_summary.tsv",
+        "results/summary/ess_per_hour.tsv",
+
+
+rule render_xml:
+    input:
+        template=resolve_path(config["template"]["xml"]),
+        block_dir=lambda wc: resolve_path(config["models"][wc.model]["block_dir"]),
+        script=resolve_path("scripts/render_xml.py"),
+    output:
+        xml="results/runs/{model}/rep{rep}/run.xml",
+    threads: 1
+    resources:
+        mem_mb_per_cpu=1000,
+        runtime=5,
+    params:
+        chain_length=lambda wc: config["mcmc"]["chain_length"],
+        store_every=lambda wc: config["mcmc"]["store_every"],
+        log_every=lambda wc: config["mcmc"]["log_every"],
+        screen_log_every=lambda wc: config["mcmc"]["screen_log_every"],
+        pop_size=lambda wc: config["mcmc"]["pop_size"],
+        namespace=lambda wc: config["models"][wc.model]["namespace"],
+        env_setup=lambda wc: command_setting("env_setup", ""),
+    shell:
+        r"""
+        set -euo pipefail
+        {params.env_setup}
+        mkdir -p "$(dirname {output.xml})"
+        python3 "{input.script}" \
+          --template "{input.template}" \
+          --block-dir "{input.block_dir}" \
+          --output "{output.xml}" \
+          --chain-length {params.chain_length} \
+          --store-every {params.store_every} \
+          --log-every {params.log_every} \
+          --screen-log-every {params.screen_log_every} \
+          --pop-size {params.pop_size} \
+          --namespace '{params.namespace}'
+        """
+
+
+rule run_beast:
+    input:
+        xml="results/runs/{model}/rep{rep}/run.xml",
+    output:
+        done="results/runs/{model}/rep{rep}/run.done",
+        log="results/runs/{model}/rep{rep}/run.log",
+        runtime="results/runs/{model}/rep{rep}/runtime.txt",
+    log:
+        stdout="results/runs/{model}/rep{rep}/beast.stdout",
+        stderr="results/runs/{model}/rep{rep}/beast.stderr",
+    threads: 2
+    resources:
+        mem_mb_per_cpu=16000,
+        runtime=4320,
+    params:
+        beast_cmd=lambda wc: command_setting("beast", "beast"),
+        env_setup=lambda wc: command_setting("env_setup", ""),
+        seed=lambda wc: seed_for(wc.model, wc.rep),
+    shell:
+        r"""
+        set -euo pipefail
+        {params.env_setup}
+
+        rundir=$(dirname {output.done})
+        cd "$rundir"
+                stdout_file=$(basename {log.stdout})
+                stderr_file=$(basename {log.stderr})
+
+                if /usr/bin/time -p -o runtime.txt \
+                    {params.beast_cmd} -overwrite -seed {params.seed} -threads {threads} run.xml \
+                    > "$stdout_file" 2> "$stderr_file"; then
+                    :
+                else
+                    status=$?
+                    echo "BEAST exited with status ${{status}}" >> "$stderr_file"
+                    exit ${{status}}
+                fi
+
+                if [[ ! -s run.log ]]; then
+                    echo "BEAST exited successfully but did not create a non-empty run.log in ${{rundir}}" >> "$stderr_file"
+                    ls -la >> "$stderr_file"
+                    exit 1
+                fi
+
+        touch run.done
+        """
+
+
+rule loganalyser:
+    input:
+        log="results/runs/{model}/rep{rep}/run.log",
+        runtime="results/runs/{model}/rep{rep}/runtime.txt",
+        parser=resolve_path("scripts/parse_loganalyser.py"),
+    output:
+        raw="results/runs/{model}/rep{rep}/loganalyser.txt",
+        metrics="results/runs/{model}/rep{rep}/metrics.tsv",
+    threads: 1
+    resources:
+        mem_mb_per_cpu=2000,
+        runtime=30,
+    params:
+        loganalyser_cmd=lambda wc: command_setting("loganalyser", "applauncher LogAnalyser"),
+        env_setup=lambda wc: command_setting("env_setup", ""),
+        burnin=lambda wc: config["loganalyser"]["burnin_percent"],
+    shell:
+        r"""
+        set -euo pipefail
+        {params.env_setup}
+
+        rundir=$(dirname {output.raw})
+        cd "$rundir"
+
+        {params.loganalyser_cmd} -b {params.burnin} run.log > loganalyser.txt
+
+        python3 "{input.parser}" \
+          --input loganalyser.txt \
+          --runtime runtime.txt \
+          --output metrics.tsv
+        """
+
+
+rule summarize:
+    input:
+        expand(
+            "results/runs/{model}/rep{rep}/metrics.tsv", model=MODELS, rep=REPLICATES
+        ),
+        script=resolve_path("scripts/summarize_metrics.py"),
+    output:
+        summary="results/summary/benchmark_summary.tsv",
+        convergence="results/summary/convergence_summary.tsv",
+        ess_per_hour="results/summary/ess_per_hour.tsv",
+    threads: 1
+    resources:
+        mem_mb_per_cpu=1000,
+        runtime=10,
+    params:
+        min_ess=200,
+    shell:
+        r"""
+        set -euo pipefail
+        mkdir -p results/summary
+        python3 "{input.script}" \
+          --root results/runs \
+          --min-ess {params.min_ess} \
+          --summary {output.summary} \
+          --convergence {output.convergence} \
+          --ess-per-hour {output.ess_per_hour}
+        """

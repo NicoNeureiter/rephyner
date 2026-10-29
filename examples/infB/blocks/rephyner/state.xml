@@ -1,0 +1,7 @@
+            <stateNode id="network" spec="ReducedFromFullNetwork" enableSegmentTreeUpdate="false">
+                <fullNetwork id="fullNetworkInit" spec="coalre.simulator.SimulatedCoalescentNetwork"
+                             nSegments="8" enableSegmentTreeUpdate="false" traitSet="@traitSet">
+                    <populationModel spec="ConstantPopulation" popSize="{{POP_SIZE}}"/>
+                    <parameter id="reassortmentRate" name="reassortmentRate">0.1</parameter>
+                </fullNetwork>
+            </stateNode>

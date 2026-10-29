@@ -1,0 +1,18 @@
+                <distribution id="networkPrior" spec="ReducedCoalescent" traitSet="@traitSet">
+                    <networkIntervals spec="NetworkIntervals" network="@network"/>
+                    <populationModel spec="ConstantPopulation" popSize="@popSize.t"/>
+                </distribution>
+                <!-- <distribution id="networkPrior" spec="UniformReducedNetworkPrior" maxHeight="@maxHeight" network="@network"/> -->
+
+                <plate var="seg" range="&segments;">
+                    <distribution id="$(seg).weights" spec="targetedbeast.edgeweights.PCAWeightsBrownian" tree="@$(seg).tree" dimension="6" maxWeight="20" data="@$(seg)"/>
+                    <!-- <distribution id="$(seg).weights" spec="targetedbeast.edgeweights.ParsimonyWeights2" tree="@$(seg).tree" maxWeight="20">
+                        <data spec="targetedbeast.alignment.ConsensusAlignment" data="@$(seg)"/>
+                    </distribution> -->
+                    <!-- <distribution id="$(seg).weights" spec="targetedbeast.edgeweights.CombinedEdgeWeights">
+                        <edgeWeights id="$(seg).weights_1" spec="targetedbeast.edgeweights.FelsensteinWeights" maxWeight="20"
+                                    tree="@$(seg).tree" data="@$(seg)_1" likelihood="@treeLikelihood.$(seg)_1"/>
+                        <edgeWeights id="$(seg).weights_3" spec="targetedbeast.edgeweights.FelsensteinWeights" maxWeight="20"
+                                    tree="@$(seg).tree" data="@$(seg)_3" likelihood="@treeLikelihood.$(seg)_3"/>
+                    </distribution> -->
+                </plate>
