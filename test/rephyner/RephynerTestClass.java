@@ -7,7 +7,6 @@ import beast.base.evolution.tree.TraitSet;
 import beast.base.evolution.tree.Tree;
 import beast.base.util.Randomizer;
 import rephyner.network.ReducedNetwork;
-import rephyner.simulator.SimulatedReducedCoalescentNetwork;
 import rephyner.simulator.SimulatedUniformReducedNetwork;
 import java.util.ArrayList;
 import java.util.List;

@@ -22,7 +22,7 @@
     <provider classname="rephyner.operators.DivertSegmentOperator"/>
     <provider classname="rephyner.operators.NetworkScaleOperator"/>
     <provider classname="rephyner.operators.UniformNetworkNodeHeightOperator"/>
-    <provider classname="rephyner.simulator.SimulatedReducedCoalescentNetwork"/>
+    <provider classname="rephyner.simulator.ReducedFromFullNetwork"/>
     <provider classname="rephyner.simulator.SimulatedUniformReducedNetwork"/>
     <provider classname="rephyner.statistics.ReducedNetworkLogger"/>
     <provider classname="rephyner.statistics.ReducedNetworkStatsLogger"/>
