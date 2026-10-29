@@ -18,9 +18,8 @@ This directory contains a Snakemake workflow to benchmark rephyner and CoalRe on
 - `Snakefile`: workflow DAG
 - `config.yaml`: benchmark configuration
 - `config.euler.yaml`: production-scale override for EULER / SLURM runs
-- `templates/infB_template.xml`: shared XML template with `{{RUN_BLOCK}}`
-- `blocks/rephyner_run_block.xml`: rephyner model block with placeholders
-- `blocks/coalre_run_block.xml`: CoalRe model block with placeholders
+- `templates/infB_template.xml`: shared XML template with `{{STATE_BLOCK}}`, `{{PRIORS_BLOCK}}` and `{{OPERATORS_BLOCK}}`
+- `blocks/{rephyner,coalre}/{state,priors,operators}.xml`: model blocks per tool
 - `scripts/render_xml.py`: strict placeholder renderer
 - `scripts/parse_loganalyser.py`: LogAnalyser + runtime parser
 - `scripts/summarize_metrics.py`: aggregate summary outputs
