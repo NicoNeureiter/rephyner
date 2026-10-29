@@ -45,6 +45,15 @@ arms:
     # are scanned over a range rather than one being given oracle knowledge.
     settings: [1.0, 2.0, 4.0, 6.0, 8.0]
 
+# Operator ablation (`snakemake ablation`): untargeted baseline vs the retuned operator mix with
+# uninformative weights vs the same mix with parsimony edge weights. Run at the cell where the
+# local-tree topology mixed worst, across tree-like, middle and plateau alpha. The baseline
+# runs are shared with the main grid.
+ablation:
+  reassortment_rate: [6.0]
+  settings: [1.0, 4.0, 16.0]
+  models: [rephyner, rephyner_tuned, rephyner_targeted]
+
 # Both arms use the true population size; it is not a factor here.
 inference:
   pop_size: 1.0

@@ -14,3 +14,4 @@ arms:
 inference: {pop_size: 1.0}
 mcmc: {chain_length: 300000, log_every: 1000, store_every: 100000, burnin_percent: 10}
 init_reassortment_rate: 2.0
+ablation: {reassortment_rate: [4.0], settings: [1.0], models: [rephyner, rephyner_tuned, rephyner_targeted]}

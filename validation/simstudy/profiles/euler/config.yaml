@@ -38,6 +38,9 @@ set-resources:
   aggregate:
     mem_mb_per_cpu: 8000
     runtime: 60
+  aggregate_ablation:
+    mem_mb_per_cpu: 8000
+    runtime: 60
   compile:
     mem_mb_per_cpu: 4000
     runtime: 20

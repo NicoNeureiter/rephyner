@@ -61,13 +61,31 @@ STACK_SIZE = config["java"].get("stack_size", "64m")
 BEAST = (f'{JAVA} -Xss{STACK_SIZE} -cp "{CLASSPATH}" beastfx.app.beast.BeastMain'
          f' -version_file "{VERSION_FILE}"')
 
-MODELS = ["coalre", "rephyner"]
-TEMPLATE = {"coalre": "templates/infer_coalre.xml", "rephyner": "templates/infer_rephyner.xml"}
+MAIN_MODELS = ["coalre", "rephyner"]
+TEMPLATE = {
+    "coalre": "templates/infer_coalre.xml",
+    "rephyner": "templates/infer_rephyner.xml",
+    # Operator ablation: one template, rendered with uninformative or data-driven edge weights.
+    "rephyner_tuned": "templates/infer_rephyner_targeted.xml",
+    "rephyner_targeted": "templates/infer_rephyner_targeted.xml",
+}
+EDGE_WEIGHTS = {
+    "rephyner_tuned": ("targetedbeast.edgeweights.ConstantWeights", ""),
+    "rephyner_targeted": ("targetedbeast.edgeweights.ParsimonyWeights2",
+                          'data="@seg$(seg)align"'),
+}
 
 # Each arm scans its own prior setting: the CRP concentration for rephyner, the assumed
 # reassortment rate for CoalRe. These are a factor of the study, not nuisance values to be
 # calibrated away, and the comparison is made post hoc at matched posterior complexity.
-SETTINGS = {m: [str(x) for x in config["arms"][m]["settings"]] for m in MODELS}
+SETTINGS = {m: [str(x) for x in config["arms"][m]["settings"]] for m in MAIN_MODELS}
+
+# The ablation reruns a subset of the grid. Its baseline runs are the main grid's own rephyner
+# runs at the same paths, so the comparison is paired by dataset and seed.
+ABLATION = config.get("ablation", {"reassortment_rate": [], "settings": [], "models": []})
+ABLATION_MODELS = ABLATION["models"]
+ABLATION_SETTINGS = [str(x) for x in ABLATION["settings"]]
+MODELS = MAIN_MODELS + [m for m in ABLATION_MODELS if m not in MAIN_MODELS]
 
 
 def settings_for(model):
@@ -94,6 +112,8 @@ def cell_id(cell):
 
 CELL_BY_ID = {cell_id(c): c for c in CELLS}
 CELL_IDS = sorted(CELL_BY_ID)
+ABLATION_CELL_IDS = sorted(cell_id(c) for c in CELLS
+                           if c["reassortment_rate"] in ABLATION["reassortment_rate"])
 
 
 def taxa(cell):
@@ -227,6 +247,8 @@ rule render_infer:
         data_dir=lambda w: os.path.abspath(
             RESULTS + f"/data/{w.cell}/ds{w.dataset}"),
         setting=lambda w: w.setting,
+        edge_weights=lambda w: EDGE_WEIGHTS.get(w.model, ("", ""))[0],
+        edge_weights_args=lambda w: EDGE_WEIGHTS.get(w.model, ("", ""))[1],
     resources:
         mem_mb=1000,
         runtime=5,
@@ -246,7 +268,9 @@ rule render_infer:
             LOG_EVERY={params.log_every} \
             STORE_EVERY={params.store_every} \
             SCREEN_LOG_EVERY={params.screen_log_every} \
-            DATA_DIR='{params.data_dir}'
+            DATA_DIR='{params.data_dir}' \
+            EDGE_WEIGHTS='{params.edge_weights}' \
+            EDGE_WEIGHTS_ARGS='{params.edge_weights_args}'
         """
 
 
@@ -317,13 +341,40 @@ rule summarize_run:
 rule aggregate:
     input:
         metrics=[RESULTS + f"/runs/{cell}/{model}/set{setting}/ds{dataset}/seed{seed}/metrics.tsv"
-                 for cell in CELL_IDS for model in MODELS
+                 for cell in CELL_IDS for model in MAIN_MODELS
                  for setting in settings_for(model)
                  for dataset in DATASETS for seed in SEEDS],
         script="scripts/aggregate.py",
     output:
         curves=RESULTS + "/summary/curves.tsv",
         runs=RESULTS + "/summary/runs.tsv",
+    resources:
+        mem_mb=4000,
+        runtime=20,
+    shell:
+        """
+        python3 {input.script} --metrics {input.metrics} \
+            --out-curves {output.curves} --out-runs {output.runs}
+        """
+
+
+rule ablation:
+    """Operator ablation on a subset of the grid: `snakemake ablation`."""
+    input:
+        RESULTS + "/summary/ablation_curves.tsv",
+        RESULTS + "/summary/ablation_runs.tsv",
+
+
+rule aggregate_ablation:
+    input:
+        metrics=[RESULTS + f"/runs/{cell}/{model}/set{setting}/ds{dataset}/seed{seed}/metrics.tsv"
+                 for cell in ABLATION_CELL_IDS for model in ABLATION_MODELS
+                 for setting in ABLATION_SETTINGS
+                 for dataset in DATASETS for seed in SEEDS],
+        script="scripts/aggregate.py",
+    output:
+        curves=RESULTS + "/summary/ablation_curves.tsv",
+        runs=RESULTS + "/summary/ablation_runs.tsv",
     resources:
         mem_mb=4000,
         runtime=20,

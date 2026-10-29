@@ -68,6 +68,22 @@ snakemake -n                                           # dry run
 
 The smoke config writes to `results_smoke/`, so it can never be mistaken for the real grid.
 
+### Operator ablation
+
+```bash
+snakemake ablation --cores 8
+```
+
+Three rephyner variants on the subset in `config.yaml: ablation`, written to
+`results/summary/ablation_curves.tsv`:
+
+* `rephyner` — the main grid's operators (and the main grid's runs, at the same paths).
+* `rephyner_tuned` — `templates/infer_rephyner_targeted.xml` with `ConstantWeights`: retuned sizes
+  and weights, targeted operators that reduce to the untargeted proposal.
+* `rephyner_targeted` — the same template with `ParsimonyWeights2`.
+
+`tuned` vs baseline measures the retuning; `targeted` vs `tuned` measures the targeting alone.
+
 ### EULER
 
 ```bash
