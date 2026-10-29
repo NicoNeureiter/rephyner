@@ -16,7 +16,7 @@ import csv
 import math
 from collections import defaultdict
 
-# Acceptance criteria (dummy_rarg_prior_plan.md section 5).
+# Acceptance criteria (documentation/notes/dummy_rarg_prior_plan.md section 5).
 NODE_COUNT_TOLERANCE = 0.05
 # The fitted alpha is only meaningful if some ladder point actually lands near the target.
 # Interpolation between two points that straddle a jump reports an exact fit for a value the

@@ -2,8 +2,8 @@
 #
 # For each grid cell we (a) simulate CoalRe ARGs, reduce them, and record the target moments,
 # and (b) sample the rephyner prior at a ladder of concentrations and record the same moments.
-# The fit then inverts the response curve. See doc/new_network_prior.md and
-# dummy_rarg_prior_plan.md for the model and the acceptance criteria.
+# The fit then inverts the response curve. See documentation/notes/new_network_prior.md and
+# documentation/notes/dummy_rarg_prior_plan.md for the model and the acceptance criteria.
 
 # Grid cells. Ne is fixed to 1 throughout: the coalescent is scale invariant in (Ne, time), so
 # the reassortment rate below is already relative to the coalescent rate, and Ne is recovered

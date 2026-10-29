@@ -86,7 +86,7 @@
                               traitSet="@traitSet" partitionModel="crp">
                     <concentration spec="RealParameter" value="${ALPHA}" estimate="false"/>
                     <!-- Conservative post-hoc reticulation regularizer, fixed across the alpha
-                         scan (see doc/new_network_prior.md sec 2 and the sanity sweep that
+                         scan (see documentation/notes/new_network_prior.md sec 2 and the sanity sweep that
                          picked lambda=3: it partially closes the gap to CoalRe's reticulation
                          without the ESS collapse seen at lambda>=4). -->
                     <reticulationPenalty spec="RealParameter" value="3.0" estimate="false"/>

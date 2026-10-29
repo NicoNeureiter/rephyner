@@ -9,7 +9,7 @@
 # cannot be made to match CoalRe's in much of this space, and it turns prior sensitivity into a
 # measured result instead of an assumption.
 #
-# See ../../simulation_study_plan.md.
+# See ../../documentation/notes/simulation_study_plan.md.
 
 # ---------------------------------------------------------------- data generating model (truth)
 cells:

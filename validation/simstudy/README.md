@@ -2,8 +2,8 @@
 
 Asks whether the rARG sampler moves through its target faster than CoalRe moves through its own.
 
-Design and decision rule: [../../simulation_study_plan.md](../../simulation_study_plan.md).
-The prior rephyner runs under: [../../doc/new_network_prior.md](../../doc/new_network_prior.md).
+Design and decision rule: [../../documentation/notes/simulation_study_plan.md](../../documentation/notes/simulation_study_plan.md).
+The prior rephyner runs under: [../../documentation/notes/new_network_prior.md](../../documentation/notes/new_network_prior.md).
 
 ## The design: scan, then match post hoc
 
