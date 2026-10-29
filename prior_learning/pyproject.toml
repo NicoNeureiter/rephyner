@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "prior-learning"
+version = "0.1.0"
+description = "Learned approximate prior on reduced ancestral recombination graphs (rARGs)"
+readme = "README.md"
+requires-python = ">=3.11"
+# Lower bounds are the versions the tests were run with.
+dependencies = [
+    "jax>=0.8",
+    "optax>=0.2.5",
+    "numpy>=2.2",
+    "scipy>=1.15",
+    "networkx>=3.4",
+    "pydot>=4.0",
+    "matplotlib>=3.10",
+    "tqdm>=4.67",
+]
+
+# This directory is the package itself (all imports inside are relative).
+[tool.setuptools]
+package-dir = { "prior_learning" = "." }
+packages = [
+    "prior_learning",
+    "prior_learning.rarg",
+    "prior_learning.topology",
+    "prior_learning.waiting_time",
+    "prior_learning.tests",
+]
