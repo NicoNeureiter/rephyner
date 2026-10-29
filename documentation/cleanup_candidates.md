@@ -30,7 +30,7 @@ Done (2026-10-28): everything in this table was removed, along with the matching
 
 | Path | Notes |
 |---|---|
-| `src/rephyner/simulator/SimulatedReducedCoalescentNetwork__.java` | Untracked older direct rARG simulator (with `binomialProb`); replaced by simulating with CoalRe and reducing. |
+| `src/rephyner/simulator/SimulatedReducedCoalescentNetwork__.java` | Done (2026-10-29): deleted. Copy of the old, unfinished direct simulator (only simulated the first local tree). The class that reduces a full ARG is now `ReducedFromFullNetwork`; the working direct simulator is `SimulatedUniformReducedNetwork`. |
 | `src/rephyner/network/ReducableNetwork.java` | Wrapper turning a CoalRe `Network` into a rARG; duplicates logic now in `NetworkReducer`; no refs. |
 | `src/rephyner/operators/SplitMergeNode.java`, `NetworkExchange.java` | Not used in any current workflow, no tests. `NetworkExchange` only appears in the outdated `examples/infB/blocks/rephyner_run_block.xml`. |
 | `src/rephyner/operators/DivertSegmentOperator.java` | Not used directly; base class of `DivertSingleSegmentOperator` (used), `SplitMergeNode` and `NetworkExchange`. Its `networkProposal()` contains debug `System.out.println`s. If the latter two go, consider moving the helpers into `DivertSingleSegmentOperator`. |
@@ -63,8 +63,8 @@ Done (2026-10-28): everything in this table was removed, along with the matching
 ## 4. Things to fix rather than delete
 
 * `version.xml` still registers unused classes (see section 2, also `rephyner.util.DummyTreeDistribution`), while `NetworkExchange` and `DummyNetworkPrior` are not registered. (The entries for missing classes were removed with section 1.)
-* `validation/wcss/templates/inference.xml` uses `LocalTreeSubtreeSPR`, which no longer exists (renamed to `LocalTreeSPR`), so the WCSS cannot be rerun as is.
+* Done (2026-10-29): the WCSS templates now use `LocalTreeSPR`, `ReducedNetworkStatsLogger` and, for the prior MCMC, the uniform rARG prior. Not rerun yet.
 * `validation/simstudy/templates/infer_rephyner.xml` says in a comment that `ALPHA` and `POP_SIZE` come from the calibration table; the current design scans `alpha` instead.
 * `.gitignore` ignores `examples/` and `deps/` completely, so the infB and IE-CoR Snakemake workflows (Snakefile, templates, blocks, scripts, configs) are not under version control. Consider ignoring only `examples/**/results/` and the loose run outputs.
-* Much is uncommitted: the new `operators/networkedgeoperators/`, `validation/{calibration,simstudy,priorsampling}`, several tests, `LogStirling2`, and changes to about 25 tracked files. `test/rephyner/network/ReducedNetworkTest.java` is deleted in the working tree.
+* Done (2026-10-29): the outstanding work was committed. Still untracked: `NetworkLength`, `PiggybackDebugTest`, `validation/priorsampling/`, workflow results, and the root clutter of section 3.
 * `README.md` is a stub (now links to `documentation/`).

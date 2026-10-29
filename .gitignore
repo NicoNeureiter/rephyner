@@ -44,3 +44,17 @@ validation/wcss/.snakemake/
 validation/wcss/prior/
 validation/wcss/posterior/
 validation/wcss/simulated_data/
+validation/priorsampling/simulator/
+**/.snakemake/
+.github/
+
+examples/
+deps/
+
+# Workflow outputs
+validation/calibration/results*/
+validation/simstudy/results*/
+validation/simstudy/slurm-logs/
+validation/simstudy/slurm/manifest_*.tsv
+validation/wcss/prior_mcmc/
+__pycache__/
