@@ -4,6 +4,7 @@ import rephyner.RephynerTestClass;
 import rephyner.distribution.UniformReducedNetworkPrior;
 import rephyner.network.ReducedNetwork;
 import rephyner.operators.localtreeoperators.LocalTreeSPR;
+import rephyner.operators.localtreeoperators.LocalTreeSPRTargeted;
 import rephyner.operators.localtreeoperators.LocalTreeSubtreeSlide;
 import rephyner.operators.localtreeoperators.LocalTreeWilsonBalding;
 import rephyner.operators.networkedgeoperators.NetworkEdgeRangeSlide;
@@ -68,6 +69,12 @@ public class DetailedBalanceTest extends RephynerTestClass {
     @Test
     public void testLTSPRDetailedBalance() {
         LocalTreeSPRFactory opFactory = new LocalTreeSPRFactory();
+        testDetailedBalance(opFactory);
+    }
+
+    @Test
+    public void testLTSPRTargetedDetailedBalance() {
+        LocalTreeSPRTargetedFactory opFactory = new LocalTreeSPRTargetedFactory();
         testDetailedBalance(opFactory);
     }
 
@@ -370,6 +377,37 @@ public class DetailedBalanceTest extends RephynerTestClass {
                 "network", network,
                 "pNewNode", 0.5,
                 "weight", 1.0,
+                "segmentTree", segmentTrees.get(0),
+                "segmentTree", segmentTrees.get(1)
+            );
+            operator._updateSegmentTrees = false;
+            return operator;
+        }
+    }
+
+    class LocalTreeSPRTargetedFactory extends OperatorFactory {
+
+        @Override
+        public LocalTreeSPRTargeted getOperator(ReducedNetwork network, List<Tree> segmentTrees) {
+            SiteModel siteModel = new SiteModel();
+            siteModel.initByName("substModel", new JukesCantor());
+            SimulatedAlignment data0 = new SimulatedAlignment();
+            data0.initByName("tree", segmentTrees.get(0), "siteModel", siteModel, "sequenceLength", 5, "dataType", "nucleotide");
+            SimulatedAlignment data1 = new SimulatedAlignment();
+            data1.initByName("tree", segmentTrees.get(1), "siteModel", siteModel, "sequenceLength", 5, "dataType", "nucleotide");
+
+            ParsimonyWeights2 weights0 = new ParsimonyWeights2();
+            ParsimonyWeights2 weights1 = new ParsimonyWeights2();
+            weights0.initByName("tree", segmentTrees.get(0), "data", data0);
+            weights1.initByName("tree", segmentTrees.get(1), "data", data1);
+
+            LocalTreeSPRTargeted operator = new LocalTreeSPRTargeted();
+            operator.initByName(
+                "network", network,
+                "pNewNode", 0.5,
+                "weight", 1.0,
+                "edgeWeights", weights0,
+                "edgeWeights", weights1,
                 "segmentTree", segmentTrees.get(0),
                 "segmentTree", segmentTrees.get(1)
             );
