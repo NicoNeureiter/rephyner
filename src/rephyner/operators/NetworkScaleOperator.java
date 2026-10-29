@@ -2,13 +2,12 @@ package rephyner.operators;
 
 import beast.base.core.Input;
 import beast.base.core.Input.Validate;
-import beast.base.evolution.tree.Node;
-import beast.base.inference.operator.kernel.KernelDistribution;
 import beast.base.inference.parameter.RealParameter;
 import beast.base.util.Randomizer;
 import rephyner.network.NetworkEdge;
 import rephyner.network.NetworkNode;
 import rephyner.util.RandomUtil;
+import rephyner.util.BitSetFun;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -83,7 +82,7 @@ public class NetworkScaleOperator extends NetworkOperator {
 
         network.startEditing(this);
 
-        if (scaleRootOnly) { // Scale a root node
+        if (scaleRootOnly) {
 
             // Choose which root node to scale. Exclude segment tree roots that have parents in other segments.
             List<NetworkNode> rootNodes = network.getRootEdges().stream()
@@ -102,25 +101,22 @@ public class NetworkScaleOperator extends NetworkOperator {
             if (f < 1.0) {
                 for (NetworkEdge childEdge : rootNode.getChildEdges())
                     if (rootNode.getHeight() < childEdge.childNode.getHeight())
-                        return Double.NEGATIVE_INFINITY;
+                        throw new DirectRejectException("Cannot scale root below child");
             }
+		} else {
+			oldLengths = new HashMap<>();
+			updated = new HashMap<>();
 
-        } else { // Scale all nodes
+			for (NetworkNode node : network.getInternalNodes()) {
+                double maxChildHeight = node.getChildEdges().stream().mapToDouble(e -> e.getChildHeight()).max().getAsDouble();
+                oldLengths.put(node, node.getHeight() - maxChildHeight);
+				updated.put(node, false);
+			}
 
-            for (NetworkNode node : network.getInternalNodes()) {
-                setNodeHeight(node, node.getHeight() * f);
-                count += 1;
+            for (NetworkEdge r : network.getRootEdges()) {
+                count += scaleNodes(r.childNode, f);
             }
-
-            // Directly reject if a leaf node would end up above its parent
-            if (f < 1.0) {
-                for (NetworkNode leaf : network.getLeafNodes()) {
-                    if (leaf.getYoungestParentHeight() < leaf.getHeight()) {
-                        return Double.NEGATIVE_INFINITY;
-                    }
-                }
-            }
-        }
+		}
 
         // Scale parameters
         try {
@@ -136,12 +132,41 @@ public class NetworkScaleOperator extends NetworkOperator {
 
         } catch (IllegalArgumentException ex) {
             assert network.isValid();
-            return Double.NEGATIVE_INFINITY;
+            throw new DirectRejectException("IllegalArgumentException");
         }
 
         assert network.isValid();
 
         return logHR + Math.log(f) * (count - 2);
+    }
+
+	private int scaleNodes(NetworkNode n, double scaler) {
+		int count = 0;
+		if (n.isLeaf())
+			return 0;
+		else {
+            if (!updated.get(n)) {
+				for (NetworkEdge e : n.getChildEdges()) {
+					count += scaleNodes(e.childNode, scaler);
+				}
+				double newLength = oldLengths.get(n) * scaler;
+				n.setHeight(newLength + getMaxChildHeight(n));
+				
+                if (n.hasSegmentIndices() && segmentTreesInput.get().size()>0) {
+                    for (int i : BitSetFun.iterate(n.getActiveSegments()))
+                        segmentTreesInput.get().get(i).getNode(n.getSegmentIndex(i)).setHeight(n.getHeight());
+                }
+                
+				updated.put(n, true);
+				count++;
+			}
+			// scale the node height such that
+		}
+		return count;
+	}
+
+    protected double getMaxChildHeight(NetworkNode node) {
+        return node.getChildEdges().stream().mapToDouble(e -> e.getChildHeight()).max().getAsDouble();
     }
 
     /**

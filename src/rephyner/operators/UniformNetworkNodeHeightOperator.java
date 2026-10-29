@@ -1,7 +1,5 @@
 package rephyner.operators;
 
-import beast.base.core.Function;
-import beast.base.core.Input;
 import beast.base.util.Randomizer;
 import rephyner.network.NetworkEdge;
 import rephyner.network.NetworkNode;
@@ -11,25 +9,10 @@ import java.util.stream.Collectors;
 
 public class UniformNetworkNodeHeightOperator extends NetworkOperator {
 
-    public Input<Function> maxHeightInput = new Input<>(
-            "maxHeight",
-            "Maximum network height");
-
-    Function maxHeightParam;
-
     @Override
     public void initAndValidate() {
-        maxHeightParam = maxHeightInput.get();
         super.initAndValidate();
         _updateSegmentTrees = false;
-    }
-
-    double getMaxHeight() {
-        if (maxHeightParam == null) {
-            return Double.POSITIVE_INFINITY;
-        } else {
-            return maxHeightParam.getArrayValue();
-        }
     }
 
     @Override
@@ -44,7 +27,7 @@ public class UniformNetworkNodeHeightOperator extends NetworkOperator {
 
         NetworkNode node = networkNodes.get(Randomizer.nextInt(networkNodes.size()));
 
-        double maxHeight = getMaxHeight();
+        double maxHeight = Double.POSITIVE_INFINITY;
         for (NetworkEdge parentEdge : node.getParentEdges())
             if (parentEdge.getParentHeight() < maxHeight)
                 maxHeight = parentEdge.getParentHeight();
@@ -54,22 +37,18 @@ public class UniformNetworkNodeHeightOperator extends NetworkOperator {
             if (childEdge.getChildHeight() > minHeight)
                 minHeight = childEdge.getChildHeight();
 
-        if (minHeight > getMaxHeight())
-            throw new DirectRejectException();
-        else
-            assert minHeight < maxHeight;
-        
-        for (NetworkEdge e : node.getChildEdges())
-            assert minHeight >= e.getChildHeight();
-        for (NetworkEdge e : node.getParentEdges())
-            assert maxHeight <= e.getParentHeight();
+        if (minHeight >= maxHeight)
+            throw new RuntimeException("UniformNetworkNodeHeightOperator: minHeight >= maxHeight");
         
         double newHeight = minHeight + Randomizer.nextDouble() * (maxHeight-minHeight);
         
-        for (NetworkEdge e : node.getChildEdges())
-            assert newHeight > e.getChildHeight();
-        for (NetworkEdge e : node.getParentEdges())
-            assert newHeight < e.getParentHeight();
+        assert newHeight >= node.getChildEdges().stream()
+                .mapToDouble(e -> e.getChildHeight())
+                .max().getAsDouble();
+
+        assert newHeight <= node.getParentEdges().stream()
+                .mapToDouble(e -> e.getParentHeight())
+                .min().getAsDouble();
 
         network.startEditing(this);
         setNodeHeight(node, newHeight);

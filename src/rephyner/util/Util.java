@@ -6,12 +6,19 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import java.util.Arrays;
 
 public class Util {
     public static <T> boolean allElementsUnique(List<T> list) {
         Set<T> set = new HashSet<>(list);
         return set.size() == list.size();
+    }
+
+    public static <T> List<T> duplicates(List<T> list) {
+        Set<T> seen = new HashSet<>();
+        return list.stream()
+            .filter(e -> !seen.add(e))
+            .distinct()
+            .collect(Collectors.toList());
     }
 
     public static Iterable<Integer> range(int endExclusive) {

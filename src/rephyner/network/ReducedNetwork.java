@@ -4,6 +4,9 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -537,9 +540,7 @@ public class ReducedNetwork extends StateNode {
 
 
         // Create a mapping from network nodes to indices
-        List<NetworkNode> nodes = getNodes().stream()
-                .sorted((n1, n2) -> Double.compare(n1.getHeight(), n2.getHeight()))
-                .toList();
+        List<NetworkNode> nodes = getNodesInCanonicalOrder();
         Map<NetworkNode, Integer> nodeIndexMap = new HashMap<>();
         Map<NetworkNode, String> nodeLabelMap = new HashMap<>();
         for (int i = 0; i < nodes.size(); i++) {
@@ -560,13 +561,12 @@ public class ReducedNetwork extends StateNode {
         // Iterate through the edges and create the connections
         nodeLabelMap.put(null, "");
         List<NetworkEdge> edgesSorted = getEdges().stream()
-                .sorted((e1, e2) -> {
-                    int childComp = nodeLabelMap.get(e1.childNode).compareTo(nodeLabelMap.get(e2.childNode));
-                    if (childComp != 0)
-                        return childComp;
-                    else
-                        return nodeLabelMap.get(e1.parentNode).compareTo(nodeLabelMap.get(e2.parentNode));
-                })
+                .sorted(Comparator
+                        .comparing((NetworkEdge e) -> nodeLabelMap.get(e.childNode))
+                        .thenComparing(e -> nodeLabelMap.get(e.parentNode))
+                        // Parallel edges would otherwise tie and fall back to the iteration order of
+                        // the HashSet returned by getEdges().
+                        .thenComparing(e -> getSegmentString(e.hasSegments)))
                 .toList();
         for (NetworkEdge edge : edgesSorted) {
             if (edge.parentNode == null) {
@@ -586,6 +586,50 @@ public class ReducedNetwork extends StateNode {
         sb.append("}\n");
 
         return sb.toString();
+    }
+
+    /**
+     * Nodes ordered by height, taxon label and structural key, so the order (and the DOT string)
+     * survives store/restore, which replaces node objects and thus their identity hashes.
+     */
+    private List<NetworkNode> getNodesInCanonicalOrder() {
+        Map<NetworkNode, String> structuralKeys = new HashMap<>();
+        for (NetworkEdge rootEdge : rootEdges)
+            buildStructuralKey(rootEdge.childNode, structuralKeys);
+
+        return getNodes().stream()
+                .sorted(Comparator
+                        .comparingDouble(NetworkNode::getHeight)
+                        .thenComparing(NetworkNode::getTaxonLabel,
+                                Comparator.nullsLast(Comparator.naturalOrder()))
+                        .thenComparing(structuralKeys::get))
+                .toList();
+    }
+
+    /**
+     * Hashed key of the subgraph below a node (leaf labels, segments, shape). Hashing avoids
+     * exponential growth on shared subgraphs; a collision only leaves two nodes tied.
+     */
+    private String buildStructuralKey(NetworkNode node, Map<NetworkNode, String> structuralKeys) {
+        String cached = structuralKeys.get(node);
+        if (cached != null)
+            return cached;
+
+        String key;
+        if (node.isLeaf()) {
+            key = node.getTaxonLabel() == null ? "?" : node.getTaxonLabel();
+        } else {
+            List<String> childKeys = new ArrayList<>();
+            for (NetworkEdge childEdge : node.getChildEdges()) {
+                childKeys.add(buildStructuralKey(childEdge.childNode, structuralKeys)
+                        + ":" + getSegmentString(childEdge.hasSegments));
+            }
+            Collections.sort(childKeys);
+            key = Integer.toHexString(childKeys.toString().hashCode());
+        }
+
+        structuralKeys.put(node, key);
+        return key;
     }
 
     String getSegmentString(BitSet segments) {
@@ -630,6 +674,14 @@ public class ReducedNetwork extends StateNode {
 
         return edge;
     }
+
+    /**
+     * 
+     */
+    public boolean hasEdge(NetworkNode parent, NetworkNode child) {
+        return child.getParentEdges().stream().anyMatch(e -> e.parentNode == parent);
+    }
+
 
     public NetworkEdge createEdge(NetworkNode parent, NetworkNode child) {
         return createEdge(parent, child, new BitSet());
@@ -864,6 +916,15 @@ public class ReducedNetwork extends StateNode {
      */
     public void updateSegmentTree(Tree segmentTree, int segmentIdx) {
 
+        // Reset node-index mapping for this segment before rebuilding it.
+        // Otherwise stale indices from previous topologies can survive on nodes
+        // that are no longer active for this segment.
+        for (NetworkNode node : getNodes()) {
+            if (node.hasSegmentIndices()) {
+                node.setSegmentIndex(segmentIdx, -1, getSegmentCount());
+            }
+        }
+
         // Identify segment tree clades present in network
 
         Set<BitSet> cladesInNetwork = new HashSet<>();
@@ -918,6 +979,48 @@ public class ReducedNetwork extends StateNode {
     }
 
     /**
+     * Refresh only the node->segment-tree-index cache for one segment, without
+     * modifying the segment tree topology.
+     */
+    public void refreshSegmentIndexCache(Tree segmentTree, int segmentIdx) {
+        refreshSegmentIndexCache(segmentTree, segmentIdx, getNodes());
+    }
+
+    /** As refreshSegmentIndexCache(Tree, int), reusing a node set shared by all segments. */
+    public void refreshSegmentIndexCache(Tree segmentTree, int segmentIdx,
+            Collection<NetworkNode> nodes) {
+        // Clear previous mapping for this segment.
+        for (NetworkNode node : nodes) {
+            if (node.hasSegmentIndices()) {
+                node.setSegmentIndex(segmentIdx, -1, getSegmentCount());
+            }
+        }
+
+        // Build clade -> network node map from current network for this segment.
+        Set<BitSet> cladesInNetwork = new HashSet<>();
+        Map<BitSet, NetworkNode> networkCladeNodes = new HashMap<>();
+        for (NetworkEdge rootEdge : getRootEdges()) {
+            if (rootEdge.hasSegments.get(segmentIdx)) {
+                getSegTreeCladesFromNetwork(rootEdge.childNode, segmentIdx, cladesInNetwork, networkCladeNodes);
+            }
+        }
+
+        // Build clade -> tree node map from current segment tree.
+        Set<BitSet> cladesInTree = new HashSet<>();
+        Map<BitSet, Node> treeCladeNodes = new HashMap<>();
+        getSegTreeClades(segmentTree.getRoot(), cladesInTree, treeCladeNodes);
+
+        // Fill cache entries for clades represented in the tree.
+        for (Map.Entry<BitSet, NetworkNode> entry : networkCladeNodes.entrySet()) {
+            final BitSet clade = entry.getKey();
+            final NetworkNode networkNode = entry.getValue();
+            final Node treeNode = treeCladeNodes.get(clade);
+            assert treeNode != null : "Missing segment-tree clade for segment " + segmentIdx + ": " + clade;
+            networkNode.setSegmentIndex(segmentIdx, treeNode.getNr(), getSegmentCount());
+        }
+    }
+
+    /**
      * Identify which clades are present in the network below edge for the given segment.
      *
      * @param networkNode network node below which clades are identified
@@ -954,6 +1057,7 @@ public class ReducedNetwork extends StateNode {
         return thisClade;
     }
 
+
     /**
      * Cached arrays containing mapping between tree node numbers and network node numbers.
      */
@@ -977,7 +1081,7 @@ public class ReducedNetwork extends StateNode {
             String taxonID = segmentTree.getTaxonId(treeNode);
 
             Optional<NetworkNode> maybeNetworkNode = getLeafNodes().stream()
-                .filter(l -> l.getTaxonLabel().equals(taxonID))
+                .filter(l -> taxonID.equals(l.getTaxonLabel()))
                 .findFirst();
 
             if (maybeNetworkNode.isPresent())
@@ -1320,7 +1424,9 @@ public class ReducedNetwork extends StateNode {
             assert Util.allElementsUnique(node.getParentEdges());
 
             // Child and parent nodes are unique
-            assert Util.allElementsUnique(node.getChildEdges().stream().map(e -> e.childNode).toList());
+            List<NetworkNode> children = node.getChildEdges().stream().map(e -> e.childNode).toList();
+            List<NetworkNode> d = Util.duplicates(children);
+            assert Util.allElementsUnique(children) : node.getChildEdges().stream().filter(e -> d.contains(e.childNode)).toList();
             assert Util.allElementsUnique(node.getParentEdges().stream().map(e -> e.parentNode).toList());
 
             // All segments are active at leaf nodes
@@ -1381,11 +1487,12 @@ public class ReducedNetwork extends StateNode {
         for (int seg : Util.range(0, segTrees.size())) {
             Tree tree = segTrees.get(seg);
             for (NetworkNode node : getNodes()) {
-                int nrNet = node.getSegmentIndex(seg);
-                if (nrNet == -1)
+                if (!node.getActiveSegments().get(seg))
                     continue;
-                else
-                    assert node.getActiveSegments().get(seg);
+                assert node.hasSegmentIndices();
+                int nrNet = node.getSegmentIndex(seg);
+                assert nrNet != -1;
+
                 Node treeNode = tree.getNode(nrNet);
                 assert node.getHeight() == treeNode.getHeight();
                 assert node.getChildEdges(seg).size() == treeNode.getChildCount();

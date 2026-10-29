@@ -104,13 +104,22 @@ public abstract class NetworkOperator extends Operator {
             _rejectCounters.add(e.name);
             return Double.NEGATIVE_INFINITY;
         } finally {
-            // if (Randomizer.nextDouble() < 0.002)
-            //     System.out.println("\nDirectRejectCounts:\n" + _rejectCounters);
+            // if (Randomizer.nextDouble() < 0.001)
+            //     System.out.println("\nDirectRejectCounts [" + this.getClass().getSimpleName() + "]:\n" + _rejectCounters);
         }
 
         if (logHR > Double.NEGATIVE_INFINITY) {
             assert logHR < Double.POSITIVE_INFINITY;
             assert network.assertValid();
+
+            if (!_updateSegmentTrees) {
+                // One traversal for all segments, rather than one per segment.
+                final java.util.Set<rephyner.network.NetworkNode> nodes = network.getNodes();
+                for (int segIdx : Util.range(segmentTrees.size())) {
+                    network.refreshSegmentIndexCache(getSegmentTree(segIdx), segIdx, nodes);
+                }
+            }
+
             assert network.isValidSegmentTrees(segmentTrees);
             if (_updateSegmentTrees)
                 for (int segIdx : Util.range(segmentTrees.size()))
