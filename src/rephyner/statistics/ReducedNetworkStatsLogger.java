@@ -30,22 +30,25 @@ public class ReducedNetworkStatsLogger extends BEASTObject implements Loggable {
 
 
     Network fullNetwork;
-    ReducedNetwork reducedNetwork;
 
     public ReducedNetworkStatsLogger() {}
 
     @Override
     public void initAndValidate() {
-        if (fullNetworkInput.get() != null) {
-            fullNetwork = fullNetworkInput.get();
-            reducedNetwork = NetworkReducer.reduce(fullNetwork);
+        fullNetwork = fullNetworkInput.get();
+    }
+
+    ReducedNetwork getReducedNetwork() {
+        if (fullNetwork != null) {   
+            return NetworkReducer.reduce(fullNetwork);
         } else {
-            reducedNetwork = reducedNetworkInput.get();
+            return reducedNetworkInput.get();
         }
     }
 
     @Override
     public void init(PrintStream out) {
+        ReducedNetwork reducedNetwork = getReducedNetwork();
         String prefix = reducedNetwork.getID() == null ? "networkStat." : reducedNetwork.getID() + ".";
         out.print(
                 prefix + "height\t" +
@@ -53,12 +56,17 @@ public class ReducedNetworkStatsLogger extends BEASTObject implements Loggable {
                         prefix + "nodeCount\t" +
                         prefix + "edgeCount\t" +
                         prefix + "maxNodeDegree\t" +
-                        prefix + "fullNetworkNodeCount\t" +
-                        prefix + "fullNetworkEdgeCount\t");
+                        prefix + "integratedHazard\t");
+
+        // Only available when this logger was given a full network to reduce.
+        if (fullNetwork != null)
+            out.print(prefix + "fullNetworkNodeCount\t" +
+                    prefix + "fullNetworkEdgeCount\t");
     }
 
     @Override
     public void log(long sample, PrintStream out) {
+        ReducedNetwork reducedNetwork = getReducedNetwork();
         out.print(
                 getTotalHeight(reducedNetwork) + "\t" +
                         getTotalEdgeLength(reducedNetwork) + "\t" +
@@ -66,10 +74,13 @@ public class ReducedNetworkStatsLogger extends BEASTObject implements Loggable {
                         reducedNetwork.getEdges().size() + "\t" +
                         reducedNetwork.getNodes().stream()
                                 .map(NetworkNode::getDegree)
-                                .max(Integer::compare).get()
+                                .max(Integer::compare).orElse(0)
                         + "\t" +
-                        fullNetwork.getNodes().size() + "\t" +
-                        fullNetwork.getEdges().size() + "\t");
+                        getIntegratedHazard(reducedNetwork) + "\t");
+
+        if (fullNetwork != null)
+            out.print(fullNetwork.getNodes().size() + "\t" +
+                    fullNetwork.getEdges().size() + "\t");
     }
 
     @Override
@@ -99,6 +110,40 @@ public class ReducedNetworkStatsLogger extends BEASTObject implements Loggable {
 
     public static int getExcessCount(ReducedNetwork network) {
         return network.getInternalNodes().size() - network.getLeafNodes().size() + 1;
+    }
+
+    /** Diagnostic: sum over intervals of compatiblePairs * dt, computed directly from the network. */
+    public static double getIntegratedHazard(ReducedNetwork network) {
+        List<Double> times = new ArrayList<>();
+        for (NetworkNode node : network.getNodes())
+            if (!times.contains(node.getHeight()))
+                times.add(node.getHeight());
+        times.sort(Double::compare);
+
+        List<NetworkEdge> edges = new ArrayList<>(network.getEdges());
+        double hazard = 0.0;
+        for (int i = 1; i < times.size(); i++) {
+            double t0 = times.get(i - 1);
+            double t1 = times.get(i);
+            double mid = 0.5 * (t0 + t1);
+
+            List<NetworkEdge> active = new ArrayList<>();
+            for (NetworkEdge e : edges) {
+                double childH = e.getChildHeight();
+                double parentH = e.isRootEdge() ? Double.POSITIVE_INFINITY : e.getParentHeight();
+                if (childH <= mid && parentH > mid)
+                    active.add(e);
+            }
+
+            int pairs = 0;
+            for (int a = 0; a < active.size(); a++)
+                for (int b = a + 1; b < active.size(); b++)
+                    if (active.get(a).hasSegments.intersects(active.get(b).hasSegments))
+                        pairs++;
+
+            hazard += pairs * (t1 - t0);
+        }
+        return hazard;
     }
 
     public static int getReassortmentCount(ReducedNetwork network, double[] rootHeights) {

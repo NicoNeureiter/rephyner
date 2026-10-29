@@ -33,7 +33,7 @@ public class ReducedCoalescentTest extends RephynerTestClass {
         ReducedCoalescent reducedCoalescent = new ReducedCoalescent();
         reducedCoalescent.initByName(
                 "networkIntervals", networkIntervals,
-                "reassortmentRate", new RealParameter("1.0"),
+                "concentration", new RealParameter("1.0"),
                 "populationModel", popModel,
                 "traitSet", traitSet
         );
