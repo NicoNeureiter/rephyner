@@ -35,4 +35,4 @@ if ! command -v snakemake >/dev/null 2>&1; then
 fi
 
 cd "${WORKFLOW_DIR}"
-snakemake --profile "${PROFILE_DIR}" --configfile "${CONFIG_FILE}" "$@"
+snakemake --profile "${PROFILE_DIR}" "$@" --configfile "${CONFIG_FILE}"
