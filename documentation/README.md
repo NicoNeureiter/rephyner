@@ -139,4 +139,4 @@ Results:
   ![Topology ESS per CPU-hour against posterior node count](figures/node_count_vs_ess.png)
 
   Local-tree topology ESS per CPU-hour against posterior node count in the pilot, one point per prior setting and true recombination rate, with a trend line per method.
-* Unit tests: all pass except the detailed-balance test of `NetworkEdgeRangeSlide` (probably a wrong Hastings ratio) and three piggyback cases of `HastingsRatioReversibilityTest`. The criterion of the latter (mean log Hastings ratio ≈ 0) is questionable, since it should be ≤ 0 by Jensen's inequality.
+* Unit tests: all pass. `NetworkEdgeRangeSlide` needed the back-probability of choosing the same moving edge; `HastingsRatioReversibilityTest` now checks E[r] = P(valid proposal) instead of mean log HR ≈ 0, with and without piggyback.
