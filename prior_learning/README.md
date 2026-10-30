@@ -105,7 +105,7 @@ The model has about 20 parameters. Two pieces are effectively unused and can be 
 python -m prior_learning.simulate --n 200000 --leaves 6 --segments 4 --rho 0.4 --seed 11 --workers 8 --events train.npz
 python -m prior_learning.simulate --n 20000  --leaves 6 --segments 4 --rho 0.4 --seed 12 --workers 8 --events heldout.npz
 python -m prior_learning.waiting_time.lineages train.npz --out wait.json
-python -m prior_learning.topology.train_two_lineage train.npz topology.json --heldout heldout.npz   # v4: topology.train_pairwise_urn
+python -m prior_learning.topology.train_two_lineage train.npz topology.json --heldout heldout.npz
 python -m prior_learning.generate --waitModel wait.json --childModel topology.json --nLeaves 6 --nSegments 4 --nSamples 1000
 ```
 

@@ -84,6 +84,15 @@ Three rephyner variants on the subset in `config.yaml: ablation`, written to
 
 `tuned` vs baseline measures the retuning; `targeted` vs `tuned` measures the targeting alone.
 
+**Note on the reported results:** the main-grid rephyner runs used neither targeted operators nor
+tuned operator settings, so they probably understate rephyner's efficiency. A preliminary local
+ablation (`config.ablation_local.yaml`: r=6, alpha 1 and 4, 2 datasets x 2 seeds, 15M steps) showed
+consistent gains at unchanged cost per step. Median continuous ESS rose about 1.4x at alpha=1 and 2x
+at alpha=4. Targeting roughly doubled acceptance of the SPR and Wilson-Balding moves. Topology ESS
+improved by about 20% at alpha=4 and was within noise at alpha=1. The overall trend (rephyner more
+efficient at high reticulation, CoalRe at low) is unlikely to change, but the crossover point would
+probably shift toward lower reticulation.
+
 ### EULER
 
 ```bash
