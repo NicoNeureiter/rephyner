@@ -1,0 +1,18 @@
+{
+ "version": 1,
+ "family": "exponential_lineage_pairs",
+ "features": [
+  "const",
+  "log_sum_pairs",
+  "log_max_pairs"
+ ],
+ "coeffs": [
+  0.08183607084244644,
+  0.10549261873439884,
+  0.8166963743499249
+ ],
+ "metrics": {
+  "valid_mean_nll": -0.5808345536265961,
+  "valid_mean_nll_gamma_per_k": -0.47591272380738603
+ }
+}

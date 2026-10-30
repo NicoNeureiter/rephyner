@@ -98,7 +98,7 @@ Implemented in Python (`../prior_learning/`, details and results in its README):
 * topology, pairwise urn (v4): decide which segments coalesce, then let each segment pick a pair of children with probability proportional to node weights that grow when earlier segments chose the same node (so linked segments tend to coalesce together);
 * topology, two-lineage model (v5, best): models the two hidden ARG lineages behind each coalescence explicitly.
 
-The Java class `LearnedReducedNetworkPrior` implements an older version and is on hold. Open issues: the model is fitted for one recombination rate, so it cannot be used to estimate $\rho$; samples at different times are not handled yet; and it is so far only checked against summary statistics, not against estimates of the true prior.
+The Java class `LearnedReducedNetworkPrior` evaluates the waiting-time model and the pairwise urn from the JSON files written by the Python trainers (fit first, then run BEAST); its density matches the Python one on a test fixture. Open issues: the model is fitted for one recombination rate, so it cannot be used to estimate $\rho$; samples at different times are not handled yet; and it is so far only checked against summary statistics, not against estimates of the true prior.
 
 ## 4. Inference
 

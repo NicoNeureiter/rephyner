@@ -1,680 +1,326 @@
 package rephyner.distribution;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.BitSet;
-import java.util.Iterator;
 import java.util.List;
-import org.apache.commons.statistics.distribution.ContinuousDistribution;
-import org.apache.commons.statistics.distribution.GammaDistribution;
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 import beast.base.core.Description;
 import beast.base.core.Input;
 import beast.base.core.Input.Validate;
-import beast.base.evolution.tree.TraitSet;
-import coalre.simulator.SimulatedCoalescentNetwork;
 import rephyner.network.NetworkEdge;
 import rephyner.network.NetworkNode;
-import rephyner.network.NetworkReducer;
 import rephyner.network.ReducedNetwork;
-import rephyner.util.BitSetFun;
 
 /**
- * @author Nico Neureiter
+ * Learned approximation of the rARG prior implied by the coalescent with reassortment.
+ * Internal nodes are processed from the present into the past; each contributes an exponential
+ * waiting time (rate log-linear in the per-segment lineage counts) and the probability of its child
+ * assignment under the pairwise Polya-urn model (v4). Both models are fitted beforehand with the
+ * Python package in prior_learning/ (see its README) and loaded from JSON. Port of
+ * prior_learning/waiting_time/lineages.py and prior_learning/topology/pairwise_urn.py.
  */
-@Description("TODO")
+@Description("Learned approximate prior on reduced ARGs (models fitted with prior_learning/).")
 public class LearnedReducedNetworkPrior extends NetworkDistribution {
 
-    // public Input<NetworkDistribution> reassortmentRateInput = new Input<>(
-    // "fullNetworkPrior",
-    // "The base prior on full ARGs from which to approximate the marginal rARG prior.");
+    public Input<String> waitingTimeModelInput = new Input<>("waitingTimeModel",
+            "JSON file of the waiting-time model (prior_learning.waiting_time.lineages).", Validate.REQUIRED);
 
-    public Input<SimulatedCoalescentNetwork> networkSimulatorInput = new Input<>(
-            "networkSimulator",
-            "The network simulator for the desired prior over full ARGs.");
-
-    public Input<String> approxParamPathInput = new Input<>(
-            "paramPath",
-            "The path to the directory where approximate prior parameters will be stored (in topology.json and waiting_time.json).",
+    public Input<String> topologyModelInput = new Input<>("topologyModel",
+            "JSON file of the pairwise-urn topology model (prior_learning.topology.train_pairwise_urn).",
             Validate.REQUIRED);
 
-    public Input<TraitSet> traitSetInput = new Input<>(
-            "traitSet",
-            "Trait set used to assign leaf ages.",
-            Validate.REQUIRED);
+    static final String WAIT_FAMILY = "exponential_lineage_pairs";
+    static final int WAIT_VERSION = 1;
+    static final String TOPOLOGY_FAMILY = "pairwise_urn";
+    static final int TOPOLOGY_VERSION = 4;
+    static final double MIN_AGE = 1e-6;
 
-    public NetworkIntervals intervals;
-    ArrayList<Double> topoAlpha, topoBeta, topoPAll;
-    ArrayList<Double> waitShape, waitScale;
+    String[] waitFeatures;
+    double[] waitCoeffs;
 
-    // Precomputed decoded values for each k (indexed by k, so index 0 and 1 are unused)
-    private static final int MAX_K = 1000; // Maximum expected number of open nodes
-    private double[] decodedAlpha;
-    private double[] decodedBeta;
-    private double[] decodedPAll;
+    double[] alphaKnots, betaKnots, pAllKnots;  // spline values in logit space (after the monotone transform)
+    double kMin, kMax;
+    double thetaBase, thetaReinf;
+
+    // Decoded (alpha, beta, p_all) per number of open nodes k, filled on demand
+    private final List<double[]> topologyParamsCache = new ArrayList<>();
 
     @Override
     public void initAndValidate() {
-        intervals = networkIntervalsInput.get();
-        // learnApproximator();
-        loadLearnedParameters();
-        precomputeDecodedValues();
-    }
-
-    /**
-     * Precompute decoded alpha, beta, pAll values for all possible k values. This avoids repeated computation during
-     * likelihood calculation.
-     */
-    private void precomputeDecodedValues() {
-        decodedAlpha = new double[MAX_K + 1];
-        decodedBeta = new double[MAX_K + 1];
-        decodedPAll = new double[MAX_K + 1];
-
-        for (int k = 2; k <= MAX_K; k++) {
-            decodedAlpha[k] = decodeAlpha(k);
-            decodedBeta[k] = decodeBeta(k);
-            decodedPAll[k] = decodePAll(k);
-        }
-    }
-
-    /**
-     * Initialize the cache for efficient log-binomial for the given number of segments.
-     * 
-     * @param nSegments
-     */
-    void initializeLogBinomCache(int nSegments) {}
-
-    // Placeholder paths for Python scripts - update these to actual locations
-    private static final String PYTHON_SCRIPT_DIR = "/path/to/rephyner/prior_learning/";
-    private static final String PARSE_EVENTS_SCRIPT = PYTHON_SCRIPT_DIR + "../parse_rarg_events.py";
-    private static final String CHILD_CRP_SCRIPT = PYTHON_SCRIPT_DIR + "child_crp.py";
-    private static final String WT_GAMMA_SCRIPT = PYTHON_SCRIPT_DIR + "wt_gamma.py";
-    private static final int N_TRAINING_SAMPLES = 10000;
-
-    /**
-     * Learn the approximator parameters by: 1. Simulating networks from the prior using the networkSimulator 2.
-     * Reducing them and writing to a .trees file 3. Running Python scripts to fit the approximation parameters
-     */
-    public void learnApproximator() {
-        SimulatedCoalescentNetwork simulator = networkSimulatorInput.get();
-        if (simulator == null) {
-            throw new IllegalStateException(
-                    "Cannot learn approximator: networkSimulator input is required.");
-        }
-
-        String paramPath = approxParamPathInput.get();
-        String treesFilePath = paramPath + "training_networks.trees";
-
-        // Step 1: Generate training networks and write to file
-        generateTrainingNetworks(simulator, treesFilePath, N_TRAINING_SAMPLES);
-
-        // Step 2: Run Python scripts to learn approximation parameters
-        runChildCrpScript(treesFilePath, paramPath);
-        runWtGammaScript(treesFilePath, paramPath);
-
-        // Step 3: Verify parameter files were created
-        assertParamFilesExist(paramPath);
-    }
-
-    /**
-     * Generate reduced networks from the simulator and write them to a .trees file.
-     */
-    void generateTrainingNetworks(SimulatedCoalescentNetwork simulator,
-            String outputPath, int nSamples) {
-        try (java.io.PrintStream out = new java.io.PrintStream(outputPath)) {
-            // Write header
-            ReducedNetwork network = networkIntervalsInput.get().networkInput.get();
-            network.init(out);
-
-            // Generate and log samples
-            for (int i = 0; i < nSamples; i++) {
-                // Re-simulate the network
-                simulator.initAndValidate();
-
-                // Reduce the full network to a reduced network
-                coalre.network.Network fullNetwork = simulator;
-                ReducedNetwork reducedNetwork = NetworkReducer.reduce(fullNetwork);
-
-                // Log the reduced network
-                reducedNetwork.log(i, out);
-            }
-
-            network.close(out);
-        } catch (java.io.FileNotFoundException e) {
-            throw new RuntimeException("Failed to write training networks to " + outputPath, e);
-        }
-    }
-
-    /**
-     * Run the child_crp.py script to fit topology parameters. Outputs topology.json with alpha, beta, p_all
-     * coefficients.
-     */
-    void runPreprocessingScripts(String treesFilePath, String outputDir) {
-        runPythonScript(PARSE_EVENTS_SCRIPT, treesFilePath, outputDir);
-    }
-
-    /**
-     * Run the child_crp.py script to fit topology parameters. Outputs topology.json with alpha, beta, p_all
-     * coefficients.
-     */
-    void runChildCrpScript(String eventsFilePath, String outputDir) {
-        runPythonScript(CHILD_CRP_SCRIPT, eventsFilePath, outputDir);
-    }
-
-    /**
-     * Run the wt_gamma.py script to fit waiting time parameters. Outputs waiting_time.json with shape/scale parameters
-     * per k.
-     */
-    void runWtGammaScript(String eventsFilePath, String outputDir) {
-        runPythonScript(WT_GAMMA_SCRIPT, eventsFilePath, outputDir);
-    }
-
-    /**
-     * Run a Python script with the given arguments.
-     */
-    void runPythonScript(String scriptPath, String inputPath, String outputDir) {
+        String path = waitingTimeModelInput.get();
         try {
-            ProcessBuilder processBuilder = new ProcessBuilder(
-                    "python", scriptPath,
-                    "--input", inputPath,
-                    "--output", outputDir);
-            processBuilder.redirectErrorStream(true);
-            processBuilder.inheritIO(); // Show output in console for debugging
-
-            Process process = processBuilder.start();
-            int exitCode = process.waitFor();
-
-            if (exitCode != 0) {
-                throw new RuntimeException(
-                        "Python script " + scriptPath + " failed with exit code " + exitCode);
-            }
-        } catch (java.io.IOException e) {
-            throw new RuntimeException("Failed to run Python script: " + scriptPath, e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException("Python script execution interrupted: " + scriptPath, e);
+            loadWaitingTimeModel(readJson(path));
+            path = topologyModelInput.get();
+            loadTopologyModel(readJson(path));
+        } catch (IOException | JSONException e) {
+            throw new IllegalArgumentException("Failed to read model file " + path, e);
         }
     }
 
-    /**
-     * Verify that the expected parameter files exist after running the Python scripts.
-     */
-    void assertParamFilesExist(String paramPath) {
-        java.io.File topologyFile = new java.io.File(paramPath + "topology.json");
-        java.io.File waitingTimeFile = new java.io.File(paramPath + "waiting_time.json");
-
-        if (!topologyFile.exists()) {
-            throw new RuntimeException(
-                    "Topology parameter file not found: " + topologyFile.getAbsolutePath());
-        }
-        if (!waitingTimeFile.exists()) {
-            throw new RuntimeException(
-                    "Waiting time parameter file not found: " + waitingTimeFile.getAbsolutePath());
-        }
+    static JSONObject readJson(String path) throws IOException, JSONException {
+        return new JSONObject(Files.readString(Path.of(path)));
     }
 
-    void loadLearnedParameters() {
-        loadTopologyParameters();
-        loadWaitingTimeParameters();
+    static void checkModel(JSONObject json, String family, int version) {
+        if (!family.equals(json.optString("family")) || json.optInt("version", -1) != version)
+            throw new IllegalArgumentException("Expected model family '" + family + "' version " + version
+                    + ", got '" + json.optString("family") + "' version " + json.optInt("version", -1) + ".");
     }
 
-    void loadTopologyParameters() {
-        // Load params
-        String paramPath = approxParamPathInput.get() + "topology.json";
-        try (java.io.FileReader reader = new java.io.FileReader(paramPath)) {
-            java.io.BufferedReader bufferedReader = new java.io.BufferedReader(reader);
-            StringBuilder jsonBuilder = new StringBuilder();
-            String line;
-            while ((line = bufferedReader.readLine()) != null) {
-                jsonBuilder.append(line);
-            }
-            JSONObject jsonObject = new org.json.JSONObject(jsonBuilder.toString());
-            JSONArray alphaJson = jsonObject.getJSONArray("alpha");
-            topoAlpha = parseJSONDoubleArray(alphaJson);
-            JSONArray betaJson = jsonObject.getJSONArray("beta");
-            topoBeta = parseJSONDoubleArray(betaJson);
-            JSONArray pAllJson = jsonObject.getJSONArray("p_all");
-            topoPAll = parseJSONDoubleArray(pAllJson);
-        } catch (java.io.IOException | org.json.JSONException e) {
-            throw new RuntimeException("Failed to load learned parameters from " + paramPath, e);
-        }
+    void loadWaitingTimeModel(JSONObject json) throws JSONException {
+        checkModel(json, WAIT_FAMILY, WAIT_VERSION);
+        JSONArray features = json.getJSONArray("features");
+        waitFeatures = new String[features.length()];
+        for (int i = 0; i < waitFeatures.length; i++)
+            waitFeatures[i] = features.getString(i);
+        waitCoeffs = toDoubleArray(json.getJSONArray("coeffs"));
+        if (waitCoeffs.length != waitFeatures.length)
+            throw new IllegalArgumentException("Waiting-time model has " + waitFeatures.length + " features but "
+                    + waitCoeffs.length + " coefficients.");
     }
 
-
-    void loadWaitingTimeParameters() {
-        // Load params
-        String paramPath = approxParamPathInput.get() + "waiting_time.json";
-        try (java.io.FileReader reader = new java.io.FileReader(paramPath)) {
-            // Read the file using StringBuilder
-            java.io.BufferedReader bufferedReader = new java.io.BufferedReader(reader);
-            StringBuilder jsonBuilder = new StringBuilder();
-            String line;
-            while ((line = bufferedReader.readLine()) != null) {
-                jsonBuilder.append(line);
-            }
-
-            // Parse the JSON string
-            JSONObject jsonObject = new org.json.JSONObject(jsonBuilder.toString());
-            JSONObject groups = jsonObject.getJSONObject("groups");
-
-            // Find the maximum key to properly size the ArrayLists
-            int maxK = 0;
-            Iterator<String> keysForMax = groups.keys();
-            while (keysForMax.hasNext()) {
-                int k = Integer.valueOf(keysForMax.next());
-                if (k > maxK)
-                    maxK = k;
-            }
-
-            // Initialize ArrayLists with proper size (filled with 0.0)
-            waitScale = new ArrayList<>();
-            waitShape = new ArrayList<>();
-            for (int i = 0; i <= maxK; i++) {
-                waitShape.add(1.0); // Default shape
-                waitScale.add(1.0); // Default scale
-            }
-
-            // Read the parameters of the waiting time distribution for each potential number of available children
-            Iterator<String> keys = groups.keys();
-            while (keys.hasNext()) {
-                String key = keys.next();
-                int k = Integer.valueOf(key);
-                JSONObject g = groups.getJSONObject(key);
-                waitShape.set(k, g.getDouble("shape"));
-                waitScale.set(k, g.getDouble("scale"));
-            }
-        } catch (java.io.IOException | org.json.JSONException e) {
-            throw new RuntimeException("Failed to load learned parameters from " + paramPath, e);
-        }
+    void loadTopologyModel(JSONObject json) throws JSONException {
+        checkModel(json, TOPOLOGY_FAMILY, TOPOLOGY_VERSION);
+        JSONArray kRange = json.getJSONArray("k_range");
+        kMin = kRange.getDouble(0);
+        kMax = kRange.getDouble(1);
+        alphaKnots = monotoneKnots(toDoubleArray(json.getJSONArray("alpha")), -1);
+        betaKnots = monotoneKnots(toDoubleArray(json.getJSONArray("beta")), 1);
+        pAllKnots = monotoneKnots(toDoubleArray(json.getJSONArray("p_all")), 1);
+        thetaBase = json.getDouble("theta_base");
+        thetaReinf = json.getDouble("theta_reinf");
+        topologyParamsCache.clear();
     }
 
-    private ArrayList<Double> parseJSONDoubleArray(JSONArray jsonArr) {
-        ArrayList<Double> arrList = new ArrayList<>();
-        for (int i = 0; i < jsonArr.length(); i++) {
-            try {
-                arrList.add(jsonArr.getDouble(i));
-            } catch (org.json.JSONException e) {
-                throw new RuntimeException("Failed to extract double from json list at index " + i, e);
-            }
-        }
-        return arrList;
+    static double[] toDoubleArray(JSONArray arr) throws JSONException {
+        double[] values = new double[arr.length()];
+        for (int i = 0; i < values.length; i++)
+            values[i] = arr.getDouble(i);
+        return values;
     }
 
-    ContinuousDistribution getWaitingTimeDistribution(int k) {
-        // Clamp k to valid range
-        int kClamped = Math.max(2, Math.min(k, waitShape.size() - 1));
-        return GammaDistribution.of(waitShape.get(kClamped), waitScale.get(kClamped));
+    /** Cumulative sum of the first coefficient and the (signed) softplus of the others. */
+    static double[] monotoneKnots(double[] coeffs, int sign) {
+        double[] knots = new double[coeffs.length];
+        knots[0] = coeffs[0];
+        for (int i = 1; i < coeffs.length; i++)
+            knots[i] = knots[i - 1] + sign * softplus(coeffs[i]);
+        return knots;
     }
 
-    double logPWaitingTime(double t, int k) {
-        return getWaitingTimeDistribution(k).logDensity(t);
+    static double softplus(double x) {
+        return Math.max(x, 0) + Math.log1p(Math.exp(-Math.abs(x)));
     }
 
-    // Logistic (sigmoid) function
-    double sigmoid(double x) {
+    static double sigmoid(double x) {
         return 1.0 / (1.0 + Math.exp(-x));
     }
 
-    // Softplus function: log(1 + exp(x))
-    double softplus(double x) {
-        if (x > 20)
-            return x; // Avoid overflow
-        return Math.log1p(Math.exp(x));
+    /** Piecewise-linear spline in logit space with evenly spaced knots on [kMin, kMax], clipped. */
+    double logitSpline(double k, double[] knots) {
+        double x = Math.max(kMin, Math.min(k, kMax));
+        int n = knots.length;
+        double pos = (n == 1 || kMax == kMin) ? 0 : (x - kMin) / (kMax - kMin) * (n - 1);
+        int i = Math.min((int) Math.floor(pos), n - 2);
+        if (i < 0)
+            return sigmoid(knots[0]);
+        double t = pos - i;
+        return sigmoid(knots[i] * (1 - t) + knots[i + 1] * t);
+    }
+
+    /** Decoded {alpha, beta, p_all} for k open nodes. */
+    double[] topologyParams(int k) {
+        while (topologyParamsCache.size() <= k) {
+            int kk = topologyParamsCache.size();
+            topologyParamsCache.add(new double[] {
+                    logitSpline(kk, alphaKnots), logitSpline(kk, betaKnots), logitSpline(kk, pAllKnots)});
+        }
+        return topologyParamsCache.get(k);
+    }
+
+    /** Urn reinforcement weight for a segment carried by w of the wMax open nodes. */
+    static double scaleWeights(int w, int wMin, int wMax) {
+        double linear = Math.max(0.0, w - wMin) / Math.max(1.0, wMax - wMin);
+        return 1.0 - Math.pow(1.0 - Math.pow(linear, 0.75), 1.17);
+    }
+
+    /** Log-density of waiting time t given the number of open nodes carrying each segment. */
+    double logPWaitingTime(double t, int[] lineageCounts) {
+        double sumPairs = 0, maxPairs = 0;
+        int activeSegments = 0;
+        for (int n : lineageCounts) {
+            double pairs = n * (n - 1) / 2.0;
+            sumPairs += pairs;
+            maxPairs = Math.max(maxPairs, pairs);
+            if (n >= 2)
+                activeSegments++;
+        }
+        double logRate = 0;
+        for (int i = 0; i < waitFeatures.length; i++) {
+            double feature = switch (waitFeatures[i]) {
+                case "const" -> 1.0;
+                case "log_sum_pairs" -> Math.log(sumPairs);
+                case "log_max_pairs" -> Math.log(maxPairs);
+                case "log_k_active_segments" -> Math.log(activeSegments);
+                default -> throw new IllegalArgumentException("Unknown waiting-time feature " + waitFeatures[i]);
+            };
+            logRate += waitCoeffs[i] * feature;
+        }
+        return logRate - Math.exp(logRate) * t;
     }
 
     /**
-     * Scale weights for Polya urn updates. Gradually increases the update weight based on how many nodes are available.
-     * Matches Python: scale_weights(w, w_min, w_max, A=0.75, B=1.17)
-     * 
-     * @param w Current count (e.g., number of available nodes)
-     * @param wMin Minimum value for scaling
-     * @param wMax Maximum value for scaling
-     * @return Scaled weight in [0, 1]
+     * Log-probability of the child assignment at one event (pairwise urn).
+     * mask[i]: open segments of open node i; childSegs[i]: segments node i passes to the new node.
      */
-    double scaleWeights(int w, int wMin, int wMax) {
-        double A = 0.75;
-        double B = 1.17;
-        double wScaledLinear = Math.max(0.0, w - wMin) / Math.max(1.0, wMax - wMin);
-        double wScaled = 1.0 - Math.pow(1.0 - Math.pow(wScaledLinear, A), B);
-        return wScaled;
-    }
+    double logPTopology(List<BitSet> mask, List<BitSet> childSegs, double[] logAge, int nSegments) {
+        int k = mask.size();
+        double[] params = topologyParams(k);
+        double alpha = params[0], beta = params[1], pAll = params[2];
 
-    // Logit spline interpolation (matches Python decode functions)
-    double logitSpline(int k, ArrayList<Double> coeffs) {
-        int n = coeffs.size();
-        double kMin = 3.0;
-        double kMax = 42.0;
-        double kClamped = Math.max(kMin, Math.min(k, kMax));
+        int[] nAvail = new int[nSegments];
+        for (BitSet m : mask)
+            for (int s = m.nextSetBit(0); s >= 0; s = m.nextSetBit(s + 1))
+                nAvail[s]++;
+        BitSet has = new BitSet();
+        for (BitSet c : childSegs)
+            has.or(c);
 
-        // Generate support points
-        double[] kSupp = new double[n];
-        for (int i = 0; i < n; i++) {
-            kSupp[i] = kMin + i * (kMax - kMin) / (n - 1);
-        }
-
-        // Linear interpolation in logit space
-        double yLogit = linearInterpolate(kClamped, kSupp, coeffs);
-        return sigmoid(yLogit);
-    }
-
-    double linearInterpolate(double x, double[] xp, ArrayList<Double> fp) {
-        int n = xp.length;
-        if (x <= xp[0])
-            return fp.get(0);
-        if (x >= xp[n - 1])
-            return fp.get(n - 1);
-
-        for (int i = 0; i < n - 1; i++) {
-            if (x >= xp[i] && x <= xp[i + 1]) {
-                double t = (x - xp[i]) / (xp[i + 1] - xp[i]);
-                return fp.get(i) * (1 - t) + fp.get(i + 1) * t;
-            }
-        }
-        return fp.get(n - 1);
-    }
-
-    // Decode alpha: uses decreasing coefficients (softplus negated after first)
-    double decodeAlpha(int k) {
-        ArrayList<Double> coeffsDecreasing = new ArrayList<>();
-        coeffsDecreasing.add(topoAlpha.get(0));
-        double cumsum = topoAlpha.get(0);
-        for (int i = 1; i < topoAlpha.size(); i++) {
-            cumsum -= softplus(topoAlpha.get(i));
-            coeffsDecreasing.add(cumsum);
-        }
-        return logitSpline(k, coeffsDecreasing);
-    }
-
-    // Decode beta: uses increasing coefficients (softplus after first)
-    double decodeBeta(int k) {
-        ArrayList<Double> coeffsIncreasing = new ArrayList<>();
-        coeffsIncreasing.add(topoBeta.get(0));
-        double cumsum = topoBeta.get(0);
-        for (int i = 1; i < topoBeta.size(); i++) {
-            cumsum += softplus(topoBeta.get(i));
-            coeffsIncreasing.add(cumsum);
-        }
-        return logitSpline(k, coeffsIncreasing);
-    }
-
-    // Decode p_all: uses increasing coefficients (softplus after first)
-    double decodePAll(int k) {
-        ArrayList<Double> coeffsIncreasing = new ArrayList<>();
-        coeffsIncreasing.add(topoPAll.get(0));
-        double cumsum = topoPAll.get(0);
-        for (int i = 1; i < topoPAll.size(); i++) {
-            cumsum += softplus(topoPAll.get(i));
-            coeffsIncreasing.add(cumsum);
-        }
-        return logitSpline(k, coeffsIncreasing);
-    }
-
-    ReducedNetwork getNetwork() {
-        return networkIntervalsInput.get().networkInput.get();
-    }
-
-    /**
-     * Compute log probability of the topology at this coalescence node.
-     * 
-     * @param node The coalescence node
-     * @param openNodes List of currently open nodes (potential children)
-     * @param openSegments List of active segments for each open node (same indexing as openNodes)
-     * @return log probability of the child assignment
-     */
-    double logPTopology(NetworkNode node, List<NetworkNode> openNodes, List<BitSet> openSegments) {
-        int k = openNodes.size();
-        if (k < 2)
-            return 0.0; // No coalescence possible
-
-        double logP = 0.0;
-        // Use precomputed values with clamping to valid range
-        int kClamped = Math.min(k, MAX_K);
-        double alpha = decodedAlpha[kClamped];
-        double beta = decodedBeta[kClamped];
-        double pAll = decodedPAll[kClamped];
-
-        int nSegments = getNetwork().getSegmentCount();
-        BitSet activeSegments = node.getActiveSegments();
-
-        // Count how many segments have children at this node
-        boolean[] segCanHaveChild = new boolean[nSegments];
-        int nSegmentsWithChildren = activeSegments.cardinality();
-        int nSegmentsCanHaveChild = 0;
+        // 1. Presence: mixture of "all coalesce" and a Polya urn, conditioned on a non-empty event
+        boolean allCoalesce = true;
+        int nEligible = 0;
+        double c0 = 1.0 - beta, c1 = beta;
+        double lpUrn = 0.0;
         for (int s = 0; s < nSegments; s++) {
-            segCanHaveChild[s] = canHaveChild(openSegments, s);
-            if (segCanHaveChild[s])
-                nSegmentsCanHaveChild++;
-        }
-
-        // Handle pAll: probability that ALL segments get children
-        if (nSegmentsWithChildren == nSegmentsCanHaveChild) {
-            logP += Math.log(pAll);
-        } else {
-            logP += Math.log(1 - pAll);
-        }
-
-        // Initialize Polya urn concentration for "has child" decision
-        double[] concHasChild = new double[] {1 - beta, beta};
-
-        // Initialize Polya urn concentration for "which child" decision
-        double[] concWhichChild = new double[k];
-        Arrays.fill(concWhichChild, alpha);
-
-        // Iterate over segments
-        for (int s = 0; s < nSegments; s++) {
-            if (!segCanHaveChild[s])
-                continue; // Skip segments that cannot have children (less than 2 open nodes)
-
-            // Polya urn for "has child" decision
-            double pHasChild = concHasChild[1] / (concHasChild[0] + concHasChild[1]);
-            boolean hasChild = activeSegments.get(s);
-            if (hasChild) {
-                logP += Math.log(pHasChild);
-                concHasChild[1] += 1.0;
+            boolean eligible = nAvail[s] >= 2;
+            if (eligible != has.get(s))
+                allCoalesce = false;
+            if (!eligible)
+                continue;
+            double p = c1 / (c0 + c1);
+            if (has.get(s)) {
+                lpUrn += Math.log(p);
+                c1 += 1.0;
             } else {
-                logP += Math.log(1 - pHasChild);
-                concHasChild[0] += 1.0;
-                continue; // No child choice for this segment
+                lpUrn += Math.log1p(-p);
+                c0 += 1.0;
             }
-
-            // Find the two children for this segment
-            int[] childIndices = getChildIndicesForSegment(node, s, openNodes);
-            if (childIndices == null || childIndices.length != 2)
-                continue; // Should not happen in a valid network
-
-            int first = childIndices[0];
-            int second = childIndices[1];
-
-            // Compute masked probability over open nodes for this segment
-            double[] pMasked = new double[k];
-            double sumMasked = 0.0;
-            for (int i = 0; i < k; i++) {
-                if (openSegments.get(i).get(s)) {
-                    pMasked[i] = concWhichChild[i];
-                    sumMasked += concWhichChild[i];
-                }
-            }
-            if (sumMasked <= 0)
-                continue;
-            for (int i = 0; i < k; i++)
-                pMasked[i] /= sumMasked;
-
-            // Two-stage sampling: P({a,b}) ∝ p_a * p_b
-            // Stage 1: a ~ Categorical(w) with w_a = p_a * (1 - p_a)
-            double[] pFirst = new double[k];
-            double sumFirst = 0.0;
-            for (int i = 0; i < k; i++) {
-                pFirst[i] = pMasked[i] * (1.0 - pMasked[i]);
-                sumFirst += pFirst[i];
-            }
-            if (sumFirst <= 0)
-                continue;
-            for (int i = 0; i < k; i++)
-                pFirst[i] /= sumFirst;
-
-            logP += Math.log(pFirst[first]);
-
-            // Stage 2: b ~ Categorical(p | b != a)
-            double[] pSecond = pMasked.clone();
-            pSecond[first] = 0.0;
-            double sumSecond = 0.0;
-            for (int i = 0; i < k; i++)
-                sumSecond += pSecond[i];
-            if (sumSecond <= 0)
-                continue;
-            for (int i = 0; i < k; i++)
-                pSecond[i] /= sumSecond;
-
-            logP += Math.log(pSecond[second]);
-
-            // Update Polya urn counts for child choices with scaled weights
-            // Count available nodes for this segment (analogous to m.sum() in Python)
-            int availableCount = 0;
-            for (int i = 0; i < k; i++) {
-                if (openSegments.get(i).get(s)) {
-                    availableCount++;
-                }
-            }
-            double w = scaleWeights(availableCount, 1, k);
-            concWhichChild[first] += w;
-            concWhichChild[second] += w;
+            nEligible++;
         }
+        double lpUrnEmpty = 0.0;
+        for (int i = 0; i < nEligible; i++)
+            lpUrnEmpty += Math.log((1.0 - beta + i) / (1.0 + i));
+        double lpMix = Math.log1p(-pAll) + lpUrn;
+        double logP = (allCoalesce ? logAddExp(Math.log(pAll), lpMix) : lpMix)
+                - Math.log1p(-(1.0 - pAll) * Math.exp(lpUrnEmpty));
 
+        // 2. Each coalescing segment picks its pair of children with P({a,b}) ~ conc_a * conc_b
+        double[] conc = new double[k];
+        double[] reinforcement = new double[k];
+        for (int i = 0; i < k; i++) {
+            conc[i] = alpha * Math.exp(thetaBase * logAge[i]);
+            reinforcement[i] = Math.exp(thetaReinf * logAge[i]);
+        }
+        for (int s = has.nextSetBit(0); s >= 0; s = has.nextSetBit(s + 1)) {
+            double prefix = 0, norm = 0, logPair = 0;  // norm = sum over pairs i < j of conc_i * conc_j
+            for (int i = 0; i < k; i++) {
+                if (!mask.get(i).get(s))
+                    continue;
+                norm += prefix * conc[i];
+                prefix += conc[i];
+                if (childSegs.get(i).get(s))
+                    logPair += Math.log(conc[i]);
+            }
+            logP += logPair - Math.log(norm);
+            double w = scaleWeights(nAvail[s], 1, k);
+            for (int i = 0; i < k; i++)
+                if (childSegs.get(i).get(s))
+                    conc[i] += w * reinforcement[i];
+        }
         return logP;
     }
 
-    /**
-     * Get the indices of the two child nodes for segment s at the given parent node.
-     */
-    int[] getChildIndicesForSegment(NetworkNode parent, int segment, List<NetworkNode> openNodes) {
-        List<Integer> childIndices = new ArrayList<>();
-        for (NetworkEdge e : parent.getChildEdges()) {
-            if (e.hasSegments.get(segment)) {
-                int idx = openNodes.indexOf(e.childNode);
-                if (idx >= 0)
-                    childIndices.add(idx);
-            }
-        }
-        if (childIndices.size() == 2)
-            return new int[] {childIndices.get(0), childIndices.get(1)};
-        return null;
+    static double logAddExp(double a, double b) {
+        double max = Math.max(a, b);
+        if (max == Double.NEGATIVE_INFINITY)
+            return max;
+        return max + Math.log(Math.exp(a - max) + Math.exp(b - max));
     }
 
-    /**
-     * Check if segment s can have a child at the current state. Requires at least 2 open nodes with this segment
-     * active.
-     */
-    boolean canHaveChild(List<BitSet> openSegments, int s) {
-        int count = 0;
-        for (BitSet segs : openSegments) {
-            if (segs.get(s)) {
-                count++;
-                if (count >= 2)
-                    return true;
-            }
-        }
-        return false;
-    }
-
+    @Override
     public double calculateLogP() {
-        ReducedNetwork network = networkIntervalsInput.get().networkInput.get();
+        NetworkIntervals intervals = networkIntervalsInput.get();
+        ReducedNetwork network = intervals.networkInput.get();
         int nSegments = network.getSegmentCount();
 
+        // Open nodes (with at least one segment that has not found its parent yet), as in
+        // prior_learning/rarg/reduced_network.py
+        List<NetworkNode> openNodes = new ArrayList<>();
+        List<BitSet> openSegments = new ArrayList<>();
+        int[] segmentNodeCounts = new int[nSegments];
+        double lastTime = 0.0;
+
         logP = 0.0;
+        for (NetworkEvent event : intervals.getNetworkEventList()) {
+            NetworkNode node = event.node;
+            BitSet nodeSegments = new BitSet();
 
-        // Calculate tree intervals
-        intervals.update();
+            if (event.type == NetworkEvent.NetworkEventType.SAMPLE) {
+                nodeSegments.set(0, nSegments);
+                for (int s = 0; s < nSegments; s++)
+                    segmentNodeCounts[s]++;
+            } else {
+                int k = openNodes.size();
+                List<BitSet> childSegs = new ArrayList<>(k);
+                double[] logAge = new double[k];
+                for (int i = 0; i < k; i++) {
+                    childSegs.add(new BitSet());
+                    logAge[i] = Math.log(Math.max(event.time - openNodes.get(i).getHeight(), MIN_AGE));
+                }
+                for (NetworkEdge edge : node.getChildEdges()) {
+                    int idx = openNodes.indexOf(edge.childNode);
+                    if (idx >= 0)
+                        childSegs.get(idx).or(edge.hasSegments);
+                    nodeSegments.or(edge.hasSegments);
+                }
 
-        NetworkEvent prevEvent = null;
+                int[] lineageCounts = new int[nSegments];
+                for (BitSet m : openSegments)
+                    for (int s = m.nextSetBit(0); s >= 0; s = m.nextSetBit(s + 1))
+                        lineageCounts[s]++;
 
-        ArrayList<NetworkNode> openNodes = new ArrayList<NetworkNode>();
-        ArrayList<BitSet> openSegments = new ArrayList<>();
+                logP += logPWaitingTime(event.time - lastTime, lineageCounts);
+                logP += logPTopology(openSegments, childSegs, logAge, nSegments);
+                if (logP == Double.NEGATIVE_INFINITY)
+                    return logP;
 
-        for (NetworkEvent event : intervals.networkEventList) {
-            switch (event.type) {
-                case SAMPLE:
-                    // Add sample node to open set with all segments
-                    openNodes.add(event.node);
-                    openSegments.add(BitSetFun.full(nSegments));
-                    break;
-
-                case INTERNAL:
-                    int k = openNodes.size();
-                    NetworkNode node = event.node;
-                    BitSet activeSegments = node.getActiveSegments();
-
-                    // Add waiting time contribution (if not first event)
-                    if (prevEvent != null) {
-                        double dt = event.time - prevEvent.time;
-                        logP += logPWaitingTime(dt, k);
+                // Coalesced segments leave the children; segments reaching their local-tree root are closed
+                for (int i = 0; i < k; i++)
+                    openSegments.get(i).andNot(childSegs.get(i));
+                for (int s = nodeSegments.nextSetBit(0); s >= 0; s = nodeSegments.nextSetBit(s + 1)) {
+                    segmentNodeCounts[s]--;
+                    if (segmentNodeCounts[s] == 1) {
+                        segmentNodeCounts[s]--;
+                        nodeSegments.clear(s);
                     }
-
-                    // Add topology contribution
-                    logP += logPTopology(node, openNodes, openSegments);
-
-                    // Update open nodes: remove coalesced segments from children
-                    for (NetworkEdge childEdge : node.getChildEdges()) {
-                        NetworkNode child = childEdge.childNode;
-                        int childIdx = openNodes.indexOf(child);
-                        if (childIdx >= 0) {
-                            // Remove segments that coalesced at this node
-                            openSegments.get(childIdx).andNot(childEdge.hasSegments);
-                        }
-                    }
-
-                    // Add new node to open set with its active segments
-                    openNodes.add(node);
-                    openSegments.add((BitSet) activeSegments.clone());
-
-                    // Check for segments that reached their root (only one node has them)
-                    for (int s = 0; s < nSegments; s++) {
-                        int nodesWithSeg = 0;
-                        for (BitSet segs : openSegments) {
-                            if (segs.get(s))
-                                nodesWithSeg++;
-                        }
-                        // If only one node has this segment, it's the root for that segment
-                        if (nodesWithSeg == 1) {
-                            for (BitSet segs : openSegments) {
-                                segs.clear(s);
-                            }
-                        }
-                    }
-
-                    // Remove nodes with no remaining segments (iterate backwards to maintain indices)
-                    for (int i = openNodes.size() - 1; i >= 0; i--) {
-                        if (openSegments.get(i).isEmpty()) {
-                            openNodes.remove(i);
-                            openSegments.remove(i);
-                        }
-                    }
-                    break;
+                }
             }
 
-            if (logP == Double.NEGATIVE_INFINITY)
-                break;
-
-            prevEvent = event;
+            lastTime = Math.max(lastTime, event.time);
+            openNodes.add(node);
+            openSegments.add(nodeSegments);
+            for (int i = openNodes.size() - 1; i >= 0; i--) {
+                if (openSegments.get(i).isEmpty()) {
+                    openNodes.remove(i);
+                    openSegments.remove(i);
+                }
+            }
         }
-
         return logP;
     }
-
-
-    // @Override
-    // protected boolean requiresRecalculation() {
-    //     if (isTimeVarying) {
-    //         if (((CalculationNode) timeVaryingReassortmentRates).isDirtyCalculation())
-    //             return true;
-    //     } else {
-    //         if (((CalculationNode) reassortmentRate).isDirtyCalculation())
-    //             return true;
-    //     }
-    //     if (((CalculationNode) populationFunction).isDirtyCalculation())
-    //         return true;
-
-    //     return super.requiresRecalculation();
-    // }
-
 }

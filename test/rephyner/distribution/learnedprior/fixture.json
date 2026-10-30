@@ -1,0 +1,156 @@
+{
+ "waiting_time_model": "waiting_time.json",
+ "topology_model": "topology.json",
+ "networks": [
+  {
+   "dot": "digraph G {n0 [t=0.00000000];n1 [t=0.00000000];n2 [t=0.00000000];n3 [t=0.00000000];n4 [t=0.00000000];n5 [t=0.00000000];n6 [t=0.03698503];n7 [t=0.03789502];n8 [t=0.19224984];n9 [t=0.22963270];n10 [t=2.47424439];n11 [t=2.78159259];n12 [t=3.35030112];n6 -> n3 [segments=1111];n6 -> n0 [segments=1111];n7 -> n1 [segments=1111];n7 -> n4 [segments=1111];n8 -> n2 [segments=1111];n8 -> n7 [segments=1111];n9 -> n5 [segments=1111];n9 -> n8 [segments=1111];n10 -> n6 [segments=0011];n10 -> n9 [segments=0011];n11 -> n6 [segments=0100];n11 -> n9 [segments=0100];n12 -> n6 [segments=1000];n12 -> n9 [segments=1000];}",
+   "log_p_waiting_time": 3.1523206251313542,
+   "log_p_topology": -15.240235209465027
+  },
+  {
+   "dot": "digraph G {n0 [t=0.00000000];n1 [t=0.00000000];n2 [t=0.00000000];n3 [t=0.00000000];n4 [t=0.00000000];n5 [t=0.00000000];n6 [t=0.06449206];n7 [t=0.10564780];n8 [t=0.24974494];n9 [t=0.32307308];n10 [t=0.51317881];n11 [t=0.69302357];n6 -> n1 [segments=1111];n6 -> n3 [segments=1111];n7 -> n5 [segments=1001];n7 -> n0 [segments=1001];n8 -> n2 [segments=0110];n8 -> n5 [segments=0110];n9 -> n7 [segments=1001];n9 -> n4 [segments=1111];n9 -> n0 [segments=0110];n10 -> n2 [segments=1001];n10 -> n9 [segments=1111];n10 -> n8 [segments=0110];n11 -> n6 [segments=1111];n11 -> n10 [segments=1111];}",
+   "log_p_waiting_time": 6.495661642361197,
+   "log_p_topology": -22.292870044708252
+  },
+  {
+   "dot": "digraph G {n0 [t=0.00000000];n1 [t=0.00000000];n2 [t=0.00000000];n3 [t=0.00000000];n4 [t=0.00000000];n5 [t=0.00000000];n6 [t=0.03533451];n7 [t=0.30100602];n8 [t=0.64052095];n9 [t=1.21930538];n10 [t=1.45165586];n6 -> n1 [segments=1111];n6 -> n3 [segments=1111];n7 -> n4 [segments=1111];n7 -> n0 [segments=1111];n8 -> n7 [segments=1111];n8 -> n5 [segments=1111];n9 -> n8 [segments=1111];n9 -> n2 [segments=1111];n10 -> n9 [segments=1111];n10 -> n6 [segments=1111];}",
+   "log_p_waiting_time": 0.577127975827888,
+   "log_p_topology": -9.771385192871094
+  },
+  {
+   "dot": "digraph G {n0 [t=0.00000000];n1 [t=0.00000000];n2 [t=0.00000000];n3 [t=0.00000000];n4 [t=0.00000000];n5 [t=0.00000000];n6 [t=0.11969974];n7 [t=0.14696516];n8 [t=0.27612175];n9 [t=0.33714968];n10 [t=0.33956067];n11 [t=0.38022071];n12 [t=0.39464618];n13 [t=0.56036383];n6 -> n1 [segments=1111];n6 -> n4 [segments=1111];n7 -> n6 [segments=0100];n7 -> n5 [segments=0100];n8 -> n6 [segments=0001];n8 -> n5 [segments=0001];n9 -> n5 [segments=1000];n9 -> n2 [segments=1000];n10 -> n0 [segments=1111];n10 -> n3 [segments=1111];n11 -> n10 [segments=0010];n11 -> n2 [segments=0010];n12 -> n9 [segments=1000];n12 -> n6 [segments=1010];n12 -> n5 [segments=0010];n12 -> n2 [segments=0101];n12 -> n7 [segments=0100];n12 -> n8 [segments=0001];n13 -> n10 [segments=1101];n13 -> n12 [segments=1111];n13 -> n11 [segments=0010];}",
+   "log_p_waiting_time": 10.742556708113334,
+   "log_p_topology": -34.10596323013306
+  },
+  {
+   "dot": "digraph G {n0 [t=0.00000000];n1 [t=0.00000000];n2 [t=0.00000000];n3 [t=0.00000000];n4 [t=0.00000000];n5 [t=0.00000000];n6 [t=0.02981268];n7 [t=0.11450321];n8 [t=0.13672962];n9 [t=0.26457529];n10 [t=0.95282707];n6 -> n3 [segments=1111];n6 -> n5 [segments=1111];n7 -> n0 [segments=1111];n7 -> n6 [segments=1111];n8 -> n7 [segments=1111];n8 -> n1 [segments=1111];n9 -> n2 [segments=1111];n9 -> n4 [segments=1111];n10 -> n8 [segments=1111];n10 -> n9 [segments=1111];}",
+   "log_p_waiting_time": 5.62962464146506,
+   "log_p_topology": -9.66714233160019
+  },
+  {
+   "dot": "digraph G {n0 [t=0.00000000];n1 [t=0.00000000];n2 [t=0.00000000];n3 [t=0.00000000];n4 [t=0.00000000];n5 [t=0.00000000];n6 [t=0.06667807];n7 [t=0.14282811];n8 [t=0.20068104];n9 [t=0.50437870];n10 [t=1.06756219];n6 -> n3 [segments=1111];n6 -> n1 [segments=1111];n7 -> n2 [segments=1111];n7 -> n0 [segments=1111];n8 -> n5 [segments=1111];n8 -> n6 [segments=1111];n9 -> n4 [segments=1111];n9 -> n7 [segments=1111];n10 -> n9 [segments=1111];n10 -> n8 [segments=1111];}",
+   "log_p_waiting_time": 4.471765417747725,
+   "log_p_topology": -9.678261458873749
+  },
+  {
+   "dot": "digraph G {n0 [t=0.00000000];n1 [t=0.00000000];n2 [t=0.00000000];n3 [t=0.00000000];n4 [t=0.00000000];n5 [t=0.00000000];n6 [t=0.05606254];n7 [t=0.10738850];n8 [t=0.15459136];n9 [t=0.31217558];n10 [t=0.75282520];n11 [t=1.74273019];n6 -> n0 [segments=1111];n6 -> n3 [segments=1111];n7 -> n1 [segments=1111];n7 -> n2 [segments=1111];n8 -> n4 [segments=0011];n8 -> n6 [segments=0011];n9 -> n7 [segments=1111];n9 -> n4 [segments=1100];n9 -> n8 [segments=0011];n10 -> n9 [segments=1111];n10 -> n5 [segments=1111];n11 -> n10 [segments=1100];n11 -> n6 [segments=1100];}",
+   "log_p_waiting_time": 4.837845954555053,
+   "log_p_topology": -16.063040137290955
+  },
+  {
+   "dot": "digraph G {n0 [t=0.00000000];n1 [t=0.00000000];n2 [t=0.00000000];n3 [t=0.00000000];n4 [t=0.00000000];n5 [t=0.00000000];n6 [t=0.02890843];n7 [t=0.09617268];n8 [t=0.14735667];n9 [t=0.18213777];n10 [t=0.44335956];n11 [t=0.96250956];n6 -> n3 [segments=1111];n6 -> n5 [segments=1111];n7 -> n1 [segments=1111];n7 -> n6 [segments=1111];n8 -> n7 [segments=1111];n8 -> n0 [segments=1111];n9 -> n8 [segments=1111];n9 -> n4 [segments=1111];n10 -> n2 [segments=1000];n10 -> n9 [segments=1000];n11 -> n2 [segments=0111];n11 -> n9 [segments=0111];}",
+   "log_p_waiting_time": 6.060060920383064,
+   "log_p_topology": -12.711065709590912
+  },
+  {
+   "dot": "digraph G {n0 [t=0.00000000];n1 [t=0.00000000];n2 [t=0.00000000];n3 [t=0.00000000];n4 [t=0.00000000];n5 [t=0.00000000];n6 [t=0.06169913];n7 [t=0.15122800];n8 [t=0.54029892];n9 [t=0.78076758];n10 [t=0.82705861];n11 [t=1.29890094];n12 [t=1.72579065];n6 -> n2 [segments=1111];n6 -> n3 [segments=1111];n7 -> n5 [segments=1111];n7 -> n1 [segments=1111];n8 -> n0 [segments=1100];n8 -> n6 [segments=1100];n9 -> n0 [segments=0011];n9 -> n7 [segments=0011];n10 -> n9 [segments=0011];n10 -> n4 [segments=1011];n10 -> n7 [segments=1000];n11 -> n10 [segments=1011];n11 -> n6 [segments=0011];n11 -> n8 [segments=1100];n11 -> n4 [segments=0100];n12 -> n7 [segments=0100];n12 -> n11 [segments=0100];}",
+   "log_p_waiting_time": 3.1955534964854837,
+   "log_p_topology": -24.422648191452026
+  },
+  {
+   "dot": "digraph G {n0 [t=0.00000000];n1 [t=0.00000000];n2 [t=0.00000000];n3 [t=0.00000000];n4 [t=0.00000000];n5 [t=0.00000000];n6 [t=0.09270028];n7 [t=0.17647553];n8 [t=0.34164773];n9 [t=0.80225151];n10 [t=1.11146226];n6 -> n3 [segments=1111];n6 -> n2 [segments=1111];n7 -> n5 [segments=1111];n7 -> n6 [segments=1111];n8 -> n4 [segments=1111];n8 -> n1 [segments=1111];n9 -> n7 [segments=1111];n9 -> n8 [segments=1111];n10 -> n9 [segments=1111];n10 -> n0 [segments=1111];}",
+   "log_p_waiting_time": 3.0670821131488673,
+   "log_p_topology": -9.716961026191711
+  },
+  {
+   "dot": "digraph G {n0 [t=0.00000000];n1 [t=0.00000000];n2 [t=0.00000000];n3 [t=0.00000000];n4 [t=0.00000000];n5 [t=0.00000000];n6 [t=0.10498039];n7 [t=0.11231424];n8 [t=0.12811774];n9 [t=1.11176261];n10 [t=1.45505125];n6 -> n0 [segments=1111];n6 -> n1 [segments=1111];n7 -> n6 [segments=1111];n7 -> n5 [segments=1111];n8 -> n2 [segments=1111];n8 -> n3 [segments=1111];n9 -> n8 [segments=1111];n9 -> n4 [segments=1111];n10 -> n9 [segments=1111];n10 -> n7 [segments=1111];}",
+   "log_p_waiting_time": 2.8092674186415754,
+   "log_p_topology": -9.760892033576965
+  },
+  {
+   "dot": "digraph G {n0 [t=0.00000000];n1 [t=0.00000000];n2 [t=0.00000000];n3 [t=0.00000000];n4 [t=0.00000000];n5 [t=0.00000000];n6 [t=0.09252650];n7 [t=0.09757020];n8 [t=0.11774021];n9 [t=0.19523732];n10 [t=0.42616244];n6 -> n3 [segments=1111];n6 -> n1 [segments=1111];n7 -> n6 [segments=1111];n7 -> n4 [segments=1111];n8 -> n5 [segments=1111];n8 -> n0 [segments=1111];n9 -> n7 [segments=1111];n9 -> n8 [segments=1111];n10 -> n9 [segments=1111];n10 -> n2 [segments=1111];}",
+   "log_p_waiting_time": 6.271000250199191,
+   "log_p_topology": -9.656033515930176
+  },
+  {
+   "dot": "digraph G {n0 [t=0.00000000];n1 [t=0.00000000];n2 [t=0.00000000];n3 [t=0.00000000];n4 [t=0.00000000];n5 [t=0.00000000];n6 [t=0.09239078];n7 [t=0.10744984];n8 [t=0.23849497];n9 [t=0.28796686];n10 [t=0.78934390];n11 [t=0.92326755];n12 [t=1.24258635];n6 -> n3 [segments=1111];n6 -> n2 [segments=1111];n7 -> n6 [segments=1111];n7 -> n0 [segments=1111];n8 -> n7 [segments=0010];n8 -> n4 [segments=0010];n9 -> n1 [segments=0101];n9 -> n4 [segments=0101];n10 -> n7 [segments=1101];n10 -> n1 [segments=1000];n10 -> n9 [segments=0101];n11 -> n10 [segments=1101];n11 -> n5 [segments=1111];n11 -> n1 [segments=0010];n12 -> n11 [segments=1010];n12 -> n4 [segments=1000];n12 -> n8 [segments=0010];}",
+   "log_p_waiting_time": 5.315706753048319,
+   "log_p_topology": -25.950443744659424
+  },
+  {
+   "dot": "digraph G {n0 [t=0.00000000];n1 [t=0.00000000];n2 [t=0.00000000];n3 [t=0.00000000];n4 [t=0.00000000];n5 [t=0.00000000];n6 [t=0.11532345];n7 [t=0.14634802];n8 [t=0.29952642];n9 [t=0.35629821];n10 [t=0.43523650];n6 -> n2 [segments=1111];n6 -> n0 [segments=1111];n7 -> n1 [segments=1111];n7 -> n5 [segments=1111];n8 -> n7 [segments=1111];n8 -> n4 [segments=1111];n9 -> n6 [segments=1111];n9 -> n3 [segments=1111];n10 -> n9 [segments=1111];n10 -> n8 [segments=1111];}",
+   "log_p_waiting_time": 5.040814747876816,
+   "log_p_topology": -9.657632112503052
+  },
+  {
+   "dot": "digraph G {n0 [t=0.00000000];n1 [t=0.00000000];n2 [t=0.00000000];n3 [t=0.00000000];n4 [t=0.00000000];n5 [t=0.00000000];n6 [t=0.04969270];n7 [t=0.10472726];n8 [t=0.17087067];n9 [t=0.23209080];n10 [t=0.46600101];n11 [t=0.53312171];n12 [t=0.93188011];n6 -> n3 [segments=1111];n6 -> n4 [segments=1111];n7 -> n2 [segments=1001];n7 -> n1 [segments=1001];n8 -> n2 [segments=0110];n8 -> n1 [segments=0110];n9 -> n0 [segments=1111];n9 -> n7 [segments=1001];n9 -> n8 [segments=0110];n10 -> n5 [segments=1001];n10 -> n6 [segments=1001];n11 -> n6 [segments=0110];n11 -> n5 [segments=0110];n12 -> n9 [segments=1111];n12 -> n10 [segments=1001];n12 -> n11 [segments=0110];}",
+   "log_p_waiting_time": 8.004131926730258,
+   "log_p_topology": -30.661044597625732
+  },
+  {
+   "dot": "digraph G {n0 [t=0.00000000];n1 [t=0.00000000];n2 [t=0.00000000];n3 [t=0.00000000];n4 [t=0.00000000];n5 [t=0.00000000];n6 [t=0.10484301];n7 [t=0.36683690];n8 [t=0.54899481];n9 [t=0.79495681];n10 [t=1.04219015];n6 -> n3 [segments=1111];n6 -> n1 [segments=1111];n7 -> n6 [segments=1111];n7 -> n0 [segments=1111];n8 -> n7 [segments=1111];n8 -> n2 [segments=1111];n9 -> n4 [segments=1111];n9 -> n5 [segments=1111];n10 -> n9 [segments=1111];n10 -> n8 [segments=1111];}",
+   "log_p_waiting_time": 1.7193324499342286,
+   "log_p_topology": -9.747420907020569
+  },
+  {
+   "dot": "digraph G {n0 [t=0.00000000];n1 [t=0.00000000];n2 [t=0.00000000];n3 [t=0.00000000];n4 [t=0.00000000];n5 [t=0.00000000];n6 [t=0.04242399];n7 [t=0.10890734];n8 [t=0.41239767];n9 [t=0.68748280];n10 [t=0.95850822];n11 [t=1.61348113];n6 -> n5 [segments=1111];n6 -> n4 [segments=1111];n7 -> n6 [segments=1111];n7 -> n1 [segments=1111];n8 -> n3 [segments=1111];n8 -> n7 [segments=1111];n9 -> n8 [segments=0110];n9 -> n0 [segments=0110];n10 -> n0 [segments=1001];n10 -> n2 [segments=1001];n11 -> n8 [segments=1001];n11 -> n10 [segments=1001];n11 -> n9 [segments=0110];n11 -> n2 [segments=0110];}",
+   "log_p_waiting_time": 3.616693125840175,
+   "log_p_topology": -18.548095732927322
+  },
+  {
+   "dot": "digraph G {n0 [t=0.00000000];n1 [t=0.00000000];n2 [t=0.00000000];n3 [t=0.00000000];n4 [t=0.00000000];n5 [t=0.00000000];n6 [t=0.00700905];n7 [t=0.13571568];n8 [t=0.43517351];n9 [t=0.43986341];n10 [t=0.65919017];n6 -> n0 [segments=1111];n6 -> n1 [segments=1111];n7 -> n6 [segments=1111];n7 -> n3 [segments=1111];n8 -> n4 [segments=1111];n8 -> n2 [segments=1111];n9 -> n5 [segments=1111];n9 -> n7 [segments=1111];n10 -> n8 [segments=1111];n10 -> n9 [segments=1111];}",
+   "log_p_waiting_time": 4.712992296121415,
+   "log_p_topology": -9.658838987350464
+  },
+  {
+   "dot": "digraph G {n0 [t=0.00000000];n1 [t=0.00000000];n2 [t=0.00000000];n3 [t=0.00000000];n4 [t=0.00000000];n5 [t=0.00000000];n6 [t=0.03254795];n7 [t=0.25610063];n8 [t=0.31729381];n9 [t=0.80668774];n10 [t=1.36364284];n11 [t=2.04465344];n6 -> n1 [segments=1111];n6 -> n5 [segments=1111];n7 -> n6 [segments=1111];n7 -> n3 [segments=1111];n8 -> n0 [segments=1111];n8 -> n7 [segments=1111];n9 -> n4 [segments=1111];n9 -> n8 [segments=1111];n10 -> n2 [segments=0100];n10 -> n9 [segments=0100];n11 -> n2 [segments=1011];n11 -> n9 [segments=1011];}",
+   "log_p_waiting_time": 2.1560480644618933,
+   "log_p_topology": -12.785731732845306
+  },
+  {
+   "dot": "digraph G {n0 [t=0.00000000];n1 [t=0.00000000];n2 [t=0.00000000];n3 [t=0.00000000];n4 [t=0.00000000];n5 [t=0.00000000];n6 [t=0.00391968];n7 [t=0.11287842];n8 [t=0.73651431];n9 [t=1.04577398];n10 [t=2.22338159];n11 [t=2.26405805];n6 -> n2 [segments=1111];n6 -> n5 [segments=1111];n7 -> n6 [segments=1111];n7 -> n4 [segments=1111];n8 -> n3 [segments=1111];n8 -> n7 [segments=1111];n9 -> n0 [segments=0011];n9 -> n8 [segments=0011];n10 -> n0 [segments=1100];n10 -> n1 [segments=1100];n11 -> n9 [segments=0011];n11 -> n1 [segments=0011];n11 -> n8 [segments=1100];n11 -> n10 [segments=1100];}",
+   "log_p_waiting_time": -0.692447705945706,
+   "log_p_topology": -18.599804908037186
+  },
+  {
+   "dot": "digraph G {n0 [t=0.00000000];n1 [t=0.00000000];n2 [t=0.00000000];n3 [t=0.00000000];n4 [t=0.00000000];n5 [t=0.00000000];n6 [t=0.00000000];n7 [t=0.00000000];n8 [t=0.00000000];n9 [t=0.00000000];n10 [t=0.00000000];n11 [t=0.00000000];n12 [t=0.00384316];n13 [t=0.00695613];n14 [t=0.03103518];n15 [t=0.03879230];n16 [t=0.03919612];n17 [t=0.11440511];n18 [t=0.14397610];n19 [t=0.16444543];n20 [t=0.21392770];n21 [t=0.27593656];n22 [t=0.30278296];n23 [t=0.31568451];n24 [t=0.44795912];n25 [t=0.71886340];n26 [t=1.13905749];n12 -> n8 [segments=11111];n12 -> n10 [segments=11111];n13 -> n1 [segments=11111];n13 -> n3 [segments=11111];n14 -> n5 [segments=11111];n14 -> n13 [segments=11111];n15 -> n7 [segments=11111];n15 -> n4 [segments=11111];n16 -> n9 [segments=11111];n16 -> n15 [segments=11111];n17 -> n14 [segments=00010];n17 -> n2 [segments=00010];n18 -> n11 [segments=11111];n18 -> n16 [segments=11111];n19 -> n18 [segments=11101];n19 -> n14 [segments=11101];n20 -> n6 [segments=11111];n20 -> n19 [segments=11101];n20 -> n18 [segments=00010];n21 -> n0 [segments=10010];n21 -> n2 [segments=10000];n21 -> n17 [segments=00010];n22 -> n21 [segments=10010];n22 -> n12 [segments=11111];n22 -> n0 [segments=01101];n23 -> n2 [segments=01001];n23 -> n22 [segments=01001];n24 -> n20 [segments=00100];n24 -> n2 [segments=00100];n25 -> n20 [segments=11001];n25 -> n22 [segments=10100];n25 -> n23 [segments=01001];n25 -> n24 [segments=00100];n26 -> n20 [segments=00010];n26 -> n22 [segments=00010];}",
+   "log_p_waiting_time": 29.800663215429587,
+   "log_p_topology": -67.37997496128082
+  },
+  {
+   "dot": "digraph G {n0 [t=0.00000000];n1 [t=0.00000000];n2 [t=0.00000000];n3 [t=0.00000000];n4 [t=0.00000000];n5 [t=0.00000000];n6 [t=0.00000000];n7 [t=0.00000000];n8 [t=0.00000000];n9 [t=0.00000000];n10 [t=0.00000000];n11 [t=0.00000000];n12 [t=0.01644496];n13 [t=0.02999936];n14 [t=0.03636334];n15 [t=0.04204360];n16 [t=0.06381478];n17 [t=0.06728765];n18 [t=0.08437453];n19 [t=0.12668598];n20 [t=0.16744563];n21 [t=0.38853731];n22 [t=0.47817217];n23 [t=0.95532461];n24 [t=1.51652420];n12 -> n7 [segments=11111];n12 -> n6 [segments=11111];n13 -> n8 [segments=11111];n13 -> n3 [segments=11111];n14 -> n11 [segments=11111];n14 -> n1 [segments=11111];n15 -> n5 [segments=11111];n15 -> n4 [segments=11111];n16 -> n10 [segments=11111];n16 -> n2 [segments=11111];n17 -> n14 [segments=11111];n17 -> n0 [segments=11111];n18 -> n16 [segments=11111];n18 -> n17 [segments=11111];n19 -> n13 [segments=11111];n19 -> n15 [segments=11111];n20 -> n18 [segments=11111];n20 -> n9 [segments=11111];n21 -> n19 [segments=00010];n21 -> n12 [segments=00010];n22 -> n12 [segments=01101];n22 -> n19 [segments=01101];n23 -> n19 [segments=10000];n23 -> n20 [segments=10000];n24 -> n21 [segments=00010];n24 -> n20 [segments=01111];n24 -> n12 [segments=10000];n24 -> n23 [segments=10000];n24 -> n22 [segments=01101];}",
+   "log_p_waiting_time": 25.50878448721244,
+   "log_p_topology": -47.097933769226074
+  },
+  {
+   "dot": "digraph G {n0 [t=0.00000000];n1 [t=0.00000000];n2 [t=0.00000000];n3 [t=0.00000000];n4 [t=0.00000000];n5 [t=0.00000000];n6 [t=0.00000000];n7 [t=0.00000000];n8 [t=0.00000000];n9 [t=0.00000000];n10 [t=0.00000000];n11 [t=0.00000000];n12 [t=0.00547552];n13 [t=0.01873846];n14 [t=0.08109347];n15 [t=0.14782413];n16 [t=0.20051638];n17 [t=0.27708973];n18 [t=0.28002334];n19 [t=0.33966818];n20 [t=0.34845885];n21 [t=0.40259866];n22 [t=0.60560512];n23 [t=0.76701622];n24 [t=1.29549598];n25 [t=1.88890159];n12 -> n5 [segments=11111];n12 -> n7 [segments=11111];n13 -> n3 [segments=11111];n13 -> n2 [segments=11111];n14 -> n1 [segments=11111];n14 -> n8 [segments=11111];n15 -> n4 [segments=11111];n15 -> n13 [segments=11111];n16 -> n6 [segments=11111];n16 -> n11 [segments=11111];n17 -> n15 [segments=01000];n17 -> n9 [segments=01000];n18 -> n10 [segments=10011];n18 -> n15 [segments=10011];n19 -> n0 [segments=11111];n19 -> n12 [segments=11111];n20 -> n18 [segments=10011];n20 -> n9 [segments=10111];n20 -> n15 [segments=00100];n21 -> n10 [segments=01100];n21 -> n16 [segments=01100];n22 -> n19 [segments=10010];n22 -> n16 [segments=10010];n23 -> n22 [segments=10010];n23 -> n20 [segments=10111];n23 -> n21 [segments=01100];n23 -> n17 [segments=01000];n23 -> n16 [segments=00001];n24 -> n14 [segments=01101];n24 -> n19 [segments=01101];n25 -> n24 [segments=01101];n25 -> n23 [segments=11111];n25 -> n14 [segments=10010];}",
+   "log_p_waiting_time": 22.046906904376506,
+   "log_p_topology": -72.8985655605793
+  },
+  {
+   "dot": "digraph G {n0 [t=0.00000000];n1 [t=0.00000000];n2 [t=0.00000000];n3 [t=0.00000000];n4 [t=0.00000000];n5 [t=0.00000000];n6 [t=0.00000000];n7 [t=0.00000000];n8 [t=0.00000000];n9 [t=0.00000000];n10 [t=0.00000000];n11 [t=0.00000000];n12 [t=0.00890674];n13 [t=0.03324415];n14 [t=0.05637400];n15 [t=0.07632364];n16 [t=0.07671907];n17 [t=0.10006986];n18 [t=0.15460692];n19 [t=0.23862056];n20 [t=0.27328047];n21 [t=0.30154278];n22 [t=0.33105739];n23 [t=0.43999731];n24 [t=0.51491886];n25 [t=0.55329587];n26 [t=1.44778831];n12 -> n0 [segments=11111];n12 -> n2 [segments=11111];n13 -> n8 [segments=11111];n13 -> n7 [segments=11111];n14 -> n6 [segments=00010];n14 -> n13 [segments=00010];n15 -> n12 [segments=00100];n15 -> n11 [segments=00100];n16 -> n3 [segments=11111];n16 -> n5 [segments=11111];n17 -> n14 [segments=00010];n17 -> n16 [segments=11111];n17 -> n13 [segments=11101];n18 -> n12 [segments=00001];n18 -> n11 [segments=00001];n19 -> n10 [segments=11111];n19 -> n12 [segments=11010];n19 -> n15 [segments=00100];n19 -> n18 [segments=00001];n20 -> n1 [segments=01000];n20 -> n6 [segments=01000];n21 -> n9 [segments=11111];n21 -> n17 [segments=11111];n22 -> n11 [segments=11010];n22 -> n19 [segments=11010];n23 -> n6 [segments=10101];n23 -> n4 [segments=10101];n24 -> n1 [segments=10111];n24 -> n23 [segments=10101];n24 -> n20 [segments=01000];n24 -> n4 [segments=01010];n25 -> n24 [segments=11111];n25 -> n21 [segments=11111];n26 -> n25 [segments=11111];n26 -> n22 [segments=11010];n26 -> n19 [segments=00101];}",
+   "log_p_waiting_time": 31.09488850711796,
+   "log_p_topology": -83.71225932240486
+  },
+  {
+   "dot": "digraph G {n0 [t=0.00000000];n1 [t=0.00000000];n2 [t=0.00000000];n3 [t=0.00000000];n4 [t=0.00000000];n5 [t=0.00000000];n6 [t=0.00000000];n7 [t=0.00000000];n8 [t=0.00000000];n9 [t=0.00000000];n10 [t=0.00000000];n11 [t=0.00000000];n12 [t=0.01600718];n13 [t=0.01695986];n14 [t=0.14228036];n15 [t=0.14397730];n16 [t=0.15483989];n17 [t=0.18812039];n18 [t=0.26490148];n19 [t=0.35617975];n20 [t=0.42218047];n21 [t=0.44571506];n22 [t=0.49979071];n23 [t=0.80452770];n24 [t=1.27006637];n12 -> n5 [segments=11111];n12 -> n10 [segments=11111];n13 -> n0 [segments=11111];n13 -> n6 [segments=11111];n14 -> n2 [segments=01001];n14 -> n12 [segments=01001];n15 -> n1 [segments=11111];n15 -> n13 [segments=11111];n16 -> n15 [segments=11111];n16 -> n9 [segments=11111];n17 -> n16 [segments=11111];n17 -> n4 [segments=11111];n18 -> n7 [segments=10110];n18 -> n12 [segments=10110];n19 -> n11 [segments=11111];n19 -> n18 [segments=10110];n19 -> n7 [segments=01001];n20 -> n8 [segments=01111];n20 -> n17 [segments=01111];n21 -> n20 [segments=01111];n21 -> n14 [segments=01001];n21 -> n2 [segments=10110];n21 -> n17 [segments=10000];n22 -> n21 [segments=10000];n22 -> n8 [segments=10000];n23 -> n3 [segments=11111];n23 -> n19 [segments=11111];n24 -> n21 [segments=01111];n24 -> n23 [segments=11111];n24 -> n22 [segments=10000];}",
+   "log_p_waiting_time": 22.505060105623595,
+   "log_p_topology": -61.12631079554558
+  },
+  {
+   "dot": "digraph G {n0 [t=0.00000000];n1 [t=0.00000000];n2 [t=0.00000000];n3 [t=0.00000000];n4 [t=0.00000000];n5 [t=0.00000000];n6 [t=0.00000000];n7 [t=0.00000000];n8 [t=0.00000000];n9 [t=0.00000000];n10 [t=0.00000000];n11 [t=0.00000000];n12 [t=0.00135334];n13 [t=0.03553915];n14 [t=0.08038407];n15 [t=0.11140260];n16 [t=0.11142964];n17 [t=0.17700722];n18 [t=0.22605389];n19 [t=0.29361128];n20 [t=0.37582470];n21 [t=0.42985575];n22 [t=0.63912951];n23 [t=0.79019740];n24 [t=1.38685450];n25 [t=1.88377378];n12 -> n7 [segments=11111];n12 -> n0 [segments=11111];n13 -> n1 [segments=11111];n13 -> n5 [segments=11111];n14 -> n13 [segments=01101];n14 -> n8 [segments=01101];n15 -> n4 [segments=11111];n15 -> n8 [segments=10010];n15 -> n14 [segments=01101];n16 -> n2 [segments=11111];n16 -> n9 [segments=11111];n17 -> n16 [segments=11111];n17 -> n6 [segments=11111];n18 -> n10 [segments=11111];n18 -> n3 [segments=11111];n19 -> n17 [segments=10010];n19 -> n13 [segments=10010];n20 -> n17 [segments=00100];n20 -> n15 [segments=00110];n20 -> n19 [segments=00010];n21 -> n15 [segments=11001];n21 -> n19 [segments=10000];n21 -> n17 [segments=01001];n22 -> n21 [segments=11001];n22 -> n11 [segments=11111];n22 -> n20 [segments=00110];n23 -> n22 [segments=01110];n23 -> n18 [segments=01110];n24 -> n12 [segments=10001];n24 -> n18 [segments=10001];n25 -> n22 [segments=10001];n25 -> n24 [segments=10001];n25 -> n23 [segments=01110];n25 -> n12 [segments=01110];}",
+   "log_p_waiting_time": 22.565238182282357,
+   "log_p_topology": -76.41317105293274
+  },
+  {
+   "dot": "digraph G {n0 [t=0.00000000];n1 [t=0.00000000];n2 [t=0.00000000];n3 [t=0.00000000];n4 [t=0.00000000];n5 [t=0.00000000];n6 [t=0.00000000];n7 [t=0.00000000];n8 [t=0.00000000];n9 [t=0.00000000];n10 [t=0.00000000];n11 [t=0.00000000];n12 [t=0.01226601];n13 [t=0.01983687];n14 [t=0.04189862];n15 [t=0.06040001];n16 [t=0.06194330];n17 [t=0.08952245];n18 [t=0.09029345];n19 [t=0.11366386];n20 [t=0.19071049];n21 [t=0.32322521];n22 [t=0.36864083];n23 [t=0.50049736];n24 [t=0.58066291];n25 [t=1.12443148];n12 -> n2 [segments=11111];n12 -> n9 [segments=11111];n13 -> n12 [segments=11111];n13 -> n7 [segments=11111];n14 -> n10 [segments=11111];n14 -> n6 [segments=11111];n15 -> n5 [segments=11111];n15 -> n14 [segments=11111];n16 -> n13 [segments=01111];n16 -> n0 [segments=01111];n17 -> n1 [segments=01111];n17 -> n16 [segments=01111];n18 -> n4 [segments=11111];n18 -> n0 [segments=10000];n18 -> n17 [segments=01111];n19 -> n11 [segments=10000];n19 -> n13 [segments=10000];n20 -> n19 [segments=10000];n20 -> n1 [segments=10000];n21 -> n20 [segments=10000];n21 -> n3 [segments=10111];n21 -> n11 [segments=00111];n22 -> n15 [segments=11111];n22 -> n8 [segments=11111];n23 -> n21 [segments=10111];n23 -> n18 [segments=11111];n23 -> n3 [segments=01000];n24 -> n23 [segments=01000];n24 -> n11 [segments=01000];n25 -> n23 [segments=10111];n25 -> n22 [segments=11111];n25 -> n24 [segments=01000];}",
+   "log_p_waiting_time": 30.113416106933144,
+   "log_p_topology": -70.02209261059761
+  },
+  {
+   "dot": "digraph G {n0 [t=0.00000000];n1 [t=0.00000000];n2 [t=0.00000000];n3 [t=0.00000000];n4 [t=0.00000000];n5 [t=0.00000000];n6 [t=0.00000000];n7 [t=0.00000000];n8 [t=0.00000000];n9 [t=0.00000000];n10 [t=0.00000000];n11 [t=0.00000000];n12 [t=0.02683578];n13 [t=0.02787008];n14 [t=0.04246067];n15 [t=0.06775816];n16 [t=0.13325889];n17 [t=0.16705269];n18 [t=0.25855274];n19 [t=0.26407218];n20 [t=0.41690381];n21 [t=0.48112868];n22 [t=0.48940781];n23 [t=0.50371061];n24 [t=0.75325977];n25 [t=1.43045668];n12 -> n9 [segments=11111];n12 -> n6 [segments=11111];n13 -> n10 [segments=10110];n13 -> n1 [segments=10110];n14 -> n3 [segments=11111];n14 -> n5 [segments=11111];n15 -> n4 [segments=11111];n15 -> n2 [segments=11111];n16 -> n13 [segments=10110];n16 -> n0 [segments=11111];n16 -> n1 [segments=01001];n17 -> n14 [segments=11111];n17 -> n11 [segments=11111];n18 -> n7 [segments=11111];n18 -> n16 [segments=11111];n19 -> n17 [segments=11111];n19 -> n15 [segments=11111];n20 -> n12 [segments=01001];n20 -> n10 [segments=01001];n21 -> n12 [segments=10010];n21 -> n8 [segments=10010];n22 -> n8 [segments=01101];n22 -> n19 [segments=01101];n23 -> n22 [segments=01101];n23 -> n18 [segments=11111];n23 -> n19 [segments=10010];n24 -> n20 [segments=01001];n24 -> n23 [segments=01101];n24 -> n12 [segments=00100];n25 -> n23 [segments=10010];n25 -> n21 [segments=10010];}",
+   "log_p_waiting_time": 24.219520054100773,
+   "log_p_topology": -64.56680935621262
+  },
+  {
+   "dot": "digraph G {n0 [t=0.00000000];n1 [t=0.00000000];n2 [t=0.00000000];n3 [t=0.00000000];n4 [t=0.00000000];n5 [t=0.00000000];n6 [t=0.00000000];n7 [t=0.00000000];n8 [t=0.00000000];n9 [t=0.00000000];n10 [t=0.00000000];n11 [t=0.00000000];n12 [t=0.00702949];n13 [t=0.04077368];n14 [t=0.05266326];n15 [t=0.05894763];n16 [t=0.07310402];n17 [t=0.16351108];n18 [t=0.23773571];n19 [t=0.24090887];n20 [t=0.25792768];n21 [t=0.30043052];n22 [t=0.31414468];n23 [t=0.47753516];n12 -> n1 [segments=11111];n12 -> n5 [segments=11111];n13 -> n3 [segments=11111];n13 -> n8 [segments=11111];n14 -> n13 [segments=11111];n14 -> n12 [segments=11111];n15 -> n7 [segments=11111];n15 -> n4 [segments=11111];n16 -> n2 [segments=11111];n16 -> n0 [segments=11111];n17 -> n9 [segments=10111];n17 -> n15 [segments=10111];n18 -> n16 [segments=11111];n18 -> n10 [segments=11111];n19 -> n14 [segments=11111];n19 -> n11 [segments=11111];n20 -> n19 [segments=11111];n20 -> n6 [segments=11111];n21 -> n18 [segments=01000];n21 -> n9 [segments=01000];n22 -> n17 [segments=10111];n22 -> n18 [segments=10111];n22 -> n15 [segments=01000];n22 -> n21 [segments=01000];n23 -> n22 [segments=11111];n23 -> n20 [segments=11111];}",
+   "log_p_waiting_time": 25.691522506596172,
+   "log_p_topology": -43.71370726823807
+  },
+  {
+   "dot": "digraph G {n0 [t=0.00000000];n1 [t=0.00000000];n2 [t=0.00000000];n3 [t=0.00000000];n4 [t=0.00000000];n5 [t=0.00000000];n6 [t=0.00000000];n7 [t=0.00000000];n8 [t=0.00000000];n9 [t=0.00000000];n10 [t=0.00000000];n11 [t=0.00000000];n12 [t=0.00388799];n13 [t=0.03809386];n14 [t=0.05122667];n15 [t=0.05329335];n16 [t=0.09566164];n17 [t=0.17074615];n18 [t=0.17661908];n19 [t=0.19338437];n20 [t=0.20787782];n21 [t=0.21847531];n22 [t=0.24842601];n23 [t=0.66075012];n24 [t=1.28940297];n25 [t=1.90013748];n26 [t=2.08986268];n27 [t=3.14282695];n28 [t=4.78119397];n12 -> n4 [segments=11111];n12 -> n7 [segments=11111];n13 -> n11 [segments=11111];n13 -> n3 [segments=11111];n14 -> n5 [segments=11111];n14 -> n10 [segments=11111];n15 -> n9 [segments=11111];n15 -> n8 [segments=11111];n16 -> n14 [segments=11010];n16 -> n0 [segments=11010];n17 -> n15 [segments=01000];n17 -> n2 [segments=01000];n18 -> n6 [segments=11111];n18 -> n13 [segments=11111];n19 -> n15 [segments=10111];n19 -> n18 [segments=10111];n20 -> n1 [segments=00101];n20 -> n0 [segments=00101];n21 -> n17 [segments=01000];n21 -> n12 [segments=11111];n21 -> n2 [segments=10111];n22 -> n19 [segments=10111];n22 -> n16 [segments=11010];n22 -> n14 [segments=00101];n22 -> n18 [segments=01000];n23 -> n20 [segments=00101];n23 -> n22 [segments=00101];n24 -> n21 [segments=11010];n24 -> n1 [segments=11010];n25 -> n24 [segments=01000];n25 -> n22 [segments=01000];n26 -> n22 [segments=10010];n26 -> n24 [segments=10010];n27 -> n23 [segments=00001];n27 -> n21 [segments=00001];n28 -> n23 [segments=00100];n28 -> n21 [segments=00100];}",
+   "log_p_waiting_time": 23.99934101918039,
+   "log_p_topology": -82.48117816448212
+  }
+ ]
+}

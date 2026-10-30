@@ -156,6 +156,7 @@ in only ~0.02% of exact events, but the model generates such topologies ~20× to
 | `waiting_time/` | lineage-count model (`lineages.py`) and the gamma-per-$k$ baseline (`gamma.py`) |
 | `topology/` | v4 pairwise urn and v5 two-lineage model, each with its trainer |
 | `generate.py` | sampling complete networks from a waiting-time and a topology model |
+| `density.py` | log-density of complete networks; writes the fixture for the Java test |
 | `tests/` | unit tests |
 
 **Install.** `pip install -e .` in this directory installs the package as `prior_learning` with its
@@ -176,8 +177,9 @@ The trainers and the waiting-time fit also accept CoalRe `.trees` files, with `-
 `--valid-frac` split. `generate` dispatches on the `family` field of the topology JSON. Tests:
 `python -m unittest discover -s prior_learning/tests -t .`
 
-**Java.** `LearnedReducedNetworkPrior` (`src/rephyner/distribution/`) implements an *older* topology model. The
-port is on hold until the Python model is settled; the mismatches are listed in the appendix.
+**Java.** `LearnedReducedNetworkPrior` (`src/rephyner/distribution/`) evaluates the waiting-time model
+and the v4 pairwise urn from their JSON files (`waitingTimeModel`, `topologyModel`): fit the models
+first, then run BEAST. See the appendix.
 
 ## 5. Current performance
 
@@ -256,41 +258,25 @@ network; ~48 events per network)
   Alternatively, correct the remaining bias by reweighting posterior samples (approach E in
   `3_prior.md`).
 * **Before production use:** dependence on $\rho N_e$ (amortisation or a fit per value),
-  heterochronous sampling (survival terms in the waiting time), and the Java port.
+  heterochronous sampling (survival terms in the waiting time), and a Java port of the two-lineage
+  model.
 
-## Appendix: Python ↔ Java mismatches (`LearnedReducedNetworkPrior`)
+## Appendix: Java port (`LearnedReducedNetworkPrior`)
 
-Status 2026-10-20. Java integration is on hold until the Python prior approximation is coherent.
-The Python reference is `topology/pairwise_urn.py` (topology) and the gamma-per-$k$ waiting-time
-model (since replaced by `waiting_time/lineages.py`; only its fit remains, as a baseline in
-`waiting_time/gamma.py`). Everything below refers to
-`src/rephyner/distribution/LearnedReducedNetworkPrior.java` as of commit `b43296a`
-(plus uncommitted changes).
+`src/rephyner/distribution/LearnedReducedNetworkPrior.java` ports the waiting-time model
+(`waiting_time/lineages.py`) and the v4 pairwise urn (`topology/pairwise_urn.py`). It reads the two
+JSON files written by the trainers (it checks `family` and `version`) and does not call Python. Its
+open-node bookkeeping follows `rarg/reduced_network.py`: waiting times are measured from the previous
+event or sample, and segments carried by a single open node are closed after every event.
 
-### Topology (`logPTopology`)
+`LearnedReducedNetworkPriorTest` compares it with `density.py` on a fixture in
+`test/rephyner/distribution/learnedprior/` (30 simulated networks, 6×4 and 12×5, small models fitted on
+5000 networks of 6×4). The two agree to ~1e-5 nats per network (float32 in JAX). After changing a
+model or the density, regenerate the fixture:
 
-1. **Spline knots.** Java uses knots `linspace(3, 42, n)` and clips k to [3, 42]. Python now uses
-   knots `linspace(k_min, k_max, n)` with `k_range = [k_min, k_max]` stored in the model JSON
-   (derived from the training data). Java must read `k_range`.
-2. **Pair probability.** Java draws the first child with weight `p(1-p)` and the second with weight
-   `p` (and scores the ordered pair in edge order). The reference is the unordered pair probability
-   `P({a,b}) = c_a c_b / Z` with `Z = ((Σc)² - Σc²) / 2`, summed over nodes carrying the segment.
-3. **Presence / p_all.** Java adds `log p_all` or `log(1 - p_all)` and then always runs the presence
-   urn over all eligible segments. The reference is the mixture
-   `log[p_all·1(all coalesce) + (1 - p_all)·P_urn(pattern)] - log[1 - (1 - p_all)·P_urn(none)]`
-   with `P_urn(none) = Π_{i<m} (1 - β + i)/(1 + i)` for m eligible segments.
-4. **Model format.** The topology JSON is now `{"version": 3, "family": "pairwise_urn", "k_range", ...}`.
-   Java reads `alpha`/`beta`/`p_all` without checking the version.
+```bash
+python -m prior_learning.density fixture.trees --waitModel waiting_time.json --childModel topology.json --out fixture.json
+```
 
-### Waiting times (`logPWaitingTime`)
-
-5. **Untrained k.** Java fills k values missing from `waiting_time.json` with Gamma(shape=1, scale=1).
-   The Python generator uses the nearest trained k instead.
-6. **Censoring.** Neither side includes a survival term for intervals that end in a sample event
-   (heterochronous tips), and the Python fit ignores the censoring too.
-
-### Already consistent
-
-- Waiting times are measured from the previous event or sample (Python fixed in `reduced_network.py`).
-- The urn reinforcement weight `scale_weights(#carriers, 1, k)` with k = number of open nodes.
-- Segments carried by a single open node are closed (segment root) after every event.
+Not handled on either side: censoring of intervals that end in a sample (heterochronous tips), and
+the dependence on $\rho N_e$ (each fit is for one value). The v5 two-lineage model is not ported.
